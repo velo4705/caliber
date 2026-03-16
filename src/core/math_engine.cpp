@@ -19,6 +19,10 @@ QString MathEngine::evaluate(const QString& expression) {
     }
 }
 
+void MathEngine::setAngleMode(ParserAngleMode mode) {
+    m_angleMode = mode;
+    m_parser.setAngleMode(mode);
+}
 QString MathEngine::formatResult(double value) const {
     // Show integer values without decimal point
     if (std::isnan(value))  return "Not a number";
