@@ -24,12 +24,13 @@ private:
     size_t          m_pos;
     ParserAngleMode m_angleMode;
 
-    double parseExpression();   // handles + and -
-    double parseTerm();         // handles * and /
-    double parsePower();        // handles ^
-    double parseUnary();        // handles unary minus
+    double parseExpression();        // handles + and -
+    double parseTerm();              // handles * and /
+    double parsePower();             // handles ^ (base only, no unary)
+    double parseUnary();             // handles unary minus wrapping power
+    double parsePrimaryOrUnary();    // primary without unary (used in parsePower)
     double parsePostfix(double val); // handles n! factorial
-    double parsePrimary();      // handles numbers, functions, constants, parentheses
+    double parsePrimary();           // handles numbers, functions, constants, parentheses
 
     double callFunction(const std::string& name, double arg);
     double toRadians(double val) const;

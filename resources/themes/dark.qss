@@ -142,11 +142,10 @@ QPushButton[class="clearButton"]:pressed { background: #4e2020; }
     background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
         stop:0 #12122a, stop:1 #0f0f1a);
     border-left: 1px solid #1e1e3a;
-    min-width: 200px;
-    max-width: 200px;
 }
 
 #historyPanel QLabel {
+    background: transparent;
     color: #7986cb;
     font-weight: bold;
     font-size: 13px;

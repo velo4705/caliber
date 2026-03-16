@@ -2,5 +2,11 @@
   <qresource prefix="/">
     <file>themes/light.qss</file>
     <file>themes/dark.qss</file>
+    <file>themes/midnight.qss</file>
+    <file>themes/dracula.qss</file>
+    <file>themes/nord.qss</file>
+    <file>themes/monokai.qss</file>
+    <file>themes/solarized.qss</file>
+    <file>icons/caliber.svg</file>
   </qresource>
 </RCC>

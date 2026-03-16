@@ -34,13 +34,13 @@ double ExpressionParser::parseExpression() {
     return left;
 }
 
-// term := power (('*' | '/' | '%') power)*
+// term := unary (('*' | '/' | '%') unary)*
 double ExpressionParser::parseTerm() {
-    double left = parsePower();
+    double left = parseUnary();
     skipWhitespace();
     while (!isEnd() && (current() == '*' || current() == '/' || current() == '%')) {
         char op = consume();
-        double right = parsePower();
+        double right = parseUnary();
         if ((op == '/' || op == '%') && right == 0.0)
             throw std::runtime_error("Division by zero");
         if (op == '*') left = left * right;
@@ -51,13 +51,29 @@ double ExpressionParser::parseTerm() {
     return left;
 }
 
-// power := postfix ('^' unary)*  (right-associative)
+// unary := '-' power | '+' power | power
+// Unary minus wraps the ENTIRE power so -x^2 = -(x^2), not (-x)^2
+double ExpressionParser::parseUnary() {
+    skipWhitespace();
+    if (!isEnd() && current() == '-') {
+        consume();
+        return -parsePower();
+    }
+    if (!isEnd() && current() == '+') {
+        consume();
+        return parsePower();
+    }
+    return parsePower();
+}
+
+// power := postfix ('^' unary)*  right-associative
+// Base is parsed as primary (no unary) so -x^2 at term level goes through parseUnary first
 double ExpressionParser::parsePower() {
-    double base = parsePostfix(parseUnary());
+    double base = parsePostfix(parsePrimary());
     skipWhitespace();
     if (!isEnd() && current() == '^') {
         consume();
-        double exp = parsePower();
+        double exp = parseUnary();  // right side can have unary: x^-2
         return std::pow(base, exp);
     }
     return base;
@@ -73,17 +89,8 @@ double ExpressionParser::parsePostfix(double val) {
     return val;
 }
 
-// unary := '-' unary | primary
-double ExpressionParser::parseUnary() {
-    skipWhitespace();
-    if (!isEnd() && current() == '-') {
-        consume();
-        return -parseUnary();
-    }
-    if (!isEnd() && current() == '+') {
-        consume();
-        return parseUnary();
-    }
+// parsePrimaryOrUnary: unused, kept for compat
+double ExpressionParser::parsePrimaryOrUnary() {
     return parsePrimary();
 }
 

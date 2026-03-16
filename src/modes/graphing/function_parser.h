@@ -2,15 +2,15 @@
 #include <QString>
 #include "core/expression_parser.h"
 
-// Thin wrapper around ExpressionParser that substitutes 'x' with a value
-// before evaluating, enabling f(x) style function plotting.
 class FunctionParser {
 public:
     FunctionParser();
 
-    // Evaluate f(x) for a given x value
-    // Throws std::runtime_error on parse error
+    // 2D: evaluate f(x)
     double evaluate(const QString& expression, double x);
+
+    // 3D: evaluate f(x, y)
+    double evaluate(const QString& expression, double x, double y);
 
     bool isValid(const QString& expression) const;
 

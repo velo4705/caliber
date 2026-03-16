@@ -11,8 +11,10 @@
 #include "modes/graphing/graphing_widget.h"
 
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QWidget>
 #include <QFile>
+#include <QIcon>
 #include <QApplication>
 #include <QMenuBar>
 #include <QMenu>
@@ -23,8 +25,13 @@
 #include <QStyleHints>
 #include <QKeyEvent>
 #include <QCloseEvent>
+#include <QResizeEvent>
+#include <QToolButton>
+#include <QToolBar>
 #include <QShortcut>
 #include <QKeySequence>
+#include <QFileDialog>
+#include <QDir>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -37,9 +44,9 @@ MainWindow::MainWindow(QWidget* parent)
     restoreSettings();
 
     setWindowTitle("Caliber");
-    setMinimumSize(720, 540);
+    setMinimumSize(800, 560);
+    setWindowIcon(QIcon(":/icons/caliber.svg"));
 
-    // System theme change signal (Qt6.5+)
     connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged,
             this, &MainWindow::onSystemThemeChanged);
 }
@@ -50,14 +57,12 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::buildUI() {
-    auto* central = new QWidget(this);
-    auto* root    = new QHBoxLayout(central);
-    root->setContentsMargins(0, 0, 0, 0);
-    root->setSpacing(0);
-
+    m_central      = new QWidget(this);
     m_sidebar      = new ModeSidebar(this);
     m_stack        = new QStackedWidget(this);
-    m_historyPanel = new HistoryPanel(this);
+
+    // History panel is parented to m_central so it overlays the content area
+    m_historyPanel = new HistoryPanel(m_central);
 
     m_stack->addWidget(new BasicWidget      (m_engine, m_history, m_historyPanel, this)); // 0
     m_stack->addWidget(new ScientificWidget (m_engine, m_history, m_historyPanel, this)); // 1
@@ -67,50 +72,124 @@ void MainWindow::buildUI() {
     m_stack->addWidget(new EquationsWidget  (this));                                       // 5
     m_stack->addWidget(new GraphingWidget   (this));                                       // 6
 
-    root->addWidget(m_sidebar);
-    root->addWidget(m_stack, 1);
-    root->addWidget(m_historyPanel);
-    setCentralWidget(central);
+    // ── Toolbar with history toggle button ────────────────────────────────────
+    auto* toolbar = addToolBar("Main");
+    toolbar->setObjectName("mainToolbar");
+    toolbar->setMovable(false);
+    toolbar->setFloatable(false);
+    toolbar->setIconSize(QSize(18, 18));
+
+    // Spacer to push button to the right
+    auto* spacer = new QWidget(toolbar);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    toolbar->addWidget(spacer);
+
+    m_historyBtn = new QToolButton(toolbar);
+    m_historyBtn->setText("History  ⏱");
+    m_historyBtn->setCheckable(true);
+    m_historyBtn->setChecked(false);
+    m_historyBtn->setToolTip("Toggle history panel  (Ctrl+H)");
+    m_historyBtn->setObjectName("historyToggleBtn");
+    m_historyBtn->setFocusPolicy(Qt::NoFocus);
+    toolbar->addWidget(m_historyBtn);
+
+    setCentralWidget(m_central);
+    applyLayout(false);
 
     connect(m_sidebar, &ModeSidebar::modeChanged, this, &MainWindow::onModeChanged);
+    connect(m_historyBtn, &QToolButton::toggled, this, [this](bool checked) {
+        if (checked != m_historyPanel->isDrawerOpen())
+            m_historyPanel->toggleDrawer();
+    });
+
+    // When history drawer toggles, shrink 3D container so it doesn't overlap
+    connect(m_historyPanel, &HistoryPanel::drawerToggled, this, [this](bool open) {
+        auto* gw = qobject_cast<GraphingWidget*>(m_stack->widget(6));
+        if (gw) gw->adjustFor3DOverlap(open, 240);
+    });
 }
 
-void MainWindow::setupMenuBar() {
-    // ── View menu ─────────────────────────────────────────────────────────────
-    auto* viewMenu = menuBar()->addMenu("&View");
+void MainWindow::applyLayout(bool portrait) {
+    if (m_rootLayout) {
+        while (m_rootLayout->count())
+            m_rootLayout->takeAt(0);
+        delete m_rootLayout;
+        m_rootLayout = nullptr;
+    }
 
-    // Theme submenu
+    if (portrait) {
+        m_sidebar->setOrientation(SidebarOrientation::Horizontal);
+        auto* vl = new QVBoxLayout(m_central);
+        vl->setContentsMargins(0, 0, 0, 0);
+        vl->setSpacing(0);
+        vl->addWidget(m_stack, 1);
+        vl->addWidget(m_sidebar);
+        m_rootLayout = vl;
+    } else {
+        m_sidebar->setOrientation(SidebarOrientation::Vertical);
+        auto* hl = new QHBoxLayout(m_central);
+        hl->setContentsMargins(0, 0, 0, 0);
+        hl->setSpacing(0);
+        hl->addWidget(m_sidebar);
+        hl->addWidget(m_stack, 1);
+        m_rootLayout = hl;
+    }
+
+    m_central->setLayout(m_rootLayout);
+}
+
+void MainWindow::resizeEvent(QResizeEvent* event) {
+    QMainWindow::resizeEvent(event);
+
+    bool portrait    = (event->size().height() > event->size().width());
+    bool wasPortrait = (m_sidebar->orientation() == SidebarOrientation::Horizontal);
+    if (portrait != wasPortrait)
+        applyLayout(portrait);
+
+    // Keep overlay panel correctly positioned after any resize
+    if (m_historyPanel)
+        m_historyPanel->repositionToParent();
+}
+
+// ── Menu bar ──────────────────────────────────────────────────────────────────
+
+void MainWindow::setupMenuBar() {
+    auto* viewMenu  = menuBar()->addMenu("&View");
     auto* themeMenu = viewMenu->addMenu("Theme");
     m_themeGroup = new QActionGroup(this);
     m_themeGroup->setExclusive(true);
 
-    auto addTheme = [&](const QString& label, ThemeMode mode, const QString& shortcut) {
-        auto* a = themeMenu->addAction(label);
-        a->setCheckable(true);
-        a->setShortcut(QKeySequence(shortcut));
-        m_themeGroup->addAction(a);
-        connect(a, &QAction::triggered, this, [this, mode]{ setThemeMode(mode); });
-        return a;
+    struct ThemeDef { QString label; ThemeMode mode; QString shortcut; };
+    const QList<ThemeDef> themes = {
+        { "Follow System",  ThemeMode::System,    "Ctrl+Shift+S" },
+        { "Light",          ThemeMode::Light,     "Ctrl+Shift+L" },
+        { "Dark",           ThemeMode::Dark,      "Ctrl+Shift+D" },
+        { "Midnight Blue",  ThemeMode::Midnight,  ""             },
+        { "Dracula",        ThemeMode::Dracula,   ""             },
+        { "Nord",           ThemeMode::Nord,      ""             },
+        { "Monokai",        ThemeMode::Monokai,   ""             },
+        { "Solarized Dark", ThemeMode::Solarized, ""             },
     };
 
-    addTheme("Follow System", ThemeMode::System, "Ctrl+Shift+S")->setChecked(true);
-    addTheme("Light",         ThemeMode::Light,  "Ctrl+Shift+L");
-    addTheme("Dark",          ThemeMode::Dark,   "Ctrl+Shift+D");
+    for (const auto& t : themes) {
+        auto* a = themeMenu->addAction(t.label);
+        a->setCheckable(true);
+        if (!t.shortcut.isEmpty()) a->setShortcut(QKeySequence(t.shortcut));
+        m_themeGroup->addAction(a);
+        connect(a, &QAction::triggered, this, [this, mode=t.mode]{ setThemeMode(mode); });
+    }
+
+    themeMenu->addSeparator();
+    auto* customAction = themeMenu->addAction("Load Custom Theme (.qss)...");
+    connect(customAction, &QAction::triggered, this, &MainWindow::loadCustomTheme);
 
     viewMenu->addSeparator();
-
-    // History panel toggle
-    auto* histAction = viewMenu->addAction("Toggle History Panel");
+    auto* histAction = viewMenu->addAction("Toggle History");
     histAction->setShortcut(QKeySequence("Ctrl+H"));
-    histAction->setCheckable(true);
-    histAction->setChecked(true);
-    connect(histAction, &QAction::triggered, this, [this](bool checked){
-        m_historyPanel->setVisible(checked);
+    connect(histAction, &QAction::triggered, this, [this]{
+        m_historyBtn->toggle();
     });
 
-    viewMenu->addSeparator();
-
-    // Mode shortcuts
     auto* modeMenu = menuBar()->addMenu("&Mode");
     const QStringList modeNames = {
         "Basic", "Scientific", "Programming",
@@ -140,15 +219,44 @@ void MainWindow::onSystemThemeChanged() {
 }
 
 void MainWindow::applyTheme() {
-    bool dark = false;
-    switch (m_themeMode) {
-    case ThemeMode::Dark:   dark = true;  break;
-    case ThemeMode::Light:  dark = false; break;
-    case ThemeMode::System:
-        dark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
-        break;
+    static const QMap<ThemeMode, QString> builtins = {
+        { ThemeMode::Light,     ":/themes/light.qss"     },
+        { ThemeMode::Dark,      ":/themes/dark.qss"      },
+        { ThemeMode::Midnight,  ":/themes/midnight.qss"  },
+        { ThemeMode::Dracula,   ":/themes/dracula.qss"   },
+        { ThemeMode::Nord,      ":/themes/nord.qss"      },
+        { ThemeMode::Monokai,   ":/themes/monokai.qss"   },
+        { ThemeMode::Solarized, ":/themes/solarized.qss" },
+    };
+
+    if (m_themeMode == ThemeMode::Custom && !m_customThemePath.isEmpty()) {
+        QFile f(m_customThemePath);
+        if (f.open(QFile::ReadOnly | QFile::Text)) {
+            qApp->setStyleSheet(QString::fromUtf8(f.readAll()));
+            return;
+        }
     }
-    loadTheme(dark ? ":/themes/dark.qss" : ":/themes/light.qss");
+
+    if (m_themeMode == ThemeMode::System) {
+        bool dark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+        loadTheme(dark ? ":/themes/dark.qss" : ":/themes/light.qss");
+        return;
+    }
+
+    if (builtins.contains(m_themeMode))
+        loadTheme(builtins[m_themeMode]);
+}
+
+void MainWindow::loadCustomTheme() {
+    QString path = QFileDialog::getOpenFileName(
+        this, "Load Custom Theme", QDir::homePath(), "Qt Stylesheets (*.qss)");
+    if (path.isEmpty()) return;
+    m_customThemePath = path;
+    m_themeMode = ThemeMode::Custom;
+    applyTheme();
+    saveSettings();
+    if (m_themeGroup && m_themeGroup->checkedAction())
+        m_themeGroup->checkedAction()->setChecked(false);
 }
 
 void MainWindow::loadTheme(const QString& qrcPath) {
@@ -159,24 +267,24 @@ void MainWindow::loadTheme(const QString& qrcPath) {
     }
 }
 
-// ── Settings persistence ──────────────────────────────────────────────────────
+// ── Settings ──────────────────────────────────────────────────────────────────
 
 void MainWindow::saveSettings() {
-    QSettings s("GraphCalc", "GraphCalc");
+    QSettings s("Caliber", "Caliber");
     s.setValue("window/geometry", saveGeometry());
     s.setValue("window/state",    saveState());
     s.setValue("ui/mode",         m_stack->currentIndex());
     s.setValue("ui/theme",        static_cast<int>(m_themeMode));
-    s.setValue("ui/historyVisible", m_historyPanel->isVisible());
+    s.setValue("ui/customTheme",  m_customThemePath);
 }
 
 void MainWindow::restoreSettings() {
-    QSettings s("GraphCalc", "GraphCalc");
+    QSettings s("Caliber", "Caliber");
 
     if (s.contains("window/geometry"))
         restoreGeometry(s.value("window/geometry").toByteArray());
     else
-        resize(860, 600);
+        resize(1100, 680);
 
     if (s.contains("window/state"))
         restoreState(s.value("window/state").toByteArray());
@@ -186,16 +294,13 @@ void MainWindow::restoreSettings() {
     m_sidebar->setCurrentMode(static_cast<CalcMode>(mode));
 
     m_themeMode = static_cast<ThemeMode>(s.value("ui/theme", 0).toInt());
+    m_customThemePath = s.value("ui/customTheme", "").toString();
 
-    // Sync theme menu checkmarks
     if (m_themeGroup) {
         auto actions = m_themeGroup->actions();
         int idx = static_cast<int>(m_themeMode);
         if (idx < actions.size()) actions[idx]->setChecked(true);
     }
-
-    bool histVisible = s.value("ui/historyVisible", true).toBool();
-    m_historyPanel->setVisible(histVisible);
 
     applyTheme();
 }
@@ -208,7 +313,6 @@ void MainWindow::closeEvent(QCloseEvent* event) {
 }
 
 void MainWindow::keyPressEvent(QKeyEvent* event) {
-    // Ctrl+1..7 — switch modes
     if (event->modifiers() == Qt::ControlModifier) {
         int key = event->key() - Qt::Key_1;
         if (key >= 0 && key <= 6) {
