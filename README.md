@@ -33,57 +33,109 @@ A graphical calculator built with C++ and Qt6. Covers every calculation mode you
 
 ## Installation
 
-Installations are currently made for Linux Only. Windows and MacOS are Coming Soon.
+Download the package for your platform from the [Releases](../../releases) page.
 
-### One-line install (Linux)
+| Platform | Package | Install method |
+|---|---|---|
+| Ubuntu / Debian | `caliber-1.1.0.deb` | `sudo dpkg -i caliber-1.1.0.deb` |
+| Fedora / RHEL | `caliber-1.1.0.rpm` | `sudo rpm -i caliber-1.1.0.rpm` |
+| Arch Linux | `PKGBUILD` | `makepkg -si` |
+| Any Linux | `caliber-1.1.0.tar.gz` | Extract and run |
+| Any Linux (sandboxed) | `com.caliber.app.flatpak` | `flatpak install` |
+| Windows | `Caliber-1.1.0-Windows-x64.zip` | Extract and run `caliber.exe` |
+| macOS | `Caliber-1.1.0.dmg` | Open and drag to Applications |
+
+---
+
+### Linux — .deb (Ubuntu / Debian)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/imloafy/caliber/main/install.sh)
+sudo dpkg -i caliber-1.1.0.deb
+# install any missing Qt6 dependencies:
+sudo apt-get install -f
 ```
 
-Or if you've already cloned the repo:
+### Linux — .rpm (Fedora / RHEL / openSUSE)
 
 ```bash
-bash install.sh
+sudo rpm -i caliber-1.1.0.rpm
+# or with dnf:
+sudo dnf install caliber-1.1.0.rpm
 ```
 
-This builds from source, installs the binary to `/usr/local/bin/caliber`, adds a `.desktop` entry (shows up in your app launcher), and registers the icon.
-
-### Uninstall
+### Linux — build from source
 
 ```bash
-bash uninstall.sh
+# Fedora / Ultramarine
+sudo dnf install qt6-qtbase-devel qt6-qtcharts-devel qt6-qtdatavis3d-devel
+
+# Ubuntu / Debian
+sudo apt install qt6-base-dev qt6-charts-dev qt6-datavis3d-dev
+
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+make -j$(nproc)
+sudo make install
+```
+
+**Uninstall:** `sudo make uninstall` or remove `/usr/bin/caliber` manually.
+
+### Linux — Arch / AUR
+
+```bash
+git clone https://github.com/imloafy/caliber
+cd caliber/package
+makepkg -si
+```
+
+### Linux — Flatpak (any distro)
+
+```bash
+flatpak install com.caliber.app-1.1.0.flatpak
+# or from Flathub once published:
+flatpak install flathub com.caliber.app
+```
+
+### Linux — tar.gz (portable, any distro)
+
+```bash
+tar -xzf caliber-1.1.0-Linux.tar.gz
+cd caliber-1.1.0-Linux
+sudo cp usr/bin/caliber /usr/local/bin/
+sudo cp usr/share/applications/caliber.desktop /usr/share/applications/
+sudo cp usr/share/icons/hicolor/scalable/apps/caliber.svg \
+        /usr/share/icons/hicolor/scalable/apps/
 ```
 
 ---
 
-## Building
+### Windows
 
-### Requirements
+1. Download `Caliber-1.1.0-Windows-x64.zip` from [Releases](../../releases).
+2. Extract the zip anywhere (e.g. `C:\Programs\Caliber`).
+3. Run `caliber.exe` — no installation needed, all DLLs are included.
 
-- Qt6 (Widgets, Charts, Network)
-- CMake 3.16+
-- C++17 compiler
+Optionally, right-click `caliber.exe` → Send to → Desktop to create a shortcut.
 
-### Linux (Fedora/Ultramarine)
+**Build installer from source** (requires Qt6 MSVC, CMake, Visual Studio 2019/2022, NSIS):
 
-```bash
-sudo dnf install qt6-qtbase-devel qt6-qtcharts-devel
+```bat
+python windows\make_ico.py        :: one-time icon conversion (pip install cairosvg Pillow)
+windows\build.bat C:\Qt\6.7.0\msvc2019_64
 ```
 
-### Linux (Ubuntu/Debian)
+---
+
+### macOS — .dmg
+
+1. Download `Caliber-1.1.0.dmg` from [Releases](../../releases).
+2. Open the `.dmg` and drag `Caliber.app` to your Applications folder.
+
+**Build from source** (requires Qt6 via Homebrew, Xcode CLT):
 
 ```bash
-sudo apt install qt6-base-dev qt6-charts-dev
-```
-
-### Build
-
-```bash
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
-./caliber
+brew install qt create-dmg librsvg
+bash package/build_macos.sh
 ```
 
 ---

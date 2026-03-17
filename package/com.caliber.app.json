@@ -1,0 +1,67 @@
+{
+  "app-id": "com.caliber.app",
+  "runtime": "org.kde.Platform",
+  "runtime-version": "6.10",
+  "sdk": "org.kde.Sdk",
+  "command": "caliber",
+  "finish-args": [
+    "--share=network",
+    "--share=ipc",
+    "--socket=fallback-x11",
+    "--socket=wayland",
+    "--device=dri",
+    "--env=LD_LIBRARY_PATH=/app/lib/x86_64-linux-gnu:/app/lib",
+    "--env=QT_PLUGIN_PATH=/app/lib/x86_64-linux-gnu/qt6/plugins:/app/plugins"
+  ],
+  "modules": [
+    {
+      "name": "qt6-charts",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_INSTALL_PREFIX=/app"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://download.qt.io/official_releases/qt/6.8/6.8.3/submodules/qtcharts-everywhere-src-6.8.3.tar.xz",
+          "sha256": "34aa5f5a48bb7481c9bd62172696831c73c2cef327aa6b871b1861693b3e0914"
+        }
+      ]
+    },
+    {
+      "name": "qt6-datavis3d",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_INSTALL_PREFIX=/app"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://download.qt.io/official_releases/qt/6.8/6.8.3/submodules/qtdatavis3d-everywhere-src-6.8.3.tar.xz",
+          "sha256": "8323b6d4ad719b9332343760de27f0e8511f75bc2b8750c7821b08988585fe1a"
+        }
+      ]
+    },
+    {
+      "name": "caliber",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_INSTALL_PREFIX=/app"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": ".."
+        }
+      ],
+      "post-install": [
+        "install -Dm644 package/caliber.metainfo.xml /app/share/metainfo/com.caliber.app.metainfo.xml",
+        "install -Dm644 package/caliber.desktop /app/share/applications/com.caliber.app.desktop",
+        "install -Dm644 resources/icons/caliber.svg /app/share/icons/hicolor/scalable/apps/com.caliber.app.svg"
+      ]
+    }
+  ]
+}

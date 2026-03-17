@@ -37,11 +37,15 @@ public:
     // Called by MainWindow when history drawer opens/closes in 3D mode
     void adjustFor3DOverlap(bool historyOpen, int historyWidth = 240);
 
+    // Called by MainWindow after applying a new app theme
+    void syncToAppTheme(bool dark);
+
 protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private:
     void buildUI();
+    void init3DSurface();  // lazy — called on first switch to 3D
 
     // 2D
     void plotAll();

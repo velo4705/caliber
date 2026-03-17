@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.caliber.app</id>
+  <name>Caliber</name>
+  <summary>Graphical calculator — Basic, Scientific, Programming, Graphing and more</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>
+      Caliber is a full-featured graphical calculator built with C++ and Qt6.
+      It covers every calculation mode you need — from basic arithmetic to
+      3D function graphing — in a clean, themeable interface.
+    </p>
+    <ul>
+      <li>Basic, Scientific, Programming, Date, Conversion, Equations, Graphing modes</li>
+      <li>2D and 3D function plotter with zoom, pan and rotation</li>
+      <li>8 built-in themes including Dark, Dracula, Nord, Monokai and Solarized</li>
+      <li>Live currency conversion via API</li>
+      <li>History panel with restore support</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">caliber.desktop</launchable>
+  <url type="homepage">https://github.com/imloafy/caliber</url>
+  <provides>
+    <binary>caliber</binary>
+  </provides>
+  <releases>
+    <release version="1.1.0" date="2025-01-01"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

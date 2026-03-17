@@ -1,0 +1,35 @@
+// Windows resource file — embeds app icon and version info into caliber.exe
+#include <windows.h>
+
+// App icon (must be a .ico file — convert caliber.svg to caliber.ico)
+IDI_ICON1 ICON "caliber.ico"
+
+// Version information block
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     1,1,0,0
+PRODUCTVERSION  1,1,0,0
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       0
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName",      "Caliber"
+            VALUE "FileDescription",  "Caliber Calculator"
+            VALUE "FileVersion",      "1.1.0.0"
+            VALUE "InternalName",     "caliber"
+            VALUE "LegalCopyright",   "MIT License"
+            VALUE "OriginalFilename", "caliber.exe"
+            VALUE "ProductName",      "Caliber"
+            VALUE "ProductVersion",   "1.1.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

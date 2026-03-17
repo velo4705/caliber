@@ -1,5 +1,6 @@
 # Build directories
 build/
+build_*/
 cmake-build-*/
 
 # CMake generated
@@ -10,7 +11,7 @@ Makefile
 *.cmake
 
 # Compiled binaries
-graphcalc
+caliber
 *.o
 *.a
 *.so
@@ -18,6 +19,14 @@ graphcalc
 # Qt generated
 *_autogen/
 *.qm
+
+# Package output (upload to GitHub Releases, not committed to repo)
+dist/
+
+# Flatpak build artifacts
+.flatpak-builder/
+build_flatpak/
+build_flatpak_repo/
 
 # IDE files
 .vscode/
@@ -28,5 +37,3 @@ graphcalc
 # OS files
 .DS_Store
 Thumbs.db
-
-ROADMAP.md

@@ -60,3 +60,9 @@ QMenu::item:selected { background: #1f3a5f; }
 QTableWidget { background: #161b22; border: 1px solid #30363d; border-radius: 6px; gridline-color: #21262d; color: #c9d1d9; }
 QTableWidget::item:selected { background: #1f3a5f; color: #58a6ff; }
 QHeaderView::section { background: #0d1117; color: #58a6ff; border: 1px solid #30363d; padding: 4px; font-weight: bold; font-size: 12px; }
+
+/* ── Graph bottom panel ───────────────────────────────────────────────────── */
+#graphBottomPanel {
+    background: #111111;
+    border-top: 1px solid #222222;
+}

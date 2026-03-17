@@ -233,6 +233,7 @@ void MainWindow::applyTheme() {
         QFile f(m_customThemePath);
         if (f.open(QFile::ReadOnly | QFile::Text)) {
             qApp->setStyleSheet(QString::fromUtf8(f.readAll()));
+            syncGraphTheme(true);  // assume dark for custom
             return;
         }
     }
@@ -240,11 +241,15 @@ void MainWindow::applyTheme() {
     if (m_themeMode == ThemeMode::System) {
         bool dark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
         loadTheme(dark ? ":/themes/dark.qss" : ":/themes/light.qss");
+        syncGraphTheme(dark);
         return;
     }
 
     if (builtins.contains(m_themeMode))
         loadTheme(builtins[m_themeMode]);
+
+    // Light is the only non-dark built-in theme
+    syncGraphTheme(m_themeMode != ThemeMode::Light);
 }
 
 void MainWindow::loadCustomTheme() {
@@ -265,6 +270,11 @@ void MainWindow::loadTheme(const QString& qrcPath) {
         qApp->setStyleSheet(QString::fromUtf8(f.readAll()));
         f.close();
     }
+}
+
+void MainWindow::syncGraphTheme(bool dark) {
+    auto* gw = qobject_cast<GraphingWidget*>(m_stack->widget(6));
+    if (gw) gw->syncToAppTheme(dark);
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────

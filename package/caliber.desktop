@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Caliber
+Comment=Graphical calculator — Basic, Scientific, Programming, Graphing and more
+Exec=caliber
+Icon=com.caliber.app
+Terminal=false
+Type=Application
+Categories=Utility;Calculator;
+Keywords=calculator;math;graphing;scientific;programming;
+StartupWMClass=caliber

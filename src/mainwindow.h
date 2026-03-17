@@ -40,6 +40,7 @@ private:
     void restoreSettings();
     void applyLayout(bool portrait);
     void loadCustomTheme();
+    void syncGraphTheme(bool dark);
 
     ModeSidebar*    m_sidebar;
     QStackedWidget* m_stack;

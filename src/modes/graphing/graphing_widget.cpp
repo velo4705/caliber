@@ -157,39 +157,8 @@ void GraphingWidget::buildUI() {
     root->addWidget(m_chartView, 1);
     setLayout(root);
 
-    // 3D surface — overlay widget, shown/hidden manually
-    m_surface = new Q3DSurface();
-
-    // Explicitly enable rotation (left-drag), zoom (scroll), pan (right-drag)
-    auto* inputHandler = new Q3DInputHandler(m_surface);
-    inputHandler->setRotationEnabled(true);
-    inputHandler->setZoomEnabled(true);
-    inputHandler->setSelectionEnabled(true);
-    m_surface->setActiveInputHandler(inputHandler);
-
-    m_surface3DContainer = QWidget::createWindowContainer(m_surface, this);
-    m_surface3DContainer->setMinimumSize(200, 200);
-    m_surface3DContainer->setFocusPolicy(Qt::StrongFocus);
-    m_surface3DContainer->setMouseTracking(true);
-    m_surface3DContainer->hide();
-    m_series3D = new QSurface3DSeries();
-    m_series3D->setDrawMode(QSurface3DSeries::DrawSurface);  // no wireframe — cleaner look
-    m_series3D->setFlatShadingEnabled(false);
-
-    // Height-based gradient coloring
-    QLinearGradient gradient;
-    gradient.setColorAt(0.0,  QColor(0x00, 0x40, 0xff));  // deep blue (low)
-    gradient.setColorAt(0.25, QColor(0x00, 0xc8, 0xff));  // cyan
-    gradient.setColorAt(0.5,  QColor(0x00, 0xe0, 0x60));  // green (mid)
-    gradient.setColorAt(0.75, QColor(0xff, 0xd0, 0x00));  // yellow
-    gradient.setColorAt(1.0,  QColor(0xff, 0x20, 0x00));  // red (high)
-    m_series3D->setColorStyle(Q3DTheme::ColorStyleRangeGradient);
-    m_series3D->setBaseGradient(gradient);
-
-    m_surface->addSeries(m_series3D);
-    m_surface->axisX()->setTitle("X"); m_surface->axisX()->setTitleVisible(true);
-    m_surface->axisY()->setTitle("Z"); m_surface->axisY()->setTitleVisible(true);
-    m_surface->axisZ()->setTitle("Y"); m_surface->axisZ()->setTitleVisible(true);
+    // 3D surface is lazy-initialized on first switch to 3D mode
+    // (avoids OpenGL context creation at startup — important for VMs / no-GPU)
 
     applyChartTheme();
 
@@ -197,9 +166,8 @@ void GraphingWidget::buildUI() {
     m_panel = new QWidget(this);
     m_panel->setObjectName("graphBottomPanel");
     m_panel->setAttribute(Qt::WA_StyledBackground, true);
-    m_panel->setFixedHeight(PANEL_HEIGHT_3D);   // always tall enough for chip row + controls
-    m_panel->setStyleSheet(
-        "QWidget#graphBottomPanel { background:rgba(15,15,25,0.95); border-top:1px solid rgba(255,255,255,0.1); }");
+    m_panel->setFixedHeight(PANEL_HEIGHT_3D);
+    // No inline stylesheet — themed via app QSS (#graphBottomPanel)
 
     auto* panelVL = new QVBoxLayout(m_panel);
     panelVL->setContentsMargins(0,0,0,0);
@@ -333,33 +301,74 @@ void GraphingWidget::buildUI() {
     // No default functions — start with a blank canvas
 }
 
+// ── Lazy 3D surface init ──────────────────────────────────────────────────────
+void GraphingWidget::init3DSurface() {
+    if (m_surface) return;  // already initialized
+
+    m_surface = new Q3DSurface();
+
+    auto* inputHandler = new Q3DInputHandler(m_surface);
+    inputHandler->setRotationEnabled(true);
+    inputHandler->setZoomEnabled(true);
+    inputHandler->setSelectionEnabled(true);
+    m_surface->setActiveInputHandler(inputHandler);
+
+    m_surface3DContainer = QWidget::createWindowContainer(m_surface, this);
+    m_surface3DContainer->setMinimumSize(200, 200);
+    m_surface3DContainer->setFocusPolicy(Qt::StrongFocus);
+    m_surface3DContainer->setMouseTracking(true);
+    m_surface3DContainer->hide();
+
+    m_series3D = new QSurface3DSeries();
+    m_series3D->setDrawMode(QSurface3DSeries::DrawSurface);
+    m_series3D->setFlatShadingEnabled(false);
+
+    QLinearGradient gradient;
+    gradient.setColorAt(0.0,  QColor(0x00, 0x40, 0xff));
+    gradient.setColorAt(0.25, QColor(0x00, 0xc8, 0xff));
+    gradient.setColorAt(0.5,  QColor(0x00, 0xe0, 0x60));
+    gradient.setColorAt(0.75, QColor(0xff, 0xd0, 0x00));
+    gradient.setColorAt(1.0,  QColor(0xff, 0x20, 0x00));
+    m_series3D->setColorStyle(Q3DTheme::ColorStyleRangeGradient);
+    m_series3D->setBaseGradient(gradient);
+
+    m_surface->addSeries(m_series3D);
+    m_surface->axisX()->setTitle("X"); m_surface->axisX()->setTitleVisible(true);
+    m_surface->axisY()->setTitle("Z"); m_surface->axisY()->setTitleVisible(true);
+    m_surface->axisZ()->setTitle("Y"); m_surface->axisZ()->setTitleVisible(true);
+}
+
 // ── Chart theme ───────────────────────────────────────────────────────────────
 void GraphingWidget::applyChartTheme() {
     if (m_chartDark) {
         m_chart->setTheme(QChart::ChartThemeDark);
-        m_chart->setBackgroundBrush(QBrush(QColor(0x12,0x12,0x1e)));
-        m_chart->setPlotAreaBackgroundBrush(QBrush(QColor(0x1a,0x1a,0x2e)));
+        m_chart->setBackgroundBrush(QBrush(QColor(0x0d,0x0d,0x0d)));
+        m_chart->setPlotAreaBackgroundBrush(QBrush(QColor(0x13,0x13,0x13)));
         m_chart->setPlotAreaBackgroundVisible(true);
     } else {
         m_chart->setTheme(QChart::ChartThemeLight);
-        m_chart->setBackgroundBrush(QBrush(Qt::white));
-        m_chart->setPlotAreaBackgroundBrush(QBrush(QColor(0xfa,0xfa,0xff)));
+        m_chart->setBackgroundBrush(QBrush(QColor(0xff,0xff,0xff)));
+        m_chart->setPlotAreaBackgroundBrush(QBrush(QColor(0xfa,0xfa,0xfa)));
         m_chart->setPlotAreaBackgroundVisible(true);
     }
 
-    // Theme resets all series/axis pens — re-apply black Cartesian axes
+    // Re-apply black Cartesian axes (theme resets pens)
     QPen axisPen(Qt::black); axisPen.setWidth(2);
     for (auto* s : m_chart->series()) {
-        if (s->name() == "__haxis__" || s->name() == "__vaxis__") {
+        if (s->name() == "__haxis__" || s->name() == "__vaxis__")
             static_cast<QLineSeries*>(s)->setPen(axisPen);
-        }
     }
 
-    // Hairline grid — dark grey in dark mode, light grey in light mode
-    QPen gridPen(m_chartDark ? QColor(60,60,80) : QColor(200,200,210));
+    // Hairline grid
+    QPen gridPen(m_chartDark ? QColor(50,50,50) : QColor(200,200,200));
     gridPen.setWidthF(0.5);
     if (m_axisX) m_axisX->setGridLinePen(gridPen);
     if (m_axisY) m_axisY->setGridLinePen(gridPen);
+
+    // Axis label colors
+    QColor labelColor = m_chartDark ? QColor(180,180,180) : QColor(60,60,60);
+    if (m_axisX) { m_axisX->setLabelsColor(labelColor); m_axisX->setTitleBrush(QBrush(labelColor)); }
+    if (m_axisY) { m_axisY->setLabelsColor(labelColor); m_axisY->setTitleBrush(QBrush(labelColor)); }
 }
 
 // ── Dimension switch ──────────────────────────────────────────────────────────
@@ -367,6 +376,7 @@ void GraphingWidget::switchDimension(bool is3D) {
     m_is3D = is3D;
 
     if (is3D) {
+        init3DSurface();  // lazy init — only creates OpenGL context on first use
         m_chartView->hide();
         if (!m_entries.isEmpty()) {
             int ph = m_panelOpen ? PANEL_HEIGHT_3D : 0;
@@ -376,7 +386,7 @@ void GraphingWidget::switchDimension(bool is3D) {
             plot3D();
         }
     } else {
-        m_surface3DContainer->hide();
+        if (m_surface3DContainer) m_surface3DContainer->hide();
         m_chartView->show();
         plotAll();
     }
@@ -403,7 +413,7 @@ void GraphingWidget::repositionOverlays() {
     m_toggleBtn->move(w - btnW - 8, panelY - 34);
     m_toggleBtn->setText(m_panelOpen ? "⌄  Controls" : "⌃  Controls");
 
-    if (m_is3D && m_surface3DContainer->isVisible())
+    if (m_is3D && m_surface3DContainer && m_surface3DContainer->isVisible())
         m_surface3DContainer->setGeometry(0, 0, w, panelY);
 
     m_panel->raise();
@@ -416,11 +426,18 @@ void GraphingWidget::resizeEvent(QResizeEvent* e) {
 }
 
 void GraphingWidget::adjustFor3DOverlap(bool historyOpen, int historyWidth) {
-    if (!m_is3D || !m_surface3DContainer->isVisible()) return;
+    if (!m_is3D || !m_surface3DContainer || !m_surface3DContainer->isVisible()) return;
     int w = width(), h = height();
     int ph = m_panelOpen ? PANEL_HEIGHT_3D : 0;
     int containerW = historyOpen ? w - historyWidth : w;
     m_surface3DContainer->setGeometry(0, 0, containerW, h - ph);
+}
+
+void GraphingWidget::syncToAppTheme(bool dark) {
+    m_chartDark = dark;
+    m_themeBtn->setText(dark ? "☀" : "🌙");
+    applyChartTheme();
+    if (!m_is3D) plotAll();
 }
 
 void GraphingWidget::togglePanel() {
@@ -441,7 +458,7 @@ void GraphingWidget::togglePanel() {
         m_toggleBtn->move(w - 128, h - 34);
     }
     m_anim->start();
-    if (m_is3D)
+    if (m_is3D && m_surface3DContainer)
         m_surface3DContainer->setGeometry(0, 0, w, m_panelOpen ? openY : h);
 }
 
@@ -460,7 +477,7 @@ static QWidget* makeChip(QWidget* parent, const QString& expr, const QColor& col
     dot->setFocusPolicy(Qt::NoFocus);
 
     auto* lbl = new QLabel(expr, chip);
-    lbl->setStyleSheet("font-size:11px;background:transparent;color:#e0e0e0;");
+    lbl->setStyleSheet("font-size:11px;background:transparent;");
 
     auto* rm = new QPushButton("✕", chip);
     rm->setFixedSize(14,14);
@@ -515,7 +532,7 @@ void GraphingWidget::addFunction() {
     updateFunctionList();
     if (m_is3D) {
         // Show container on first function added in 3D mode
-        if (!m_surface3DContainer->isVisible()) {
+        if (m_surface3DContainer && !m_surface3DContainer->isVisible()) {
             int ph = m_panelOpen ? PANEL_HEIGHT_3D : 0;
             m_surface3DContainer->setGeometry(0, 0, width(), height() - ph);
             m_surface3DContainer->show();
@@ -538,7 +555,7 @@ void GraphingWidget::removeFunction(int index) {
     m_entries.removeAt(index);
     updateFunctionList();
     if (m_is3D) {
-        if (m_entries.isEmpty())
+        if (m_entries.isEmpty() && m_surface3DContainer)
             m_surface3DContainer->hide();
         else
             plot3D();
