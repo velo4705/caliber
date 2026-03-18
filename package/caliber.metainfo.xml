@@ -20,7 +20,7 @@
     </ul>
   </description>
   <launchable type="desktop-id">caliber.desktop</launchable>
-  <url type="homepage">https://github.com/imloafy/caliber</url>
+  <url type="homepage">https://github.com/velo4705/caliber</url>
   <provides>
     <binary>caliber</binary>
   </provides>

@@ -4,11 +4,11 @@ pkgver=1.1.0
 pkgrel=1
 pkgdesc="Graphical calculator — Basic, Scientific, Programming, Graphing and more"
 arch=('x86_64')
-url="https://github.com/imloafy/caliber"
+url="https://github.com/velo4705/caliber"
 license=('MIT')
 depends=('qt6-base' 'qt6-charts' 'qt6-datavis3d')
 makedepends=('cmake' 'ninja')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/imloafy/caliber/archive/refs/tags/v$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::https://github.com/velo4705/caliber/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')  # replace with actual sha256 after tagging the release
 
 build() {

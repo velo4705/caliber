@@ -83,7 +83,7 @@ sudo make install
 ### Linux — Arch / AUR
 
 ```bash
-git clone https://github.com/imloafy/caliber
+git clone https://github.com/velo4705/caliber
 cd caliber/package
 makepkg -si
 ```
