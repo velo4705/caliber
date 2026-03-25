@@ -9,6 +9,16 @@ const QVector<ModeSidebar::ModeEntry> ModeSidebar::s_modes = {
     { "Conversion",  "⇄",  CalcMode::Conversion  },
     { "Equations",   "∫",  CalcMode::Equations   },
     { "Graphing",    "〜", CalcMode::Graphing    },
+    { "Statistics",  "σ",  CalcMode::Statistics  },
+    { "Calculus",    "∂",  CalcMode::Calculus     },
+    { "Financial",   "$",  CalcMode::Financial    },
+    { "Number Th.",  "ℕ",  CalcMode::NumberTheory },
+    { "Electrical",  "⚡", CalcMode::Electrical   },
+    { "Dig. Logic",  "⊕", CalcMode::DigitalLogic },
+    { "Vectors",     "→", CalcMode::Vectors      },
+    { "Physics",     "⚛", CalcMode::Physics      },
+    { "Chemistry",   "⚗", CalcMode::Chemistry    },
+    { "Civil/Mech",  "🔧", CalcMode::CivilMech   },
 };
 
 ModeSidebar::ModeSidebar(QWidget* parent)

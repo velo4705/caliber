@@ -25,7 +25,16 @@ set(SOURCES
     src/modes/equations/equations_widget.cpp
     src/modes/graphing/function_parser.cpp
     src/modes/graphing/graphing_widget.cpp
-    src/widgets/display_widget.cpp
+    src/modes/statistics/statistics_widget.cpp
+    src/modes/calculus/calculus_widget.cpp
+    src/modes/financial/financial_widget.cpp
+    src/modes/numbertheory/numbertheory_widget.cpp
+    src/modes/electrical/electrical_widget.cpp
+    src/modes/digitallogic/digitallogic_widget.cpp
+    src/modes/vectors/vectors_widget.cpp
+    src/modes/physics/physics_widget.cpp
+    src/modes/chemistry/chemistry_widget.cpp
+    src/modes/civilmech/civilmech_widget.cpp    src/widgets/display_widget.cpp
     src/widgets/mode_sidebar.cpp
     src/widgets/history_panel.cpp
     resources/resources.qrc
@@ -46,6 +55,16 @@ set(HEADERS
     src/modes/equations/equations_widget.h
     src/modes/graphing/function_parser.h
     src/modes/graphing/graphing_widget.h
+    src/modes/statistics/statistics_widget.h
+    src/modes/calculus/calculus_widget.h
+    src/modes/financial/financial_widget.h
+    src/modes/numbertheory/numbertheory_widget.h
+    src/modes/electrical/electrical_widget.h
+    src/modes/digitallogic/digitallogic_widget.h
+    src/modes/vectors/vectors_widget.h
+    src/modes/physics/physics_widget.h
+    src/modes/chemistry/chemistry_widget.h
+    src/modes/civilmech/civilmech_widget.h
     src/widgets/display_widget.h
     src/widgets/mode_sidebar.h
     src/widgets/history_panel.h

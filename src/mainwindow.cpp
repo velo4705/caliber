@@ -9,6 +9,16 @@
 #include "modes/conversion/conversion_widget.h"
 #include "modes/equations/equations_widget.h"
 #include "modes/graphing/graphing_widget.h"
+#include "modes/statistics/statistics_widget.h"
+#include "modes/calculus/calculus_widget.h"
+#include "modes/financial/financial_widget.h"
+#include "modes/numbertheory/numbertheory_widget.h"
+#include "modes/electrical/electrical_widget.h"
+#include "modes/digitallogic/digitallogic_widget.h"
+#include "modes/vectors/vectors_widget.h"
+#include "modes/physics/physics_widget.h"
+#include "modes/chemistry/chemistry_widget.h"
+#include "modes/civilmech/civilmech_widget.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -71,6 +81,16 @@ void MainWindow::buildUI() {
     m_stack->addWidget(new ConversionWidget (this));                                       // 4
     m_stack->addWidget(new EquationsWidget  (this));                                       // 5
     m_stack->addWidget(new GraphingWidget   (this));                                       // 6
+    m_stack->addWidget(new StatisticsWidget (this));                                       // 7
+    m_stack->addWidget(new CalculusWidget     (this));                                       // 8
+    m_stack->addWidget(new FinancialWidget    (this));                                       // 9
+    m_stack->addWidget(new NumberTheoryWidget (this));                                       // 10
+    m_stack->addWidget(new ElectricalWidget    (this));                                       // 11
+    m_stack->addWidget(new DigitalLogicWidget  (this));                                       // 12
+    m_stack->addWidget(new VectorsWidget       (this));                                       // 13
+    m_stack->addWidget(new PhysicsWidget       (this));                                       // 14
+    m_stack->addWidget(new ChemistryWidget     (this));                                       // 15
+    m_stack->addWidget(new CivilMechWidget     (this));                                       // 16
 
     // ── Toolbar with history toggle button ────────────────────────────────────
     auto* toolbar = addToolBar("Main");
@@ -193,7 +213,9 @@ void MainWindow::setupMenuBar() {
     auto* modeMenu = menuBar()->addMenu("&Mode");
     const QStringList modeNames = {
         "Basic", "Scientific", "Programming",
-        "Date", "Conversion", "Equations", "Graphing"
+        "Date", "Conversion", "Equations", "Graphing",
+        "Statistics", "Calculus", "Financial", "Number Theory",
+        "Electrical", "Digital Logic", "Vectors", "Physics", "Chemistry", "Civil/Mech"
     };
     for (int i = 0; i < modeNames.size(); ++i) {
         auto* a = modeMenu->addAction(modeNames[i]);

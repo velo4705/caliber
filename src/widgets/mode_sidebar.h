@@ -12,7 +12,17 @@ enum class CalcMode {
     Date,
     Conversion,
     Equations,
-    Graphing
+    Graphing,
+    Statistics,
+    Calculus,
+    Financial,
+    NumberTheory,
+    Electrical,
+    DigitalLogic,
+    Vectors,
+    Physics,
+    Chemistry,
+    CivilMech
 };
 
 enum class SidebarOrientation { Vertical, Horizontal };
