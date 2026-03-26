@@ -24,6 +24,8 @@
 #include <QtCharts/QChart>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
+#include <QtCharts/QAreaSeries>
+#include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
 #include <QtDataVisualization/Q3DSurface>
 #include <QtDataVisualization/QSurface3DSeries>
@@ -55,12 +57,23 @@ public:
         : QChartView(chart, parent)
     {
         setMouseTracking(true);
+
+        // Trace tooltip label
+        m_tooltip = new QLabel(this);
+        m_tooltip->setObjectName("traceTooltip");
+        m_tooltip->setStyleSheet(
+            "QLabel { background: rgba(30,30,30,220); color: #fff;"
+            " border: 1px solid #555; border-radius: 4px;"
+            " padding: 3px 7px; font-size: 12px; font-family: monospace; }");
+        m_tooltip->hide();
+        m_tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
     }
 
 protected:
     void wheelEvent(QWheelEvent* e) override {
         double f = e->angleDelta().y() > 0 ? 0.85 : 1.0 / 0.85;
         chart()->zoom(f);
+        m_tooltip->hide();
         e->accept();
     }
 
@@ -78,12 +91,13 @@ protected:
     void mouseMoveEvent(QMouseEvent* e) override {
         if (m_panning) {
             QPoint delta = e->pos() - m_lastPan;
-            // scroll() takes pixel offsets and pans the chart axes
             chart()->scroll(-delta.x(), delta.y());
             m_lastPan = e->pos();
+            m_tooltip->hide();
             e->accept();
         } else {
             QChartView::mouseMoveEvent(e);
+            updateTrace(e->pos());
         }
     }
 
@@ -97,9 +111,63 @@ protected:
         }
     }
 
+    void leaveEvent(QEvent* e) override {
+        m_tooltip->hide();
+        QChartView::leaveEvent(e);
+    }
+
 private:
+    void updateTrace(const QPoint& pos) {
+        // Map pixel position to chart coordinates (always reflects current zoom/pan)
+        QPointF chartPt = chart()->mapToValue(pos);
+        double cx = chartPt.x();
+
+        // Find nearest point across all visible series (skip axis helper series)
+        double bestDist = 1e300;
+        double bestX = 0, bestY = 0;
+        bool found = false;
+
+        for (auto* s : chart()->series()) {
+            auto* ls = qobject_cast<QLineSeries*>(s);
+            if (!ls || !ls->isVisible() || ls->name().startsWith("__")) continue;
+            const auto& pts = ls->points();
+            if (pts.isEmpty()) continue;
+
+            // Find the point with x closest to cursor x
+            for (const QPointF& p : pts) {
+                double dist = std::abs(p.x() - cx);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestX = p.x();
+                    bestY = p.y();
+                    found = true;
+                }
+            }
+        }
+
+        if (!found) { m_tooltip->hide(); return; }
+
+        // Only show if the snapped point is reasonably close in pixel space
+        QPointF snappedPx = chart()->mapToPosition(QPointF(bestX, bestY));
+        double pixDist = std::hypot(snappedPx.x() - pos.x(), snappedPx.y() - pos.y());
+        if (pixDist > 40) { m_tooltip->hide(); return; }
+
+        m_tooltip->setText(QString("x = %1\ny = %2")
+            .arg(bestX, 0, 'g', 6).arg(bestY, 0, 'g', 6));
+        m_tooltip->adjustSize();
+
+        int tx = pos.x() + 14;
+        int ty = pos.y() - m_tooltip->height() - 4;
+        if (tx + m_tooltip->width() > width())  tx = pos.x() - m_tooltip->width() - 8;
+        if (ty < 0) ty = pos.y() + 14;
+        m_tooltip->move(tx, ty);
+        m_tooltip->show();
+        m_tooltip->raise();
+    }
+
     bool   m_panning = false;
     QPoint m_lastPan;
+    QLabel* m_tooltip;
 };
 
 static QPushButton* mkBtn(const QString& t, const QString& cls, QWidget* p) {
@@ -129,16 +197,16 @@ void GraphingWidget::buildUI() {
 
     m_axisX = new QValueAxis();
     m_axisX->setRange(-10,10); m_axisX->setTickCount(11);
-    m_axisX->setLabelFormat("%.1f"); m_axisX->setTitleText("x");
+    m_axisX->setLabelFormat("%.4g"); m_axisX->setTitleText("x");
     m_chart->addAxis(m_axisX, Qt::AlignBottom);
 
     m_axisY = new QValueAxis();
     m_axisY->setRange(-10,10); m_axisY->setTickCount(11);
-    m_axisY->setLabelFormat("%.1f"); m_axisY->setTitleText("y");
+    m_axisY->setLabelFormat("%.4g"); m_axisY->setTitleText("y");
     m_chart->addAxis(m_axisY, Qt::AlignLeft);
 
     // Cartesian axes at origin
-    QPen axisPen(Qt::black); axisPen.setWidth(2);
+    QPen axisPen(QColor(180,180,180)); axisPen.setWidth(1);
     auto* hAxis = new QLineSeries(); hAxis->setName("__haxis__"); hAxis->setPen(axisPen);
     hAxis->append(-1e9,0); hAxis->append(1e9,0);
     m_chart->addSeries(hAxis); hAxis->attachAxis(m_axisX); hAxis->attachAxis(m_axisY);
@@ -257,6 +325,37 @@ void GraphingWidget::buildUI() {
     m_themeBtn->setObjectName("historyToggleBtn");
     pl->addWidget(m_themeBtn, 0, Qt::AlignVCenter);
 
+    // Derivative overlay toggle
+    m_derivBtn = new QToolButton(controlsRow);
+    m_derivBtn->setText("f'");
+    m_derivBtn->setToolTip("Toggle f'(x) derivative overlay");
+    m_derivBtn->setFixedSize(H, H);
+    m_derivBtn->setCheckable(true);
+    m_derivBtn->setObjectName("historyToggleBtn");
+    pl->addWidget(m_derivBtn, 0, Qt::AlignVCenter);
+
+    // Intersection finder toggle
+    m_intersectBtn = new QToolButton(controlsRow);
+    m_intersectBtn->setText("∩");
+    m_intersectBtn->setToolTip("Find and mark intersections between curves");
+    m_intersectBtn->setFixedSize(H, H);
+    m_intersectBtn->setCheckable(true);
+    m_intersectBtn->setObjectName("historyToggleBtn");
+    pl->addWidget(m_intersectBtn, 0, Qt::AlignVCenter);
+
+    // Integral shading
+    m_shadeBtn = new QToolButton(controlsRow);
+    m_shadeBtn->setText("∫");
+    m_shadeBtn->setToolTip("Shade area under curve between a and b");
+    m_shadeBtn->setFixedSize(H, H);
+    m_shadeBtn->setCheckable(true);
+    m_shadeBtn->setObjectName("historyToggleBtn");
+    m_shadeA = new QLineEdit(controlsRow); m_shadeA->setPlaceholderText("a"); m_shadeA->setFixedWidth(48); m_shadeA->setAlignment(Qt::AlignCenter);
+    m_shadeB = new QLineEdit(controlsRow); m_shadeB->setPlaceholderText("b"); m_shadeB->setFixedWidth(48); m_shadeB->setAlignment(Qt::AlignCenter);
+    pl->addWidget(m_shadeBtn,  0, Qt::AlignVCenter);
+    pl->addWidget(m_shadeA,    0, Qt::AlignVCenter);
+    pl->addWidget(m_shadeB,    0, Qt::AlignVCenter);
+
     // Divider
     auto* div3 = new QFrame(controlsRow);
     div3->setFrameShape(QFrame::VLine); div3->setFrameShadow(QFrame::Sunken);
@@ -291,6 +390,28 @@ void GraphingWidget::buildUI() {
         applyChartTheme();
         plotAll();
     });
+    connect(m_derivBtn, &QToolButton::toggled, this, [this](bool on){
+        m_showDeriv = on;
+        plotAll();
+    });
+    connect(m_intersectBtn, &QToolButton::toggled, this, [this](bool on){
+        m_showIntersect = on;
+        if (on) findIntersections();
+        else {
+            for (auto* s : m_intersectMarkers) { m_chart->removeSeries(s); delete s; }
+            m_intersectMarkers.clear();
+        }
+    });
+
+    auto clearShade = [this]{
+        for (auto* s : m_shadeSeries) { m_chart->removeSeries(s); delete s; }
+        m_shadeSeries.clear();
+    };
+    connect(m_shadeBtn, &QToolButton::toggled, this, [this, clearShade](bool on){
+        if (on) shadeIntegrals(); else clearShade();
+    });
+    connect(m_shadeA, &QLineEdit::returnPressed, this, [this]{ if(m_shadeBtn->isChecked()) shadeIntegrals(); });
+    connect(m_shadeB, &QLineEdit::returnPressed, this, [this]{ if(m_shadeBtn->isChecked()) shadeIntegrals(); });
     connect(m_radio2D, &QRadioButton::toggled, this, [this](bool on){ if (on) switchDimension(false); });
     connect(m_radio3D, &QRadioButton::toggled, this, [this](bool on){ if (on) switchDimension(true);  });
     connect(m_xMin, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
@@ -352,8 +473,9 @@ void GraphingWidget::applyChartTheme() {
         m_chart->setPlotAreaBackgroundVisible(true);
     }
 
-    // Re-apply black Cartesian axes (theme resets pens)
-    QPen axisPen(Qt::black); axisPen.setWidth(2);
+    // Re-apply Cartesian axes (theme resets pens)
+    QPen axisPen(m_chartDark ? QColor(160,160,160) : QColor(80,80,80));
+    axisPen.setWidth(1);
     for (auto* s : m_chart->series()) {
         if (s->name() == "__haxis__" || s->name() == "__vaxis__")
             static_cast<QLineSeries*>(s)->setPen(axisPen);
@@ -552,6 +674,10 @@ void GraphingWidget::removeFunction(int index) {
         m_chart->removeSeries(m_entries[index].series);
         delete m_entries[index].series;
     }
+    if (m_entries[index].derivSeries) {
+        m_chart->removeSeries(m_entries[index].derivSeries);
+        delete m_entries[index].derivSeries;
+    }
     m_entries.removeAt(index);
     updateFunctionList();
     if (m_is3D) {
@@ -568,10 +694,21 @@ void GraphingWidget::removeFunction(int index) {
 void GraphingWidget::plotAll() {
     for (auto& e : m_entries) {
         if (e.series) { m_chart->removeSeries(e.series); delete e.series; e.series = nullptr; }
+        if (e.derivSeries) { m_chart->removeSeries(e.derivSeries); delete e.derivSeries; e.derivSeries = nullptr; }
     }
+    // Clear intersection markers
+    for (auto* s : m_intersectMarkers) { m_chart->removeSeries(s); delete s; }
+    m_intersectMarkers.clear();
+    // Clear shade series
+    for (auto* s : m_shadeSeries) { m_chart->removeSeries(s); delete s; }
+    m_shadeSeries.clear();
+
     for (auto& e : m_entries) plotEntry(e);
     m_axisX->setRange(m_xMin->value(), m_xMax->value());
     m_axisY->setRange(m_yMin->value(), m_yMax->value());
+
+    if (m_showIntersect) findIntersections();
+    if (m_shadeBtn && m_shadeBtn->isChecked()) shadeIntegrals();
 }
 
 void GraphingWidget::plotEntry(PlotEntry& entry) {
@@ -603,6 +740,144 @@ void GraphingWidget::plotEntry(PlotEntry& entry) {
     series->attachAxis(m_axisX); series->attachAxis(m_axisY);
     series->setVisible(entry.visible);
     entry.series = series;
+
+    // Derivative overlay — dashed line of same color but lighter
+    if (m_showDeriv) {
+        auto* dSeries = new QLineSeries();
+        dSeries->setName("__deriv__" + entry.expression);
+        QPen dPen(entry.color.lighter(150));
+        dPen.setWidth(1);
+        dPen.setStyle(Qt::DashLine);
+        dSeries->setPen(dPen);
+        const double h = 1e-5;
+        double prevY = std::numeric_limits<double>::quiet_NaN();
+        for (double x = -PLOT_RANGE; x <= PLOT_RANGE; x += step) {
+            try {
+                double dy = (m_parser->evaluate(entry.expression, x+h)
+                           - m_parser->evaluate(entry.expression, x-h)) / (2*h);
+                if (!std::isfinite(dy)) { prevY = std::numeric_limits<double>::quiet_NaN(); continue; }
+                double yRange = m_axisY->max() - m_axisY->min();
+                if (!std::isnan(prevY) && std::abs(dy - prevY) > yRange * 10)
+                    dSeries->append(x, std::numeric_limits<double>::quiet_NaN());
+                dSeries->append(x, dy);
+                prevY = dy;
+            } catch (...) { prevY = std::numeric_limits<double>::quiet_NaN(); }
+        }
+        m_chart->addSeries(dSeries);
+        dSeries->attachAxis(m_axisX); dSeries->attachAxis(m_axisY);
+        dSeries->setVisible(entry.visible);
+        entry.derivSeries = dSeries;
+    }
+}
+
+// ── Intersection Finder ───────────────────────────────────────────────────────
+void GraphingWidget::findIntersections() {
+    // Clear old markers
+    for (auto* s : m_intersectMarkers) { m_chart->removeSeries(s); delete s; }
+    m_intersectMarkers.clear();
+
+    if (m_entries.size() < 2) return;
+
+    double xMin = m_xMin->value(), xMax = m_xMax->value();
+    static constexpr int STEPS = 2000;
+    double step = (xMax - xMin) / STEPS;
+
+    // Compare every pair of visible functions
+    for (int i = 0; i < m_entries.size(); i++) {
+        for (int j = i+1; j < m_entries.size(); j++) {
+            if (!m_entries[i].visible || !m_entries[j].visible) continue;
+
+            double prevDiff = std::numeric_limits<double>::quiet_NaN();
+            double prevX = xMin;
+
+            for (int k = 0; k <= STEPS; k++) {
+                double x = xMin + k * step;
+                double fi, fj;
+                try { fi = m_parser->evaluate(m_entries[i].expression, x); } catch(...) { prevDiff = std::numeric_limits<double>::quiet_NaN(); continue; }
+                try { fj = m_parser->evaluate(m_entries[j].expression, x); } catch(...) { prevDiff = std::numeric_limits<double>::quiet_NaN(); continue; }
+                if (!std::isfinite(fi) || !std::isfinite(fj)) { prevDiff = std::numeric_limits<double>::quiet_NaN(); continue; }
+
+                double diff = fi - fj;
+
+                // Sign change → intersection between prevX and x
+                if (!std::isnan(prevDiff) && prevDiff * diff < 0) {
+                    // Bisect to find precise crossing
+                    double lo = prevX, hi = x;
+                    for (int b = 0; b < 30; b++) {
+                        double mid = (lo + hi) / 2;
+                        double fmid;
+                        try {
+                            fmid = m_parser->evaluate(m_entries[i].expression, mid)
+                                 - m_parser->evaluate(m_entries[j].expression, mid);
+                        } catch(...) { break; }
+                        if (prevDiff * fmid < 0) hi = mid; else lo = mid;
+                    }
+                    double ix = (lo + hi) / 2;
+                    double iy;
+                    try { iy = m_parser->evaluate(m_entries[i].expression, ix); } catch(...) { prevDiff = diff; prevX = x; continue; }
+
+                    // Add scatter marker
+                    auto* marker = new QScatterSeries();
+                    marker->setName(QString("∩(%1,%2)").arg(ix,0,'g',4).arg(iy,0,'g',4));
+                    marker->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+                    marker->setMarkerSize(10);
+                    marker->setColor(QColor(0xff, 0xd7, 0x00)); // yellow
+                    marker->setBorderColor(QColor(0xff, 0x88, 0x00));
+                    marker->append(ix, iy);
+                    m_chart->addSeries(marker);
+                    marker->attachAxis(m_axisX);
+                    marker->attachAxis(m_axisY);
+                    m_intersectMarkers.append(marker);
+                }
+                prevDiff = diff;
+                prevX = x;
+            }
+        }
+    }
+}
+
+// ── Integral Shading ──────────────────────────────────────────────────────────
+void GraphingWidget::shadeIntegrals() {
+    for (auto* s : m_shadeSeries) { m_chart->removeSeries(s); delete s; }
+    m_shadeSeries.clear();
+
+    if (m_entries.isEmpty()) return;
+    bool okA, okB;
+    double a = m_shadeA->text().toDouble(&okA);
+    double b = m_shadeB->text().toDouble(&okB);
+    if (!okA || !okB || a >= b) return;
+
+    static constexpr int SHADE_STEPS = 500;
+    double step = (b - a) / SHADE_STEPS;
+
+    for (const PlotEntry& entry : m_entries) {
+        if (!entry.visible) continue;
+
+        auto* upper = new QLineSeries();
+        auto* lower = new QLineSeries();
+
+        for (int i = 0; i <= SHADE_STEPS; i++) {
+            double x = a + i * step;
+            double y = 0;
+            try { y = m_parser->evaluate(entry.expression, x); } catch(...) { y = 0; }
+            if (!std::isfinite(y)) y = 0;
+            upper->append(x, y);
+            lower->append(x, 0);
+        }
+
+        auto* area = new QAreaSeries(upper, lower);
+        QColor shadeColor = entry.color;
+        shadeColor.setAlpha(60);
+        QPen pen(entry.color); pen.setWidth(1);
+        area->setPen(pen);
+        area->setBrush(shadeColor);
+        area->setName(QString("∫%1 [%2,%3]").arg(entry.expression).arg(a,0,'g',4).arg(b,0,'g',4));
+
+        m_chart->addSeries(area);
+        area->attachAxis(m_axisX);
+        area->attachAxis(m_axisY);
+        m_shadeSeries.append(area);
+    }
 }
 
 // ── 3D plotting ───────────────────────────────────────────────────────────────

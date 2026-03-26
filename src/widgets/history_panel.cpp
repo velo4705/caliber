@@ -5,6 +5,10 @@
 #include <QFrame>
 #include <QPropertyAnimation>
 #include <QEasingCurve>
+#include <QFileDialog>
+#include <QTextStream>
+#include <QFile>
+#include <QMessageBox>
 
 HistoryPanel::HistoryPanel(QWidget* parent)
     : QWidget(parent)
@@ -12,7 +16,6 @@ HistoryPanel::HistoryPanel(QWidget* parent)
     setObjectName("historyPanel");
     setFixedWidth(PANEL_WIDTH);
     setAttribute(Qt::WA_StyledBackground, true);
-    // Ensure solid background — no bleed-through
     setAutoFillBackground(true);
 
     auto* layout = new QVBoxLayout(this);
@@ -28,11 +31,21 @@ HistoryPanel::HistoryPanel(QWidget* parent)
     m_clearBtn = new QPushButton("Clear", this);
     m_clearBtn->setObjectName("historyClearBtn");
     m_clearBtn->setFixedSize(60, 26);
-    m_clearBtn->setStyleSheet(
-        "QPushButton { font-size: 12px; padding: 0; }"
-    );
+    m_clearBtn->setStyleSheet("QPushButton { font-size: 12px; padding: 0; }");
     headerRow->addWidget(m_clearBtn);
+
+    auto* exportBtn = new QPushButton("Export", this);
+    exportBtn->setObjectName("historyClearBtn");
+    exportBtn->setFixedSize(60, 26);
+    exportBtn->setStyleSheet("QPushButton { font-size: 12px; padding: 0; }");
+    headerRow->addWidget(exportBtn);
     layout->addLayout(headerRow);
+
+    // Search bar
+    m_search = new QLineEdit(this);
+    m_search->setPlaceholderText("Filter history...");
+    m_search->setClearButtonEnabled(true);
+    layout->addWidget(m_search);
 
     // Divider
     auto* line = new QFrame(this);
@@ -47,15 +60,39 @@ HistoryPanel::HistoryPanel(QWidget* parent)
 
     setLayout(layout);
 
-    // Animation
     m_anim = new QPropertyAnimation(this, "drawerX", this);
     m_anim->setDuration(220);
     m_anim->setEasingCurve(QEasingCurve::OutCubic);
-
-    // Start hidden (off-screen to the right)
     hide();
 
     connect(m_clearBtn, &QPushButton::clicked, this, &HistoryPanel::clearEntries);
+    connect(exportBtn, &QPushButton::clicked, this, [this] {
+        if (m_allEntries.isEmpty()) {
+            QMessageBox::information(this, "Export", "No history to export.");
+            return;
+        }
+        QString path = QFileDialog::getSaveFileName(this, "Export History",
+            "history.txt", "Text file (*.txt);;CSV file (*.csv)");
+        if (path.isEmpty()) return;
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+        QTextStream out(&f);
+        bool csv = path.endsWith(".csv", Qt::CaseInsensitive);
+        if (csv) out << "Expression,Result\n";
+        for (const QString& entry : m_allEntries) {
+            if (csv) {
+                int sep = entry.lastIndexOf(" = ");
+                if (sep != -1)
+                    out << "\"" << entry.left(sep) << "\",\"" << entry.mid(sep+3) << "\"\n";
+                else
+                    out << "\"" << entry << "\",\"\"\n";
+            } else {
+                out << entry << "\n";
+            }
+        }
+        f.close();
+    });
+    connect(m_search, &QLineEdit::textChanged, this, &HistoryPanel::filterEntries);
     connect(m_list, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         QString text = item->text();
         int sep = text.lastIndexOf(" = ");
@@ -124,9 +161,20 @@ void HistoryPanel::toggleDrawer() {
 }
 
 void HistoryPanel::addEntry(const QString& entry) {
-    m_list->insertItem(0, entry);
+    m_allEntries.prepend(entry);
+    filterEntries(m_search->text());
 }
 
 void HistoryPanel::clearEntries() {
+    m_allEntries.clear();
     m_list->clear();
+    m_search->clear();
+}
+
+void HistoryPanel::filterEntries(const QString& query) {
+    m_list->clear();
+    for (const QString& entry : m_allEntries) {
+        if (query.isEmpty() || entry.contains(query, Qt::CaseInsensitive))
+            m_list->addItem(entry);
+    }
 }

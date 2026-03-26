@@ -5,6 +5,8 @@
 #include <QPropertyAnimation>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
+#include <QtCharts/QAreaSeries>
+#include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
 #include <QtDataVisualization/Q3DSurface>
 #include <QtDataVisualization/QSurface3DSeries>
@@ -25,7 +27,8 @@ struct PlotEntry {
     QString      expression;
     QColor       color;
     bool         visible = true;
-    QLineSeries* series  = nullptr;
+    QLineSeries* series      = nullptr;
+    QLineSeries* derivSeries = nullptr; // f'(x) overlay
 };
 
 class GraphingWidget : public QWidget {
@@ -51,6 +54,8 @@ private:
     void plotAll();
     void plotEntry(PlotEntry& entry);
     void applyChartTheme();
+    void findIntersections();
+    void shadeIntegrals();
 
     // 3D
     void plot3D();
@@ -102,11 +107,20 @@ private:
     QRadioButton*   m_radio2D;
     QRadioButton*   m_radio3D;
     QToolButton*    m_themeBtn;   // light/dark chart toggle
+    QToolButton*    m_derivBtn;   // f'(x) overlay toggle
+    QToolButton*    m_intersectBtn; // intersection finder toggle
+    QToolButton*    m_shadeBtn;     // integral shading toggle
+    QLineEdit*      m_shadeA;       // shade from x=a
+    QLineEdit*      m_shadeB;       // shade to x=b
+    QList<QAreaSeries*> m_shadeSeries;
 
     QVector<PlotEntry> m_entries;
     FunctionParser*    m_parser;
 
     bool m_is3D = false;
+    bool m_showDeriv = false;
+    bool m_showIntersect = false;
+    QList<QScatterSeries*> m_intersectMarkers;
 
     static constexpr int SAMPLE_POINTS  = 1000;
     static constexpr int SAMPLES_3D     = 100;

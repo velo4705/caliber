@@ -17,6 +17,7 @@ class QActionGroup;
 enum class ThemeMode {
     System = 0, Light, Dark,
     Midnight, Dracula, Nord, Monokai, Solarized,
+    HighContrast,
     Custom
 };
 
@@ -48,6 +49,7 @@ private:
     void syncGraphTheme(bool dark);
     void buildSearchIndex();
     void onSearchActivated(const QString& text = {});
+    void applyAccentColor();
 
     ModeSidebar*    m_sidebar;
     QStackedWidget* m_stack;
@@ -67,4 +69,6 @@ private:
     ThemeMode       m_themeMode = ThemeMode::System;
     QString         m_customThemePath;
     QActionGroup*   m_themeGroup = nullptr;
+    int             m_fontSize   = 12;
+    QString         m_accentColor; // empty = default (no override)
 };

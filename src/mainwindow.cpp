@@ -48,8 +48,12 @@
 #include <QKeySequence>
 #include <QFileDialog>
 #include <QDir>
+#include <QColorDialog>
 #include <QCompleter>
 #include <QTabWidget>
+#include <QGraphicsOpacityEffect>
+#include <QPropertyAnimation>
+#include <QEasingCurve>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -241,14 +245,15 @@ void MainWindow::setupMenuBar() {
 
     struct ThemeDef { QString label; ThemeMode mode; QString shortcut; };
     const QList<ThemeDef> themes = {
-        { "Follow System",  ThemeMode::System,    "Ctrl+Shift+S" },
-        { "Light",          ThemeMode::Light,     "Ctrl+Shift+L" },
-        { "Dark",           ThemeMode::Dark,      "Ctrl+Shift+D" },
-        { "Midnight Blue",  ThemeMode::Midnight,  ""             },
-        { "Dracula",        ThemeMode::Dracula,   ""             },
-        { "Nord",           ThemeMode::Nord,      ""             },
-        { "Monokai",        ThemeMode::Monokai,   ""             },
-        { "Solarized Dark", ThemeMode::Solarized, ""             },
+        { "Follow System",  ThemeMode::System,       "Ctrl+Shift+S" },
+        { "Light",          ThemeMode::Light,        "Ctrl+Shift+L" },
+        { "Dark",           ThemeMode::Dark,         "Ctrl+Shift+D" },
+        { "Midnight Blue",  ThemeMode::Midnight,     ""             },
+        { "Dracula",        ThemeMode::Dracula,      ""             },
+        { "Nord",           ThemeMode::Nord,         ""             },
+        { "Monokai",        ThemeMode::Monokai,      ""             },
+        { "Solarized Dark", ThemeMode::Solarized,    ""             },
+        { "High Contrast",  ThemeMode::HighContrast, ""             },
     };
 
     for (const auto& t : themes) {
@@ -274,6 +279,50 @@ void MainWindow::setupMenuBar() {
     formulaAction->setShortcut(QKeySequence("Ctrl+F"));
     connect(formulaAction, &QAction::triggered, this, [this]{
         m_formulaBtn->toggle();
+    });
+
+    // ── Font size ─────────────────────────────────────────────────────────────
+    viewMenu->addSeparator();
+    auto* fontMenu = viewMenu->addMenu("Font Size");    const QList<int> sizes = {10, 11, 12, 13, 14, 16, 18};
+    auto* fontGroup = new QActionGroup(this);
+    fontGroup->setExclusive(true);
+    int currentSize = QApplication::font().pointSize();
+    for (int sz : sizes) {
+        auto* a = fontMenu->addAction(QString("%1pt").arg(sz));
+        a->setCheckable(true);
+        a->setChecked(sz == currentSize);
+        fontGroup->addAction(a);
+        connect(a, &QAction::triggered, this, [this, sz, fontGroup]{
+            QFont f = QApplication::font();
+            f.setPointSize(sz);
+            QApplication::setFont(f);
+            // Force all widgets to pick up the new font
+            for (QWidget* w : QApplication::allWidgets()) {
+                w->setFont(f);
+                w->update();
+            }
+            for (auto* act : fontGroup->actions())
+                act->setChecked(act->text() == QString("%1pt").arg(sz));
+            m_fontSize = sz;
+            saveSettings();
+        });
+    }
+
+    // ── Accent color ──────────────────────────────────────────────────────────
+    auto* accentAction = viewMenu->addAction("Accent Color...");
+    connect(accentAction, &QAction::triggered, this, [this]{
+        QColor initial = m_accentColor.isEmpty() ? QColor(0x42, 0x9e, 0xf5) : QColor(m_accentColor);
+        QColor chosen = QColorDialog::getColor(initial, this, "Choose Accent Color");
+        if (!chosen.isValid()) return;
+        m_accentColor = chosen.name();
+        applyAccentColor();
+        saveSettings();
+    });
+    auto* resetAccent = viewMenu->addAction("Reset Accent Color");
+    connect(resetAccent, &QAction::triggered, this, [this]{
+        m_accentColor.clear();
+        applyTheme(); // reapply base theme without override
+        saveSettings();
     });
 
     auto* modeMenu = menuBar()->addMenu("&Mode");
@@ -310,13 +359,14 @@ void MainWindow::onSystemThemeChanged() {
 
 void MainWindow::applyTheme() {
     static const QMap<ThemeMode, QString> builtins = {
-        { ThemeMode::Light,     ":/themes/light.qss"     },
-        { ThemeMode::Dark,      ":/themes/dark.qss"      },
-        { ThemeMode::Midnight,  ":/themes/midnight.qss"  },
-        { ThemeMode::Dracula,   ":/themes/dracula.qss"   },
-        { ThemeMode::Nord,      ":/themes/nord.qss"      },
-        { ThemeMode::Monokai,   ":/themes/monokai.qss"   },
-        { ThemeMode::Solarized, ":/themes/solarized.qss" },
+        { ThemeMode::Light,         ":/themes/light.qss"         },
+        { ThemeMode::Dark,          ":/themes/dark.qss"          },
+        { ThemeMode::Midnight,      ":/themes/midnight.qss"      },
+        { ThemeMode::Dracula,       ":/themes/dracula.qss"       },
+        { ThemeMode::Nord,          ":/themes/nord.qss"          },
+        { ThemeMode::Monokai,       ":/themes/monokai.qss"       },
+        { ThemeMode::Solarized,     ":/themes/solarized.qss"     },
+        { ThemeMode::HighContrast,  ":/themes/highcontrast.qss"  },
     };
 
     if (m_themeMode == ThemeMode::Custom && !m_customThemePath.isEmpty()) {
@@ -340,6 +390,10 @@ void MainWindow::applyTheme() {
 
     // Light is the only non-dark built-in theme
     syncGraphTheme(m_themeMode != ThemeMode::Light);
+
+    // Apply accent color override on top of base theme
+    if (!m_accentColor.isEmpty())
+        applyAccentColor();
 }
 
 void MainWindow::loadCustomTheme() {
@@ -362,6 +416,35 @@ void MainWindow::loadTheme(const QString& qrcPath) {
     }
 }
 
+void MainWindow::applyAccentColor() {
+    if (m_accentColor.isEmpty()) return;
+    QColor c(m_accentColor);
+    QColor cDark = c.darker(130);
+    QColor cLight = c.lighter(130);
+    // Append override on top of current stylesheet
+    QString override = QString(R"(
+QPushButton[class="actionButton"] {
+    background: %1; border-color: %1; color: #ffffff;
+}
+QPushButton[class="actionButton"]:hover { background: %3; }
+QPushButton[class="actionButton"]:pressed { background: %2; }
+#modeSidebar QPushButton:checked {
+    background: rgba(%4,%5,%6,0.15);
+    border-left: 3px solid %1;
+    color: %1;
+}
+QTabBar::tab:selected { color: %1; border-bottom: 2px solid %1; }
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus,
+QComboBox:focus, QDateEdit:focus { border-color: %1; }
+#historyToggleBtn:checked { background: %1; color: #ffffff; border-color: %1; }
+QScrollBar::handle:vertical { background: %1; }
+QScrollBar::handle:vertical:hover { background: %3; }
+)").arg(c.name()).arg(cDark.name()).arg(cLight.name())
+   .arg(c.red()).arg(c.green()).arg(c.blue());
+
+    qApp->setStyleSheet(qApp->styleSheet() + override);
+}
+
 void MainWindow::syncGraphTheme(bool dark) {
     auto* gw = qobject_cast<GraphingWidget*>(m_stack->widget(6));
     if (gw) gw->syncToAppTheme(dark);
@@ -376,6 +459,8 @@ void MainWindow::saveSettings() {
     s.setValue("ui/mode",         m_stack->currentIndex());
     s.setValue("ui/theme",        static_cast<int>(m_themeMode));
     s.setValue("ui/customTheme",  m_customThemePath);
+    s.setValue("ui/fontSize",     m_fontSize);
+    s.setValue("ui/accentColor",  m_accentColor);
 }
 
 void MainWindow::restoreSettings() {
@@ -403,6 +488,14 @@ void MainWindow::restoreSettings() {
     }
 
     applyTheme();
+
+    // Restore font size
+    m_fontSize = s.value("ui/fontSize", 12).toInt();
+    QFont appFont = QApplication::font();
+    appFont.setPointSize(m_fontSize);
+    QApplication::setFont(appFont);
+
+    m_accentColor = s.value("ui/accentColor", "").toString();
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -425,7 +518,9 @@ void MainWindow::keyPressEvent(QKeyEvent* event) {
 }
 
 void MainWindow::onModeChanged(CalcMode mode) {
-    m_stack->setCurrentIndex(static_cast<int>(mode));
+    int idx = static_cast<int>(mode);
+    if (idx == m_stack->currentIndex()) return;
+    m_stack->setCurrentIndex(idx);
     saveSettings();
 }
 
