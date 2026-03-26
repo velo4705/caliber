@@ -29,7 +29,7 @@ static QLineEdit* exprEdit(const QString& ph, QWidget* p) {
     return e;
 }
 static QLineEdit* numEdit(const QString& def, QWidget* p) {
-    auto* e = new QLineEdit(def, p);
+    auto* e = new QLineEdit(def);
     e->setValidator(new QDoubleValidator(-1e15,1e15,10,p));
     e->setFixedWidth(80);
     return e;

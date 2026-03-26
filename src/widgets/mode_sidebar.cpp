@@ -1,5 +1,8 @@
 #include "mode_sidebar.h"
 #include <QLabel>
+#include <QScrollArea>
+#include <QWidget>
+#include <QFrame>
 
 const QVector<ModeSidebar::ModeEntry> ModeSidebar::s_modes = {
     { "Basic",       "⊞", CalcMode::Basic       },
@@ -19,6 +22,11 @@ const QVector<ModeSidebar::ModeEntry> ModeSidebar::s_modes = {
     { "Physics",     "⚛", CalcMode::Physics      },
     { "Chemistry",   "⚗", CalcMode::Chemistry    },
     { "Civil/Mech",  "🔧", CalcMode::CivilMech   },
+    { "Adv. Math",   "∞",  CalcMode::AdvancedMath },
+    { "Discrete",    "⊆",  CalcMode::DiscreteMath },
+    { "MCS",         "λ",  CalcMode::MCS          },
+    { "Signals",     "∿",  CalcMode::SignalProc   },
+    { "Control",     "⊙",  CalcMode::ControlSys  },
 };
 
 ModeSidebar::ModeSidebar(QWidget* parent)
@@ -65,26 +73,45 @@ void ModeSidebar::buildLayout() {
         setMinimumHeight(0);  setMaximumHeight(QWIDGETSIZE_MAX);
         setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
 
-        m_layout = new QBoxLayout(QBoxLayout::TopToBottom, this);
-        m_layout->setContentsMargins(8, 16, 8, 16);
-        m_layout->setSpacing(4);
+        // Container widget inside scroll area
+        auto* container = new QWidget();
+        container->setObjectName("modeSidebar");
+        auto* innerLayout = new QBoxLayout(QBoxLayout::TopToBottom, container);
+        innerLayout->setContentsMargins(8, 16, 8, 16);
+        innerLayout->setSpacing(2);
 
         // Title
-        auto* title = new QLabel("Caliber", this);
+        auto* title = new QLabel("Caliber", container);
         title->setObjectName("sidebarTitle");
         title->setAlignment(Qt::AlignCenter);
         title->setStyleSheet("font-weight:bold; font-size:15px; margin-bottom:8px;");
-        m_layout->addWidget(title);
+        innerLayout->addWidget(title);
 
         for (int i = 0; i < m_buttons.size(); ++i) {
             auto* btn = m_buttons[i];
+            btn->setParent(container);
             btn->setText(s_modes[i].label);
             btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-            btn->setMinimumHeight(38);
+            btn->setMinimumHeight(36);
             btn->setStyleSheet("text-align: left; padding-left: 12px;");
-            m_layout->addWidget(btn);
+            innerLayout->addWidget(btn);
         }
-        m_layout->addStretch();
+        innerLayout->addStretch();
+        container->setLayout(innerLayout);
+
+        // Scroll area
+        auto* scroll = new QScrollArea(this);
+        scroll->setWidget(container);
+        scroll->setWidgetResizable(true);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setObjectName("sidebarScroll");
+
+        m_layout = new QBoxLayout(QBoxLayout::TopToBottom, this);
+        m_layout->setContentsMargins(0, 0, 0, 0);
+        m_layout->setSpacing(0);
+        m_layout->addWidget(scroll);
 
     } else {
         // Horizontal bottom bar

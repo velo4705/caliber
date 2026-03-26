@@ -2,11 +2,16 @@
 #include <QMainWindow>
 #include <QStackedWidget>
 #include <QToolButton>
+#include <QLineEdit>
+#include <QCompleter>
+#include <QMap>
+#include <QPair>
 #include "widgets/mode_sidebar.h"
 
 class MathEngine;
 class HistoryManager;
 class HistoryPanel;
+class FormulaPanel;
 class QActionGroup;
 
 enum class ThemeMode {
@@ -41,11 +46,18 @@ private:
     void applyLayout(bool portrait);
     void loadCustomTheme();
     void syncGraphTheme(bool dark);
+    void buildSearchIndex();
+    void onSearchActivated(const QString& text = {});
 
     ModeSidebar*    m_sidebar;
     QStackedWidget* m_stack;
     HistoryPanel*   m_historyPanel;
-    QToolButton*    m_historyBtn = nullptr;  // top-right toggle button
+    FormulaPanel*   m_formulaPanel = nullptr;
+    QToolButton*    m_historyBtn   = nullptr;
+    QToolButton*    m_formulaBtn   = nullptr;
+    QLineEdit*      m_searchBar    = nullptr;
+    // keyword → (stack index, tab index within that mode's QTabWidget)
+    QMap<QString, QPair<int,int>> m_searchIndex;
     QWidget*        m_central    = nullptr;
     QLayout*        m_rootLayout = nullptr;
 

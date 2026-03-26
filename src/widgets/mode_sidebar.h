@@ -22,7 +22,12 @@ enum class CalcMode {
     Vectors,
     Physics,
     Chemistry,
-    CivilMech
+    CivilMech,
+    AdvancedMath,
+    DiscreteMath,
+    MCS,
+    SignalProc,
+    ControlSys
 };
 
 enum class SidebarOrientation { Vertical, Horizontal };

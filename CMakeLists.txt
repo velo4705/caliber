@@ -34,9 +34,15 @@ set(SOURCES
     src/modes/vectors/vectors_widget.cpp
     src/modes/physics/physics_widget.cpp
     src/modes/chemistry/chemistry_widget.cpp
-    src/modes/civilmech/civilmech_widget.cpp    src/widgets/display_widget.cpp
+    src/modes/civilmech/civilmech_widget.cpp
+    src/modes/advancedmath/advancedmath_widget.cpp
+    src/modes/discretemath/discretemath_widget.cpp
+    src/modes/mcs/mcs_widget.cpp
+    src/modes/signalprocessing/signalprocessing_widget.cpp
+    src/modes/controlsystems/controlsystems_widget.cpp    src/widgets/display_widget.cpp
     src/widgets/mode_sidebar.cpp
     src/widgets/history_panel.cpp
+    src/widgets/formula_panel.cpp
     resources/resources.qrc
 )
 
@@ -65,9 +71,15 @@ set(HEADERS
     src/modes/physics/physics_widget.h
     src/modes/chemistry/chemistry_widget.h
     src/modes/civilmech/civilmech_widget.h
+    src/modes/advancedmath/advancedmath_widget.h
+    src/modes/discretemath/discretemath_widget.h
+    src/modes/mcs/mcs_widget.h
+    src/modes/signalprocessing/signalprocessing_widget.h
+    src/modes/controlsystems/controlsystems_widget.h
     src/widgets/display_widget.h
     src/widgets/mode_sidebar.h
     src/widgets/history_panel.h
+    src/widgets/formula_panel.h
 )
 
 if(WIN32)

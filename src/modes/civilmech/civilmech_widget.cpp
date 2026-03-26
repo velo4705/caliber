@@ -17,8 +17,8 @@ static QPushButton* mkBtn(const QString& t, QWidget* p) {
     b->setMinimumHeight(36); b->setFocusPolicy(Qt::NoFocus); return b;
 }
 static QLineEdit* numEdit(const QString& def, const QString& ph, QWidget* p) {
-    auto* e = new QLineEdit(def, p); e->setPlaceholderText(ph);
-    e->setValidator(new QDoubleValidator(-1e15,1e15,10,p));
+    auto* e = new QLineEdit(def); e->setPlaceholderText(ph);
+    e->setValidator(new QDoubleValidator(-1e15,1e15,10,e));
     e->setFixedWidth(110); return e;
 }
 static QLabel* resultLbl(QWidget* p) {
