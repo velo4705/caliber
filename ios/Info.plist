@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>             <string>Caliber</string>
+    <key>CFBundleDisplayName</key>      <string>Caliber</string>
+    <key>CFBundleIdentifier</key>       <string>com.caliber.app</string>
+    <key>CFBundleVersion</key>          <string>2.0.0</string>
+    <key>CFBundleShortVersionString</key><string>2.0.0</string>
+    <key>CFBundleExecutable</key>       <string>caliber</string>
+    <key>CFBundlePackageType</key>      <string>APPL</string>
+    <key>CFBundleIconFile</key>         <string>AppIcon</string>
+    <key>CFBundleIconFiles</key>
+    <array>
+        <string>AppIcon60x60</string>
+    </array>
+    <key>UILaunchStoryboardName</key>   <string>LaunchScreen</string>
+    <key>UIRequiresFullScreen</key>     <true/>
+    <key>UIStatusBarHidden</key>        <false/>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key> <true/>
+    </dict>
+</dict>
+</plist>

@@ -70,7 +70,7 @@ jobs:
           iconutil -c icns "$ICONSET" -o "$APP_DIR/Contents/Resources/caliber.icns"
 
       - name: macdeployqt
-        run: $(brew --prefix qt)/bin/macdeployqt "build_mac/${APP_NAME}.app" -no-strip
+        run: $(brew --prefix qt)/bin/macdeployqt "build_mac/${APP_NAME}.app" -no-strip -no-qml
 
       - name: Build .dmg
         run: |
