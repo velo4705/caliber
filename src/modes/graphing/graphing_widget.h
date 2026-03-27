@@ -20,12 +20,17 @@ class QPushButton;
 class QToolButton;
 class QRadioButton;
 class QDoubleSpinBox;
+class QComboBox;
 class FunctionParser;
 class ZoomChartView;
 
+enum class PlotMode { Cartesian = 0, Polar, Parametric };
+
 struct PlotEntry {
     QString      expression;
+    QString      yExpression; // for parametric mode: y(t)
     QColor       color;
+    PlotMode     plotMode = PlotMode::Cartesian;
     bool         visible = true;
     QLineSeries* series      = nullptr;
     QLineSeries* derivSeries = nullptr; // f'(x) overlay
@@ -53,12 +58,17 @@ private:
     // 2D
     void plotAll();
     void plotEntry(PlotEntry& entry);
+    void plotPolar(PlotEntry& entry);
+    void plotParametric(PlotEntry& entry);
     void applyChartTheme();
     void findIntersections();
     void shadeIntegrals();
+    void onPlotModeChanged(int index);
 
     // 3D
     void plot3D();
+    void sync3DTheme();
+    void toggleAutoRotate();
 
     // shared
     void addFunction();
@@ -86,6 +96,9 @@ private:
     Q3DSurface*          m_surface   = nullptr;
     QWidget*             m_surface3DContainer = nullptr;
     QSurface3DSeries*    m_series3D  = nullptr;
+    QList<QSurface3DSeries*> m_extra3DSeries; // additional 3D surfaces
+    QTimer*              m_rotationTimer = nullptr; // animated rotation
+    bool                 m_autoRotate = false;
 
     // ── Stacked view (2D / 3D) ────────────────────────────────────────────────
     // (no stacked widget — 3D container is a manual overlay)
@@ -101,6 +114,9 @@ private:
     bool                m_panelOpen = true;
 
     QLineEdit*      m_funcInput;
+    QLineEdit*      m_funcInputY = nullptr; // for parametric y(t)
+    QComboBox*      m_plotModeCombo = nullptr;
+    QLabel*         m_paramLabel = nullptr; // "y(t) =" label for parametric
     QDoubleSpinBox* m_xMin, *m_xMax;
     QDoubleSpinBox* m_yMin, *m_yMax;
     QLabel*         m_statusLabel = nullptr;  // unused, kept for ABI compat
@@ -110,6 +126,7 @@ private:
     QToolButton*    m_derivBtn;   // f'(x) overlay toggle
     QToolButton*    m_intersectBtn; // intersection finder toggle
     QToolButton*    m_shadeBtn;     // integral shading toggle
+    QToolButton*    m_rotateBtn = nullptr; // 3D auto-rotate toggle
     QLineEdit*      m_shadeA;       // shade from x=a
     QLineEdit*      m_shadeB;       // shade to x=b
     QList<QAreaSeries*> m_shadeSeries;

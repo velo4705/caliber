@@ -5,6 +5,8 @@
 #include <QLineEdit>
 #include <QPropertyAnimation>
 #include <QStringList>
+#include <QSet>
+#include <QContextMenuEvent>
 
 class HistoryPanel : public QWidget {
     Q_OBJECT
@@ -22,10 +24,16 @@ signals:
     void entryClicked(const QString& expression);
     void drawerToggled(bool open);
 
+protected:
+    void contextMenuEvent(QContextMenuEvent* event) override;
+
 private:
     int  drawerX() const;
     void setDrawerX(int x);
     void filterEntries(const QString& query);
+    void refreshList();
+    void loadPins();
+    void savePins();
 
     QLineEdit*          m_search;
     QListWidget*        m_list;
@@ -33,6 +41,7 @@ private:
     QPropertyAnimation* m_anim;
     bool                m_open = false;
     QStringList         m_allEntries; // full unfiltered list
+    QSet<QString>       m_pinnedEntries; // pinned entry texts
 
     static constexpr int PANEL_WIDTH = 260;
 };

@@ -11,6 +11,7 @@
 #include <QButtonGroup>
 #include <QDoubleSpinBox>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QColorDialog>
 #include <QFileDialog>
 #include <QFrame>
@@ -21,6 +22,7 @@
 #include <QPropertyAnimation>
 #include <QEasingCurve>
 #include <QStackedWidget>
+#include <QTimer>
 #include <QtCharts/QChart>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
@@ -276,14 +278,31 @@ void GraphingWidget::buildUI() {
     pl->addWidget(div0);
 
     // Function input
+    m_plotModeCombo = new QComboBox(controlsRow);
+    m_plotModeCombo->addItems({"Cartesian", "Polar", "Parametric"});
+    m_plotModeCombo->setFixedHeight(H);
+    m_plotModeCombo->setToolTip("Plot mode");
+    pl->addWidget(m_plotModeCombo, 0, Qt::AlignVCenter);
+
     m_funcInput = new QLineEdit(controlsRow);
     m_funcInput->setPlaceholderText("e.g.  sin(x)  or  x^2 - 4");
     m_funcInput->setFixedHeight(H);
     m_funcInput->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    m_paramLabel = new QLabel("y(t) =", controlsRow);
+    m_paramLabel->hide();
+    m_funcInputY = new QLineEdit(controlsRow);
+    m_funcInputY->setPlaceholderText("e.g.  cos(t)");
+    m_funcInputY->setFixedHeight(H);
+    m_funcInputY->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_funcInputY->hide();
+
     auto* addBtn = mkBtn("+", "actionButton", controlsRow);
     addBtn->setFixedSize(H, H);
     addBtn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     pl->addWidget(m_funcInput, 4, Qt::AlignVCenter);
+    pl->addWidget(m_paramLabel, 0, Qt::AlignVCenter);
+    pl->addWidget(m_funcInputY, 3, Qt::AlignVCenter);
     pl->addWidget(addBtn,      0, Qt::AlignVCenter);
 
     // Divider
@@ -356,6 +375,16 @@ void GraphingWidget::buildUI() {
     pl->addWidget(m_shadeA,    0, Qt::AlignVCenter);
     pl->addWidget(m_shadeB,    0, Qt::AlignVCenter);
 
+    // Auto-rotate toggle (3D mode only)
+    m_rotateBtn = new QToolButton(controlsRow);
+    m_rotateBtn->setText("↻");
+    m_rotateBtn->setToolTip("Toggle 3D auto-rotation");
+    m_rotateBtn->setFixedSize(H, H);
+    m_rotateBtn->setCheckable(true);
+    m_rotateBtn->setObjectName("historyToggleBtn");
+    m_rotateBtn->hide();
+    pl->addWidget(m_rotateBtn, 0, Qt::AlignVCenter);
+
     // Divider
     auto* div3 = new QFrame(controlsRow);
     div3->setFrameShape(QFrame::VLine); div3->setFrameShadow(QFrame::Sunken);
@@ -414,6 +443,8 @@ void GraphingWidget::buildUI() {
     connect(m_shadeB, &QLineEdit::returnPressed, this, [this]{ if(m_shadeBtn->isChecked()) shadeIntegrals(); });
     connect(m_radio2D, &QRadioButton::toggled, this, [this](bool on){ if (on) switchDimension(false); });
     connect(m_radio3D, &QRadioButton::toggled, this, [this](bool on){ if (on) switchDimension(true);  });
+    connect(m_plotModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &GraphingWidget::onPlotModeChanged);
+    connect(m_rotateBtn, &QToolButton::toggled, this, &GraphingWidget::toggleAutoRotate);
     connect(m_xMin, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
     connect(m_xMax, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
     connect(m_yMin, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
@@ -499,7 +530,9 @@ void GraphingWidget::switchDimension(bool is3D) {
 
     if (is3D) {
         init3DSurface();  // lazy init — only creates OpenGL context on first use
+        sync3DTheme();
         m_chartView->hide();
+        m_rotateBtn->show();
         if (!m_entries.isEmpty()) {
             int ph = m_panelOpen ? PANEL_HEIGHT_3D : 0;
             m_surface3DContainer->setGeometry(0, 0, width(), height() - ph);
@@ -510,6 +543,8 @@ void GraphingWidget::switchDimension(bool is3D) {
     } else {
         if (m_surface3DContainer) m_surface3DContainer->hide();
         m_chartView->show();
+        m_rotateBtn->hide();
+        if (m_autoRotate) { m_autoRotate = false; m_rotateBtn->setChecked(false); if(m_rotationTimer) m_rotationTimer->stop(); }
         plotAll();
     }
 
@@ -559,6 +594,7 @@ void GraphingWidget::syncToAppTheme(bool dark) {
     m_chartDark = dark;
     m_themeBtn->setText(dark ? "☀" : "🌙");
     applyChartTheme();
+    if (m_surface) sync3DTheme();
     if (!m_is3D) plotAll();
 }
 
@@ -648,7 +684,20 @@ void GraphingWidget::updateFunctionList() {
 void GraphingWidget::addFunction() {
     QString expr = m_funcInput->text().trimmed();
     if (expr.isEmpty()) return;
-    PlotEntry e; e.expression = expr; e.color = nextColor(); e.visible = true;
+
+    PlotMode mode = static_cast<PlotMode>(m_plotModeCombo->currentIndex());
+    PlotEntry e;
+    e.expression = expr;
+    e.color = nextColor();
+    e.visible = true;
+    e.plotMode = mode;
+
+    if (mode == PlotMode::Parametric) {
+        e.yExpression = m_funcInputY->text().trimmed();
+        if (e.yExpression.isEmpty()) return;
+        m_funcInputY->clear();
+    }
+
     m_entries.append(e);
     m_funcInput->clear();
     updateFunctionList();
@@ -703,7 +752,13 @@ void GraphingWidget::plotAll() {
     for (auto* s : m_shadeSeries) { m_chart->removeSeries(s); delete s; }
     m_shadeSeries.clear();
 
-    for (auto& e : m_entries) plotEntry(e);
+    for (auto& e : m_entries) {
+        switch (e.plotMode) {
+        case PlotMode::Cartesian:   plotEntry(e);      break;
+        case PlotMode::Polar:       plotPolar(e);      break;
+        case PlotMode::Parametric:  plotParametric(e); break;
+        }
+    }
     m_axisX->setRange(m_xMin->value(), m_xMax->value());
     m_axisY->setRange(m_yMin->value(), m_yMax->value());
 
@@ -880,77 +935,199 @@ void GraphingWidget::shadeIntegrals() {
     }
 }
 
+// ── Plot mode change ───────────────────────────────────────────────────────────
+void GraphingWidget::onPlotModeChanged(int index) {
+    PlotMode mode = static_cast<PlotMode>(index);
+    bool isParametric = (mode == PlotMode::Parametric);
+    m_paramLabel->setVisible(isParametric);
+    m_funcInputY->setVisible(isParametric);
+
+    switch (mode) {
+    case PlotMode::Cartesian:
+        m_funcInput->setPlaceholderText("e.g.  sin(x)  or  x^2 - 4");
+        break;
+    case PlotMode::Polar:
+        m_funcInput->setPlaceholderText("e.g.  2*sin(3*theta)  or  1 + cos(theta)");
+        break;
+    case PlotMode::Parametric:
+        m_funcInput->setPlaceholderText("x(t) e.g.  cos(t)");
+        m_funcInputY->setPlaceholderText("y(t) e.g.  sin(t)");
+        break;
+    }
+}
+
+// ── Polar plotting ─────────────────────────────────────────────────────────────
+void GraphingWidget::plotPolar(PlotEntry& entry) {
+    auto* series = new QLineSeries();
+    series->setName(entry.expression);
+    QPen pen(entry.color); pen.setWidth(2); series->setPen(pen);
+
+    static constexpr int POLAR_STEPS = 2000;
+    double thetaMax = 4 * M_PI; // two full rotations
+    double step = thetaMax / POLAR_STEPS;
+    double prevX = std::numeric_limits<double>::quiet_NaN();
+
+    for (double theta = 0; theta <= thetaMax; theta += step) {
+        try {
+            double r = m_parser->evaluate(entry.expression, theta);
+            if (!std::isfinite(r)) { prevX = std::numeric_limits<double>::quiet_NaN(); continue; }
+            double px = r * std::cos(theta);
+            double py = r * std::sin(theta);
+            // Break line at large jumps (e.g. r goes through 0)
+            if (!std::isnan(prevX) && std::abs(px - prevX) > 50)
+                series->append(px, std::numeric_limits<double>::quiet_NaN());
+            series->append(px, py);
+            prevX = px;
+        } catch (...) { prevX = std::numeric_limits<double>::quiet_NaN(); }
+    }
+
+    m_chart->addSeries(series);
+    series->attachAxis(m_axisX); series->attachAxis(m_axisY);
+    series->setVisible(entry.visible);
+    entry.series = series;
+}
+
+// ── Parametric plotting ────────────────────────────────────────────────────────
+void GraphingWidget::plotParametric(PlotEntry& entry) {
+    if (entry.yExpression.isEmpty()) return;
+    auto* series = new QLineSeries();
+    series->setName(QString("%1, %2").arg(entry.expression).arg(entry.yExpression));
+    QPen pen(entry.color); pen.setWidth(2); series->setPen(pen);
+
+    static constexpr int PARAM_STEPS = 2000;
+    double tMin = -10, tMax = 10;
+    double step = (tMax - tMin) / PARAM_STEPS;
+    double prevX = std::numeric_limits<double>::quiet_NaN();
+
+    for (double t = tMin; t <= tMax; t += step) {
+        try {
+            double px = m_parser->evaluate(entry.expression, t);
+            double py = m_parser->evaluate(entry.yExpression, t);
+            if (!std::isfinite(px) || !std::isfinite(py)) {
+                prevX = std::numeric_limits<double>::quiet_NaN();
+                continue;
+            }
+            if (!std::isnan(prevX) && std::abs(px - prevX) > 50)
+                series->append(px, std::numeric_limits<double>::quiet_NaN());
+            series->append(px, py);
+            prevX = px;
+        } catch (...) { prevX = std::numeric_limits<double>::quiet_NaN(); }
+    }
+
+    m_chart->addSeries(series);
+    series->attachAxis(m_axisX); series->attachAxis(m_axisY);
+    series->setVisible(entry.visible);
+    entry.series = series;
+}
+
 // ── 3D plotting ───────────────────────────────────────────────────────────────
 void GraphingWidget::plot3D() {
-    if (m_entries.isEmpty()) {
+    if (!m_surface) return;
+
+    // Collect visible Cartesian entries (only Cartesian mode works in 3D)
+    QStringList exprs;
+    QList<QColor> colors;
+    for (auto& e : m_entries) {
+        if (e.visible && e.plotMode == PlotMode::Cartesian) {
+            exprs << e.expression;
+            colors << e.color;
+        }
+    }
+
+    if (exprs.isEmpty()) {
         m_series3D->dataProxy()->resetArray(new QSurfaceDataArray());
+        for (auto* s : m_extra3DSeries) { m_surface->removeSeries(s); delete s; }
+        m_extra3DSeries.clear();
         return;
     }
-    QString expr;
-    for (auto& e : m_entries) { if (e.visible) { expr = e.expression; break; } }
-    if (expr.isEmpty()) return;
 
     double xMin = m_xMin->value(), xMax = m_xMax->value();
     double yMin = m_yMin->value(), yMax = m_yMax->value();
     int N = SAMPLES_3D;
 
-    // Pass 1: evaluate all Z values into a flat grid
-    QVector<double> zGrid(N * N);
-    double zMin = std::numeric_limits<double>::max();
-    double zMax = std::numeric_limits<double>::lowest();
-    double zFiniteSum = 0; int zFiniteCount = 0;
+    // Helper lambda to evaluate a surface grid
+    auto evalSurface = [&](const QString& expr) -> QSurfaceDataArray* {
+        QVector<double> zGrid(N * N);
+        double zMin = std::numeric_limits<double>::max();
+        double zMax = std::numeric_limits<double>::lowest();
+        double zFiniteSum = 0; int zFiniteCount = 0;
 
-    for (int j = 0; j < N; ++j) {
-        double y = yMin + j * (yMax - yMin) / (N - 1);
-        for (int i = 0; i < N; ++i) {
-            double x = xMin + i * (xMax - xMin) / (N - 1);
-            double z = 0;
-            try { z = m_parser->evaluate(expr, x, y); } catch (...) {}
-            if (std::isfinite(z)) {
-                zMin = std::min(zMin, z);
-                zMax = std::max(zMax, z);
-                zFiniteSum += z;
-                ++zFiniteCount;
-            } else {
-                z = std::numeric_limits<double>::quiet_NaN(); // mark for pass 2
+        for (int j = 0; j < N; ++j) {
+            double y = yMin + j * (yMax - yMin) / (N - 1);
+            for (int i = 0; i < N; ++i) {
+                double x = xMin + i * (xMax - xMin) / (N - 1);
+                double z = 0;
+                try { z = m_parser->evaluate(expr, x, y); } catch (...) {}
+                if (std::isfinite(z)) {
+                    zMin = std::min(zMin, z);
+                    zMax = std::max(zMax, z);
+                    zFiniteSum += z;
+                    ++zFiniteCount;
+                } else {
+                    z = std::numeric_limits<double>::quiet_NaN();
+                }
+                zGrid[j * N + i] = z;
             }
-            zGrid[j * N + i] = z;
         }
-    }
 
-    // Fallback if everything is non-finite
-    double zFallback = zFiniteCount > 0 ? (zFiniteSum / zFiniteCount) : 0.0;
-    if (zMin > zMax) { zMin = -1; zMax = 1; }
-
-    // Pass 2: replace NaN with fallback, clamp extreme spikes to ±3× range
-    double zRange = zMax - zMin;
-    double zClampLo = zMin - zRange * 2;
-    double zClampHi = zMax + zRange * 2;
-    for (double& z : zGrid) {
-        if (!std::isfinite(z)) z = zFallback;
-        else z = std::clamp(z, zClampLo, zClampHi);
-    }
-
-    // Pass 3: fill QSurfaceDataArray
-    auto* dataArray = new QSurfaceDataArray();
-    dataArray->reserve(N);
-    for (int j = 0; j < N; ++j) {
-        double y = yMin + j * (yMax - yMin) / (N - 1);
-        auto* row = new QSurfaceDataRow(N);
-        for (int i = 0; i < N; ++i) {
-            double x = xMin + i * (xMax - xMin) / (N - 1);
-            (*row)[i].setPosition(QVector3D(
-                static_cast<float>(x),
-                static_cast<float>(zGrid[j * N + i]),
-                static_cast<float>(y)));
+        double zFallback = zFiniteCount > 0 ? (zFiniteSum / zFiniteCount) : 0.0;
+        if (zMin > zMax) { zMin = -1; zMax = 1; }
+        double zRange = zMax - zMin;
+        double zClampLo = zMin - zRange * 2;
+        double zClampHi = zMax + zRange * 2;
+        for (double& z : zGrid) {
+            if (!std::isfinite(z)) z = zFallback;
+            else z = std::clamp(z, zClampLo, zClampHi);
         }
-        dataArray->append(row);
+
+        auto* dataArray = new QSurfaceDataArray();
+        dataArray->reserve(N);
+        for (int j = 0; j < N; ++j) {
+            double y = yMin + j * (yMax - yMin) / (N - 1);
+            auto* row = new QSurfaceDataRow(N);
+            for (int i = 0; i < N; ++i) {
+                double x = xMin + i * (xMax - xMin) / (N - 1);
+                (*row)[i].setPosition(QVector3D(
+                    static_cast<float>(x),
+                    static_cast<float>(zGrid[j * N + i]),
+                    static_cast<float>(y)));
+            }
+            dataArray->append(row);
+        }
+        return dataArray;
+    };
+
+    // First surface goes into m_series3D
+    m_series3D->dataProxy()->resetArray(evalSurface(exprs[0]));
+    m_series3D->setName(exprs[0]);
+
+    // Additional surfaces
+    // Remove old extra series
+    for (auto* s : m_extra3DSeries) { m_surface->removeSeries(s); delete s; }
+    m_extra3DSeries.clear();
+
+    QLinearGradient gradient;
+    gradient.setColorAt(0.0,  QColor(0x00, 0x40, 0xff));
+    gradient.setColorAt(0.25, QColor(0x00, 0xc8, 0xff));
+    gradient.setColorAt(0.5,  QColor(0x00, 0xe0, 0x60));
+    gradient.setColorAt(0.75, QColor(0xff, 0xd0, 0x00));
+    gradient.setColorAt(1.0,  QColor(0xff, 0x20, 0x00));
+
+    for (int si = 1; si < exprs.size(); ++si) {
+        auto* extraSeries = new QSurface3DSeries();
+        extraSeries->setDrawMode(QSurface3DSeries::DrawSurface);
+        extraSeries->setFlatShadingEnabled(false);
+        extraSeries->setColorStyle(Q3DTheme::ColorStyleRangeGradient);
+        extraSeries->setBaseGradient(gradient);
+        extraSeries->dataProxy()->resetArray(evalSurface(exprs[si]));
+        extraSeries->setName(exprs[si]);
+        // Offset slightly in Y so surfaces don't z-fight
+        m_surface->addSeries(extraSeries);
+        m_extra3DSeries.append(extraSeries);
     }
 
-    m_series3D->dataProxy()->resetArray(dataArray);
     m_surface->axisX()->setRange(xMin, xMax);
     m_surface->axisZ()->setRange(yMin, yMax);
-    m_surface->axisY()->setRange(zMin, zMax);
 }
 
 // ── Range / view ──────────────────────────────────────────────────────────────
@@ -978,4 +1155,44 @@ void GraphingWidget::exportGraph() {
 QColor GraphingWidget::nextColor() {
     const auto& palette = m_chartDark ? COLORS_DARK : COLORS_LIGHT;
     return palette[m_colorIndex++ % NUM_COLORS];
+}
+
+// ── 3D theme sync ─────────────────────────────────────────────────────────────
+void GraphingWidget::sync3DTheme() {
+    if (!m_surface) return;
+    auto* theme = m_surface->activeTheme();
+    if (!theme) return;
+
+    if (m_chartDark) {
+        theme->setBackgroundColor(QColor(0x0d, 0x0d, 0x0d));
+        theme->setWindowColor(QColor(0x1a, 0x1a, 0x1a));
+        theme->setGridEnabled(true);
+        theme->setBackgroundEnabled(true);
+    } else {
+        theme->setBackgroundColor(QColor(0xff, 0xff, 0xff));
+        theme->setWindowColor(QColor(0xf0, 0xf0, 0xf0));
+        theme->setGridEnabled(true);
+        theme->setBackgroundEnabled(true);
+    }
+}
+
+// ── 3D auto-rotation ──────────────────────────────────────────────────────────
+void GraphingWidget::toggleAutoRotate() {
+    m_autoRotate = m_rotateBtn->isChecked();
+    if (m_autoRotate) {
+        if (!m_rotationTimer) {
+            m_rotationTimer = new QTimer(this);
+            connect(m_rotationTimer, &QTimer::timeout, this, [this]{
+                if (!m_surface) return;
+                auto* handler = m_surface->activeInputHandler();
+                if (!handler) return;
+                // Rotate camera around Y axis
+                float rotY = m_surface->scene()->activeCamera()->yRotation();
+                m_surface->scene()->activeCamera()->setYRotation(rotY + 1.0f);
+            });
+        }
+        m_rotationTimer->start(30); // ~33 fps
+    } else {
+        if (m_rotationTimer) m_rotationTimer->stop();
+    }
 }

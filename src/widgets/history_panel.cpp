@@ -9,6 +9,9 @@
 #include <QTextStream>
 #include <QFile>
 #include <QMessageBox>
+#include <QMenu>
+#include <QContextMenuEvent>
+#include <QSettings>
 
 HistoryPanel::HistoryPanel(QWidget* parent)
     : QWidget(parent)
@@ -94,10 +97,12 @@ HistoryPanel::HistoryPanel(QWidget* parent)
     });
     connect(m_search, &QLineEdit::textChanged, this, &HistoryPanel::filterEntries);
     connect(m_list, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
-        QString text = item->text();
+        QString text = item->data(Qt::UserRole).toString();
         int sep = text.lastIndexOf(" = ");
         emit entryClicked(sep != -1 ? text.left(sep) : text);
     });
+
+    loadPins();
 }
 
 int HistoryPanel::drawerX() const {
@@ -173,8 +178,57 @@ void HistoryPanel::clearEntries() {
 
 void HistoryPanel::filterEntries(const QString& query) {
     m_list->clear();
+    // Show pinned entries first
     for (const QString& entry : m_allEntries) {
-        if (query.isEmpty() || entry.contains(query, Qt::CaseInsensitive))
-            m_list->addItem(entry);
+        if (!m_pinnedEntries.contains(entry)) continue;
+        if (!query.isEmpty() && !entry.contains(query, Qt::CaseInsensitive)) continue;
+        auto* item = new QListWidgetItem("★ " + entry);
+        item->setData(Qt::UserRole, entry);
+        item->setForeground(QColor(0xff, 0xd7, 0x00)); // gold for pinned
+        m_list->addItem(item);
     }
+    // Then unpinned entries
+    for (const QString& entry : m_allEntries) {
+        if (m_pinnedEntries.contains(entry)) continue;
+        if (!query.isEmpty() && !entry.contains(query, Qt::CaseInsensitive)) continue;
+        auto* item = new QListWidgetItem(entry);
+        item->setData(Qt::UserRole, entry);
+        m_list->addItem(item);
+    }
+}
+
+void HistoryPanel::contextMenuEvent(QContextMenuEvent* event) {
+    auto* item = m_list->itemAt(m_list->mapFromGlobal(event->globalPos()));
+    if (!item) return;
+
+    QString entry = item->data(Qt::UserRole).toString();
+    bool pinned = m_pinnedEntries.contains(entry);
+
+    QMenu menu(this);
+    QAction* pinAction = menu.addAction(pinned ? "★ Unpin" : "☆ Pin");
+    QAction* selected = menu.exec(event->globalPos());
+    if (selected == pinAction) {
+        if (pinned) {
+            m_pinnedEntries.remove(entry);
+        } else {
+            m_pinnedEntries.insert(entry);
+        }
+        savePins();
+        filterEntries(m_search->text());
+    }
+}
+
+void HistoryPanel::refreshList() {
+    filterEntries(m_search->text());
+}
+
+void HistoryPanel::loadPins() {
+    QSettings s("Caliber", "Caliber");
+    QStringList pins = s.value("history/pins").toStringList();
+    for (const QString& p : pins) m_pinnedEntries.insert(p);
+}
+
+void HistoryPanel::savePins() {
+    QSettings s("Caliber", "Caliber");
+    s.setValue("history/pins", QStringList(m_pinnedEntries.values()));
 }

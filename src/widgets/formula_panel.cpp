@@ -100,6 +100,10 @@ void FormulaPanel::filterFormulas(const QString& query) {
     m_list->clear();
     QString q = query.trimmed().toLower();
     for (const FormulaEntry& e : m_formulas) {
+        // Mode filter
+        if (!m_modeFilter.isEmpty() && e.mode.toLower() != m_modeFilter.toLower())
+            continue;
+        // Text filter
         bool match = q.isEmpty()
             || e.topic.toLower().contains(q)
             || e.formula.toLower().contains(q)
@@ -109,15 +113,18 @@ void FormulaPanel::filterFormulas(const QString& query) {
 
         auto* item = new QListWidgetItem(m_list);
         item->setFlags(item->flags() & ~Qt::ItemIsSelectable);
-        // Build rich display text
         QString text = QString("【%1】 %2\n%3\n%4")
             .arg(e.mode).arg(e.topic).arg(e.formula).arg(e.desc);
         item->setText(text);
         item->setToolTip(e.formula);
-        // Highlight mode label
         item->setForeground(QColor(0x42, 0x9e, 0xf5));
         m_list->addItem(item);
     }
+}
+
+void FormulaPanel::setFilterMode(const QString& mode) {
+    m_modeFilter = mode;
+    filterFormulas(m_search->text());
 }
 
 void FormulaPanel::populateFormulas() {

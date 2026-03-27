@@ -1,6 +1,6 @@
 # Maintainer: Caliber <caliber@example.com>
 pkgname=caliber
-pkgver=1.1.0
+pkgver=2.0.0
 pkgrel=1
 pkgdesc="Graphical calculator — Basic, Scientific, Programming, Graphing and more"
 arch=('x86_64')

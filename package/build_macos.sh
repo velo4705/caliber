@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Caliber — macOS package builder
-# Produces: Caliber-1.0.0.dmg
+# Produces: Caliber-2.0.0.dmg
 # Requirements:
 #   - Qt6 installed (e.g. via Homebrew: brew install qt)
 #   - create-dmg: brew install create-dmg
@@ -13,7 +13,7 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$REPO/build_mac"
 OUT="$REPO/dist"
 APP_NAME="Caliber"
-VERSION="1.0.0"
+VERSION="2.0.0"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 
 QT_CMAKE_DIR="${1:-$(brew --prefix qt 2>/dev/null)/lib/cmake/Qt6}"

@@ -1,5 +1,5 @@
 ; Caliber — NSIS Installer Script
-; Produces: Caliber-1.1.0-Setup.exe
+; Produces: Caliber-2.0.0-Setup.exe
 ;
 ; HOW TO BUILD:
 ;   This script lives in the "windows\" subfolder inside the extracted zip.
@@ -12,7 +12,7 @@
 Unicode True
 
 !define APP_NAME        "Caliber"
-!define APP_VERSION     "1.1.0"
+!define APP_VERSION     "2.0.0"
 !define APP_PUBLISHER   "Caliber"
 !define APP_EXE         "caliber.exe"
 !define INSTALL_DIR     "$PROGRAMFILES64\Caliber"

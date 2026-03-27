@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(caliber VERSION 1.1.0 LANGUAGES CXX)
+project(caliber VERSION 2.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -43,6 +43,8 @@ set(SOURCES
     src/widgets/mode_sidebar.cpp
     src/widgets/history_panel.cpp
     src/widgets/formula_panel.cpp
+    src/widgets/animated_stacked_widget.cpp
+    src/widgets/gradient_theme_dialog.cpp
     resources/resources.qrc
 )
 
@@ -80,6 +82,8 @@ set(HEADERS
     src/widgets/mode_sidebar.h
     src/widgets/history_panel.h
     src/widgets/formula_panel.h
+    src/widgets/animated_stacked_widget.h
+    src/widgets/gradient_theme_dialog.h
 )
 
 if(WIN32)

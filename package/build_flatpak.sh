@@ -29,11 +29,11 @@ flatpak-builder \
 echo "==> Bundling .flatpak..."
 flatpak build-bundle \
     "$REPO_DIR" \
-    "$OUT/${APP_ID}-1.1.0.flatpak" \
+    "$OUT/${APP_ID}-2.0.0.flatpak" \
     "$APP_ID"
 
 echo ""
-echo "Done: $OUT/${APP_ID}-1.1.0.flatpak"
+echo "Done: $OUT/${APP_ID}-2.0.0.flatpak"
 echo ""
 echo "Install with:"
-echo "  flatpak install --user $OUT/${APP_ID}-1.1.0.flatpak"
+echo "  flatpak install --user $OUT/${APP_ID}-2.0.0.flatpak"

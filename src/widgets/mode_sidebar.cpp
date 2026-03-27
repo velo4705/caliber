@@ -69,9 +69,9 @@ void ModeSidebar::buildLayout() {
     bool vertical = (m_orientation == SidebarOrientation::Vertical);
 
     if (vertical) {
-        setMinimumWidth(148); setMaximumWidth(148);
+        setMinimumWidth(120); setMaximumWidth(300);
         setMinimumHeight(0);  setMaximumHeight(QWIDGETSIZE_MAX);
-        setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+        setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 
         // Container widget inside scroll area
         auto* container = new QWidget();

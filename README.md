@@ -37,20 +37,20 @@ Download the package for your platform from the [Releases](../../releases) page.
 
 | Platform | Package | Install method |
 |---|---|---|
-| Ubuntu / Debian | `caliber-1.1.0.deb` | `sudo dpkg -i caliber-1.1.0.deb` |
-| Fedora / RHEL | `caliber-1.1.0.rpm` | `sudo rpm -i caliber-1.1.0.rpm` |
+| Ubuntu / Debian | `caliber-2.0.0.deb` | `sudo dpkg -i caliber-2.0.0.deb` |
+| Fedora / RHEL | `caliber-2.0.0.rpm` | `sudo rpm -i caliber-2.0.0.rpm` |
 | Arch Linux | `PKGBUILD` | `makepkg -si` |
-| Any Linux | `caliber-1.1.0.tar.gz` | Extract and run |
+| Any Linux | `caliber-2.0.0.tar.gz` | Extract and run |
 | Any Linux (sandboxed) | `com.caliber.app.flatpak` | `flatpak install` |
-| Windows | `Caliber-1.1.0-Windows-x64.zip` | Extract and run `caliber.exe` |
-| macOS | `Caliber-1.1.0.dmg` | Open and drag to Applications |
+| Windows | `Caliber-2.0.0-Windows-x64.zip` | Extract and run `caliber.exe` |
+| macOS | `Caliber-2.0.0.dmg` | Open and drag to Applications |
 
 ---
 
 ### Linux — .deb (Ubuntu / Debian)
 
 ```bash
-sudo dpkg -i caliber-1.1.0.deb
+sudo dpkg -i caliber-2.0.0.deb
 # install any missing Qt6 dependencies:
 sudo apt-get install -f
 ```
@@ -58,9 +58,9 @@ sudo apt-get install -f
 ### Linux — .rpm (Fedora / RHEL / openSUSE)
 
 ```bash
-sudo rpm -i caliber-1.1.0.rpm
+sudo rpm -i caliber-2.0.0.rpm
 # or with dnf:
-sudo dnf install caliber-1.1.0.rpm
+sudo dnf install caliber-2.0.0.rpm
 ```
 
 ### Linux — build from source
@@ -91,7 +91,7 @@ makepkg -si
 ### Linux — Flatpak (any distro)
 
 ```bash
-flatpak install com.caliber.app-1.1.0.flatpak
+flatpak install com.caliber.app-2.0.0.flatpak
 # or from Flathub once published:
 flatpak install flathub com.caliber.app
 ```
@@ -99,8 +99,8 @@ flatpak install flathub com.caliber.app
 ### Linux — tar.gz (portable, any distro)
 
 ```bash
-tar -xzf caliber-1.1.0-Linux.tar.gz
-cd caliber-1.1.0-Linux
+tar -xzf caliber-2.0.0-Linux.tar.gz
+cd caliber-2.0.0-Linux
 sudo cp usr/bin/caliber /usr/local/bin/
 sudo cp usr/share/applications/caliber.desktop /usr/share/applications/
 sudo cp usr/share/icons/hicolor/scalable/apps/caliber.svg \
@@ -111,7 +111,7 @@ sudo cp usr/share/icons/hicolor/scalable/apps/caliber.svg \
 
 ### Windows
 
-1. Download `Caliber-1.1.0-Windows-x64.zip` from [Releases](../../releases).
+1. Download `Caliber-2.0.0-Windows-x64.zip` from [Releases](../../releases).
 2. Extract the zip anywhere (e.g. `C:\Programs\Caliber`).
 3. Run `caliber.exe` — no installation needed, all DLLs are included.
 
@@ -128,7 +128,7 @@ windows\build.bat C:\Qt\6.7.0\msvc2019_64
 
 ### macOS — .dmg
 
-1. Download `Caliber-1.1.0.dmg` from [Releases](../../releases).
+1. Download `Caliber-2.0.0.dmg` from [Releases](../../releases).
 2. Open the `.dmg` and drag `Caliber.app` to your Applications folder.
 
 **Build from source** (requires Qt6 via Homebrew, Xcode CLT):

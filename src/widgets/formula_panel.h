@@ -23,6 +23,9 @@ public:
     void toggleDrawer();
     bool isDrawerOpen() const { return m_open; }
 
+    // Filter formulas to show only the given mode (empty = show all)
+    void setFilterMode(const QString& mode);
+
 private:
     int  drawerX() const;
     void setDrawerX(int x);
@@ -33,6 +36,7 @@ private:
     QListWidget*        m_list;
     QPropertyAnimation* m_anim;
     bool                m_open = false;
+    QString             m_modeFilter; // current mode filter
 
     QList<FormulaEntry> m_formulas;
 

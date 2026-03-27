@@ -12,11 +12,11 @@
       3D function graphing — in a clean, themeable interface.
     </p>
     <ul>
-      <li>Basic, Scientific, Programming, Date, Conversion, Equations, Graphing modes</li>
-      <li>2D and 3D function plotter with zoom, pan and rotation</li>
-      <li>8 built-in themes including Dark, Dracula, Nord, Monokai and Solarized</li>
-      <li>Live currency conversion via API</li>
-      <li>History panel with restore support</li>
+      <li>22 calculator modes: Basic, Scientific, Programming, Date, Conversion, Equations, Graphing, Statistics, Calculus, Financial, Number Theory, Electrical, Digital Logic, Vectors, Physics, Chemistry, Civil/Mech, Advanced Math, Discrete Math, MCS, Signal Processing, Control Systems</li>
+      <li>2D and 3D function plotter with zoom, pan, rotation, polar/parametric modes</li>
+      <li>9 built-in themes + custom gradient theme builder + community theme support</li>
+      <li>History panel with search, filter, pin, and export</li>
+      <li>Step-by-step solver breakdowns across multiple modes</li>
     </ul>
   </description>
   <launchable type="desktop-id">caliber.desktop</launchable>
@@ -25,7 +25,7 @@
     <binary>caliber</binary>
   </provides>
   <releases>
-    <release version="1.1.0" date="2025-01-01"/>
+    <release version="2.0.0" date="2026-03-27"/>
   </releases>
   <content_rating type="oars-1.1"/>
 </component>

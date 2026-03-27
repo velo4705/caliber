@@ -3,6 +3,8 @@
 #include "core/history_manager.h"
 #include "widgets/history_panel.h"
 #include "widgets/formula_panel.h"
+#include "widgets/animated_stacked_widget.h"
+#include "widgets/gradient_theme_dialog.h"
 #include "modes/basic/basic_widget.h"
 #include "modes/scientific/scientific_widget.h"
 #include "modes/programming/programming_widget.h"
@@ -48,9 +50,12 @@
 #include <QKeySequence>
 #include <QFileDialog>
 #include <QDir>
+#include <QDirIterator>
+#include <QStandardPaths>
 #include <QColorDialog>
 #include <QCompleter>
 #include <QTabWidget>
+#include <QSplitter>
 #include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
 #include <QEasingCurve>
@@ -81,7 +86,8 @@ MainWindow::~MainWindow() {
 void MainWindow::buildUI() {
     m_central      = new QWidget(this);
     m_sidebar      = new ModeSidebar(this);
-    m_stack        = new QStackedWidget(this);
+    m_stack        = new AnimatedStackedWidget(this);
+    m_stack->setAnimationDuration(200);
 
     // History panel is parented to m_central so it overlays the content area
     m_historyPanel = new HistoryPanel(m_central);
@@ -198,6 +204,13 @@ void MainWindow::applyLayout(bool portrait) {
         delete m_rootLayout;
         m_rootLayout = nullptr;
     }
+    if (m_splitter) {
+        // Reparent children back before deleting splitter
+        m_sidebar->setParent(m_central);
+        m_stack->setParent(m_central);
+        delete m_splitter;
+        m_splitter = nullptr;
+    }
 
     if (portrait) {
         m_sidebar->setOrientation(SidebarOrientation::Horizontal);
@@ -209,11 +222,18 @@ void MainWindow::applyLayout(bool portrait) {
         m_rootLayout = vl;
     } else {
         m_sidebar->setOrientation(SidebarOrientation::Vertical);
+        m_splitter = new QSplitter(Qt::Horizontal, m_central);
+        m_splitter->addWidget(m_sidebar);
+        m_splitter->addWidget(m_stack);
+        m_splitter->setStretchFactor(0, 0);
+        m_splitter->setStretchFactor(1, 1);
+        m_splitter->setCollapsible(0, false);
+        m_splitter->setCollapsible(1, false);
+        m_splitter->setHandleWidth(3);
         auto* hl = new QHBoxLayout(m_central);
         hl->setContentsMargins(0, 0, 0, 0);
         hl->setSpacing(0);
-        hl->addWidget(m_sidebar);
-        hl->addWidget(m_stack, 1);
+        hl->addWidget(m_splitter);
         m_rootLayout = hl;
     }
 
@@ -267,6 +287,12 @@ void MainWindow::setupMenuBar() {
     themeMenu->addSeparator();
     auto* customAction = themeMenu->addAction("Load Custom Theme (.qss)...");
     connect(customAction, &QAction::triggered, this, &MainWindow::loadCustomTheme);
+
+    auto* gradientAction = themeMenu->addAction("Custom Gradient...");
+    connect(gradientAction, &QAction::triggered, this, &MainWindow::loadGradientTheme);
+
+    // Load community themes from ~/.config/Caliber/themes/
+    loadCommunityThemes();
 
     viewMenu->addSeparator();
     auto* histAction = viewMenu->addAction("Toggle History");
@@ -385,6 +411,121 @@ void MainWindow::applyTheme() {
         return;
     }
 
+    if (m_themeMode == ThemeMode::Gradient) {
+        // Generate QSS from gradient colors
+        bool dark = m_gradientDarkBase;
+        QColor c1 = m_gradientStart;
+        QColor c2 = m_gradientEnd;
+        QColor mid = QColor((c1.red()+c2.red())/2, (c1.green()+c2.green())/2, (c1.blue()+c2.blue())/2);
+
+        // Derive UI colors from the gradient
+        QColor bg        = dark ? mid.darker(180) : mid.lighter(200);
+        QColor sidebarBg = dark ? c1.darker(200)  : c1.lighter(220);
+        QColor cardBg    = dark ? mid.darker(140) : mid.lighter(180);
+        QColor border    = dark ? mid.lighter(130) : mid.darker(130);
+        QColor text      = dark ? QColor(0xe8,0xe8,0xe8) : QColor(0x1a,0x1a,0x1a);
+        QColor textDim   = dark ? QColor(0x88,0x88,0x88) : QColor(0x66,0x66,0x66);
+        QColor textBright= dark ? QColor(0xff,0xff,0xff) : QColor(0x00,0x00,0x00);
+        QColor accent    = c2.lighter(dark ? 130 : 90);
+        QColor accentDark= c1.darker(dark ? 110 : 120);
+
+        // Compute gradient coordinates from angle
+        double a = m_gradientAngle * M_PI / 180.0;
+        double x1 = 0.5 - std::cos(a)*0.5, y1 = 0.5 - std::sin(a)*0.5;
+        double x2 = 0.5 + std::cos(a)*0.5, y2 = 0.5 + std::sin(a)*0.5;
+
+        QString gradMain = QString("qlineargradient(x1:%1,y1:%2,x2:%3,y2:%4, stop:0 %5, stop:1 %6)")
+            .arg(x1,0,'f',2).arg(y1,0,'f',2).arg(x2,0,'f',2).arg(y2,0,'f',2)
+            .arg(c1.name()).arg(c2.name());
+        QString gradSidebar = QString("qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 %1, stop:1 %2)")
+            .arg(c1.darker(dark?160:140).name()).arg(c1.name());
+        QString gradBtn = QString("qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 %1, stop:1 %2)")
+            .arg(cardBg.lighter(110).name()).arg(cardBg.name());
+        QString gradAction = QString("qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 %1, stop:1 %2)")
+            .arg(c1.lighter(120).name()).arg(c2.lighter(110).name());
+
+        QString qss = QString(R"(
+* { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-size: 14px; outline: none; }
+QMainWindow { background: %1; }
+QWidget { background-color: %11; color: %2; }
+#modeSidebar { background-color: %3; border-right: 1px solid %4; min-width: 120px; max-width: 300px; }
+#modeSidebar QLabel { color: %5; font-size: 15px; font-weight: bold; padding: 4px 0 12px 0; }
+#modeSidebar QPushButton { background: transparent; border: none; border-radius: 8px; padding: 10px 12px; text-align: left; color: %6; font-size: 13px; }
+#modeSidebar QPushButton:hover { background: rgba(%7,%8,%9,0.15); color: %2; }
+#modeSidebar QPushButton:checked { background: rgba(%7,%8,%9,0.25); color: %5; font-weight: bold; border-left: 3px solid %10; }
+#displayWidget { background-color: %11; border: 1px solid %4; border-radius: 12px; padding: 4px; }
+#expressionLabel { color: %6; font-size: 13px; padding: 2px 8px 0 8px; }
+#resultLabel { color: %2; font-size: 30px; font-weight: bold; padding: 0 8px 4px 8px; }
+QPushButton[class="calcButton"] { background-color: %12; border: 1px solid %4; border-radius: 8px; font-size: 16px; color: %2; min-height: 52px; }
+QPushButton[class="calcButton"]:hover { background-color: %13; border-color: %10; }
+QPushButton[class="calcButton"]:pressed { background-color: %4; }
+QPushButton[class="operatorButton"] { background-color: rgba(%7,%8,%9,0.2); border: 1px solid %10; border-radius: 8px; font-size: 16px; color: %10; min-height: 52px; font-weight: 600; }
+QPushButton[class="operatorButton"]:hover { background-color: rgba(%7,%8,%9,0.35); color: %2; }
+QPushButton[class="operatorButton"]:pressed { background-color: %10; color: %11; }
+QPushButton[class="actionButton"] { background-color: %14; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; color: %15; min-height: 52px; }
+QPushButton[class="actionButton"]:hover { background-color: %10; }
+QPushButton[class="actionButton"]:pressed { background-color: %16; }
+QPushButton[class="clearButton"] { background-color: rgba(255,60,60,0.15); border: 1px solid rgba(255,60,60,0.5); border-radius: 8px; font-size: 16px; color: #ff5555; min-height: 52px; }
+QPushButton[class="clearButton"]:hover { background-color: rgba(255,60,60,0.3); }
+#historyPanel { background-color: %11; }
+#historyPanel QLabel { background: transparent; color: %5; font-weight: bold; font-size: 13px; }
+#historyPanel QListWidget { background-color: %11; border: none; font-size: 12px; }
+#historyPanel QListWidget::item { padding: 6px 8px; border-bottom: 1px solid %4; color: %6; border-radius: 4px; }
+#historyPanel QListWidget::item:hover { background: rgba(%7,%8,%9,0.15); }
+QTabWidget { background: transparent; }
+QTabWidget::pane { border: 1px solid %4; border-radius: 8px; background-color: %11; }
+QTabWidget QWidget { background-color: %11; }
+QTabBar::tab { background-color: %17; color: %6; border: 1px solid %4; border-bottom: none; border-radius: 6px 6px 0 0; padding: 6px 14px; margin-right: 2px; font-size: 13px; }
+QTabBar::tab:selected { background-color: %14; color: %15; font-weight: bold; }
+QTabBar::tab:hover:!selected { background-color: rgba(%7,%8,%9,0.15); color: %2; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QDateEdit { background-color: %11; border: 1px solid %4; border-radius: 6px; padding: 5px 8px; color: %2; selection-background-color: %10; }
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QDateEdit:focus { border: 2px solid %10; }
+QComboBox QAbstractItemView { background-color: %11; border: 1px solid %4; color: %2; selection-background-color: rgba(%7,%8,%9,0.3); }
+QScrollBar:vertical { background-color: %17; width: 8px; border-radius: 4px; }
+QScrollBar::handle:vertical { background-color: %10; border-radius: 4px; min-height: 20px; }
+QScrollBar::handle:vertical:hover { background-color: %5; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QMenuBar { background-color: %3; color: %6; padding: 2px; }
+QMenuBar::item:selected { background: rgba(%7,%8,%9,0.2); border-radius: 4px; }
+QMenu { background-color: %11; border: 1px solid %4; border-radius: 6px; }
+QMenu::item { padding: 6px 24px; color: %2; }
+QMenu::item:selected { background: rgba(%7,%8,%9,0.25); }
+QTableWidget { background-color: %11; border: 1px solid %4; border-radius: 6px; gridline-color: %4; color: %2; }
+QTableWidget QWidget { background-color: %11; }
+QHeaderView::section { background-color: %17; color: %6; border: 1px solid %4; padding: 4px; }
+QTextEdit { background-color: %11; border: 1px solid %4; border-radius: 6px; color: %2; }
+QFrame[frameShape="4"] { color: %4; }
+#graphBottomPanel { background-color: rgba(%18,%19,%20,0.95); border-top: 1px solid %4; }
+#graphBottomPanel QWidget { background-color: transparent; }
+QToolButton { background-color: transparent; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; color: %2; }
+QToolButton:hover { background-color: rgba(%7,%8,%9,0.2); }
+QToolButton:checked { background-color: %10; color: %15; border-color: %10; }
+QPushButton { min-height: 24px; }
+QGroupBox { background-color: %11; border: 1px solid %4; border-radius: 8px; margin-top: 12px; padding-top: 16px; }
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; color: %5; }
+QLabel { background: transparent; }
+QCheckBox { background: transparent; }
+QRadioButton { background: transparent; }
+QSplitter { background-color: %11; }
+QSplitter::handle { background-color: %4; width: 3px; }
+)").arg(gradMain).arg(text.name())                                   // %1, %2
+   .arg(gradSidebar).arg(border.name())                              // %3, %4
+   .arg(accent.name()).arg(textDim.name())                           // %5, %6
+   .arg(accent.red()).arg(accent.green()).arg(accent.blue())         // %7, %8, %9
+   .arg(accent.name())                                               // %10
+   .arg(cardBg.name())                                               // %11
+   .arg(gradBtn)                                                     // %12
+   .arg(cardBg.lighter(120).name())                                  // %13
+   .arg(gradAction).arg(dark ? textBright.name() : text.name())      // %14, %15
+   .arg(accentDark.name())                                           // %16
+   .arg(bg.name())                                                   // %17
+   .arg(mid.red()).arg(mid.green()).arg(mid.blue());                 // %18, %19, %20
+
+        qApp->setStyleSheet(qss);
+        syncGraphTheme(dark);
+        return;
+    }
+
     if (builtins.contains(m_themeMode))
         loadTheme(builtins[m_themeMode]);
 
@@ -406,6 +547,63 @@ void MainWindow::loadCustomTheme() {
     saveSettings();
     if (m_themeGroup && m_themeGroup->checkedAction())
         m_themeGroup->checkedAction()->setChecked(false);
+}
+
+void MainWindow::loadGradientTheme() {
+    GradientThemeDialog dlg(this);
+    dlg.loadSettings();
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    m_gradientStart    = dlg.gradientStart();
+    m_gradientEnd      = dlg.gradientEnd();
+    m_gradientDarkBase = dlg.darkBase();
+    m_gradientAngle    = dlg.angle();
+    dlg.saveSettings();
+
+    m_themeMode = ThemeMode::Gradient;
+    applyTheme();
+    saveSettings();
+
+    // Uncheck all theme group actions
+    if (m_themeGroup && m_themeGroup->checkedAction())
+        m_themeGroup->checkedAction()->setChecked(false);
+}
+
+void MainWindow::loadCommunityThemes() {
+    // Scan ~/.config/Caliber/themes/ for .qss files
+    QString themesDir = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) + "/Caliber/themes";
+    QDir dir(themesDir);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+        return; // No themes yet
+    }
+
+    QStringList filters; filters << "*.qss";
+    auto files = dir.entryList(filters, QDir::Files);
+    if (files.isEmpty()) return;
+
+    // Find the theme menu from the menu bar
+    auto* themeMenu = m_themeGroup ? qobject_cast<QMenu*>(m_themeGroup->parent()) : nullptr;
+    if (!themeMenu) return;
+
+    themeMenu->addSeparator();
+    auto* communityHeader = themeMenu->addAction("── Community Themes ──");
+    communityHeader->setEnabled(false);
+
+    for (const QString& file : files) {
+        QString fullPath = dir.absoluteFilePath(file);
+        QString name = file;
+        name.chop(4); // remove .qss
+        auto* a = themeMenu->addAction(name);
+        a->setCheckable(true);
+        m_themeGroup->addAction(a);
+        connect(a, &QAction::triggered, this, [this, fullPath]{
+            m_customThemePath = fullPath;
+            m_themeMode = ThemeMode::Custom;
+            applyTheme();
+            saveSettings();
+        });
+    }
 }
 
 void MainWindow::loadTheme(const QString& qrcPath) {
@@ -461,6 +659,7 @@ void MainWindow::saveSettings() {
     s.setValue("ui/customTheme",  m_customThemePath);
     s.setValue("ui/fontSize",     m_fontSize);
     s.setValue("ui/accentColor",  m_accentColor);
+    // Gradient theme settings are saved by GradientThemeDialog
 }
 
 void MainWindow::restoreSettings() {
@@ -496,6 +695,12 @@ void MainWindow::restoreSettings() {
     QApplication::setFont(appFont);
 
     m_accentColor = s.value("ui/accentColor", "").toString();
+
+    // Load gradient theme settings
+    m_gradientStart    = QColor(s.value("gradient/start", "#1a1a2e").toString());
+    m_gradientEnd      = QColor(s.value("gradient/end",   "#16213e").toString());
+    m_gradientDarkBase = s.value("gradient/darkBase", true).toBool();
+    m_gradientAngle    = s.value("gradient/angle", 45).toInt();
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -522,6 +727,17 @@ void MainWindow::onModeChanged(CalcMode mode) {
     if (idx == m_stack->currentIndex()) return;
     m_stack->setCurrentIndex(idx);
     saveSettings();
+
+    // Update formula panel mode filter
+    static const QStringList modeNames = {
+        "Basic", "Scientific", "Programming", "Date", "Conversion",
+        "Equations", "Graphing", "Statistics", "Calculus", "Financial",
+        "Number Theory", "Electrical", "Digital Logic", "Vectors",
+        "Physics", "Chemistry", "Civil/Mech", "Advanced Math", "Discrete",
+        "MCS", "Signals", "Control"
+    };
+    if (idx >= 0 && idx < modeNames.size())
+        m_formulaPanel->setFilterMode(modeNames[idx]);
 }
 
 void MainWindow::buildSearchIndex() {

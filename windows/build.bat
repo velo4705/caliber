@@ -69,7 +69,7 @@ if errorlevel 1 (
 makensis "%SCRIPT_DIR%installer.nsi"
 if errorlevel 1 ( echo [ERROR] NSIS build failed. & exit /b 1 )
 echo.
-echo [OK] Installer built: %SCRIPT_DIR%Caliber-1.1.0-Setup.exe
+echo [OK] Installer built: %SCRIPT_DIR%Caliber-2.0.0-Setup.exe
 
 :done
 echo.
