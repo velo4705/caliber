@@ -138,11 +138,12 @@ void ScientificWidget::buildUI() {
     for (const auto& [label, row, col, rs, cs, cls] : numPad) {
         auto* btn = makeBtn(label, cls, this);
         grid->addWidget(btn, row, col, rs, cs);
-        connect(btn, &QPushButton::clicked, this, [this, label]() {
-            if (label == "=")  onEquals();
-            else if (label == "C")  onClear();
-            else if (label == "⌫") onBackspace();
-            else onButtonClicked(label);
+        QString lbl = label; // C++17: copy before lambda capture
+        connect(btn, &QPushButton::clicked, this, [this, lbl]() {
+            if (lbl == "=")  onEquals();
+            else if (lbl == "C")  onClear();
+            else if (lbl == "⌫") onBackspace();
+            else onButtonClicked(lbl);
         });
     }
 

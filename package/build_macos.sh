@@ -29,7 +29,7 @@ mkdir -p "$BUILD"
 cmake -S "$REPO" -B "$BUILD" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH="$QT_CMAKE_DIR" \
-    -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+    -DCMAKE_OSX_ARCHITECTURES="arm64" \
     > /dev/null
 
 echo "==> Building..."
