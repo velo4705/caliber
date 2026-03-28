@@ -8,14 +8,14 @@ on:
 env:
   APP_NAME: Caliber
   VERSION: "2.0.0"
-  QT_VERSION: '6.8.*'
+  QT_VERSION: '6.7.3'
   ANDROID_API: 34
   NDK_VERSION: 26.1.10909125
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +65,8 @@ jobs:
           ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         run: |
-          "${{ env.Qt6_DIR }}/../../bin/androiddeployqt" \
+          ANDROIDDEPLOYQT=$(find "${{ env.Qt6_DIR }}/../.." -name androiddeployqt -type f | head -1)
+          "$ANDROIDDEPLOYQT" \
             --input build_android/android-caliber-deployment-settings.json \
             --output build_android/android-build \
             --apk build_android/caliber.apk

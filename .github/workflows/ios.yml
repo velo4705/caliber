@@ -8,7 +8,6 @@ on:
 env:
   APP_NAME: Caliber
   VERSION: "2.0.0"
-  QT_VERSION: '6.8.*'
   IOS_DEPLOYMENT_TARGET: '16.0'
 
 jobs:
@@ -19,21 +18,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Qt6 for iOS
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          target: 'ios'
-          modules: 'qtcharts qtdatavis3d'
+      - name: Install Qt6
+        run: brew install qt
 
       - name: Configure (Simulator)
         run: |
+          QT_CMAKE="$(brew --prefix qt)/lib/cmake/Qt6"
           mkdir build_ios_sim
           cmake -S . -B build_ios_sim \
             -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }} \
             -DCMAKE_OSX_SYSROOT=iphonesimulator \
-            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}" \
+            -DCMAKE_PREFIX_PATH="$QT_CMAKE" \
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build (Simulator)
@@ -58,21 +54,23 @@ jobs:
             sleep 5
 
             echo "Taking screenshot..."
-            xcrun simctl io booted screenshot "build_ios_sim/screenshot.png" 2>/dev/null || echo "Screenshot failed (no GUI access)"
+            xcrun simctl io booted screenshot "build_ios_sim/screenshot.png" 2>/dev/null || echo "Screenshot failed"
             echo "Shutting down simulator..."
             xcrun simctl shutdown booted 2>/dev/null || true
             echo "Simulator test complete."
           else
-            echo "WARNING: Simulator .app not found at $APP_PATH"
+            echo "WARNING: .app not found at $APP_PATH"
+            ls build_ios_sim/ || true
           fi
 
       - name: Configure (Device)
         run: |
+          QT_CMAKE="$(brew --prefix qt)/lib/cmake/Qt6"
           mkdir build_ios
           cmake -S . -B build_ios \
             -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }} \
-            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}" \
+            -DCMAKE_PREFIX_PATH="$QT_CMAKE" \
             -DCMAKE_BUILD_TYPE=Release \
             -GXcode
 
@@ -83,10 +81,17 @@ jobs:
         run: |
           mkdir -p dist
           APP_PATH="build_ios/Release-iphoneos/${APP_NAME}.app"
-          mkdir -p build_ios/Payload
-          cp -R "$APP_PATH" build_ios/Payload/
-          cd build_ios
-          zip -r "../dist/${APP_NAME}-${VERSION}-iOS.ipa" Payload/
+          if [ ! -d "$APP_PATH" ]; then
+            APP_PATH=$(find build_ios -name "${APP_NAME}.app" -path "*/Release-iphoneos/*" | head -1)
+          fi
+          if [ -d "$APP_PATH" ]; then
+            mkdir -p build_ios/Payload
+            cp -R "$APP_PATH" build_ios/Payload/
+            cd build_ios
+            zip -r "../dist/${APP_NAME}-${VERSION}-iOS.ipa" Payload/
+          else
+            echo "WARNING: Device .app not found"
+          fi
 
       - name: Upload simulator screenshot
         uses: actions/upload-artifact@v4
@@ -99,13 +104,14 @@ jobs:
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
+        if: hashFiles('dist/*.ipa') != ''
         with:
           name: iOS-IPA
           path: dist/${{ env.APP_NAME }}-${{ env.VERSION }}-iOS.ipa
           retention-days: 30
 
       - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') && hashFiles('dist/*.ipa') != ''
         uses: softprops/action-gh-release@v2
         with:
           files: dist/${{ env.APP_NAME }}-${{ env.VERSION }}-iOS.ipa
