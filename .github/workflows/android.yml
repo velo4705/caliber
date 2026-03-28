@@ -25,7 +25,10 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK components
-        run: sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "ndk;27.3.13750724"
+        run: |
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "ndk;27.3.13750724"
+          # Remove incompatible android-36 that breaks aapt2 with AGP 7.4.1
+          sdkmanager --uninstall "platforms;android-36-ext19" 2>/dev/null || true
 
       - name: Install Qt6 (host + android)
         run: |
@@ -63,6 +66,8 @@ jobs:
         run: |
           mkdir -p build_android/android-build/libs/arm64-v8a
           cp build_android/libcaliber_arm64-v8a.so build_android/android-build/libs/arm64-v8a/
+          # Suppress unsupported compileSdk warning (AGP 7.4.1 + android-36)
+          echo "android.suppressUnsupportedCompileSdk=36" >> build_android/android-build/gradle.properties
           /opt/Qt/6.7.3/gcc_64/bin/androiddeployqt \
             --input build_android/android-caliber-deployment-settings.json \
             --output build_android/android-build \
