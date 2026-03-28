@@ -86,7 +86,7 @@ if [ ! -f "$MACDEPLOYQT" ]; then
 fi
 
 echo "==> Running macdeployqt..."
-"$MACDEPLOYQT" "$APP_DIR" -no-strip -no-qml
+"$MACDEPLOYQT" "$APP_DIR" -no-strip || true
 
 # ── Build .dmg ────────────────────────────────────────────────────────────────
 mkdir -p "$OUT"

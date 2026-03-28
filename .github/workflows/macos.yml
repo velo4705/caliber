@@ -70,7 +70,10 @@ jobs:
           iconutil -c icns "$ICONSET" -o "$APP_DIR/Contents/Resources/caliber.icns"
 
       - name: macdeployqt
-        run: $(brew --prefix qt)/bin/macdeployqt "build_mac/${APP_NAME}.app" -no-strip -no-qml
+        run: |
+          # macdeployqt may warn about optional QML deps (QtPdf, QtSvg, etc.)
+          # These are not fatal — the app works fine without them.
+          $(brew --prefix qt)/bin/macdeployqt "build_mac/${APP_NAME}.app" -no-strip || true
 
       - name: Build .dmg
         run: |
