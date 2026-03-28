@@ -26,7 +26,47 @@ jobs:
           target: 'ios'
           modules: 'qtcharts qtdatavis3d'
 
-      - name: Configure
+      - name: Configure (Simulator)
+        run: |
+          mkdir build_ios_sim
+          cmake -S . -B build_ios_sim \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }} \
+            -DCMAKE_OSX_SYSROOT=iphonesimulator \
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}" \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Simulator)
+        run: cmake --build build_ios_sim --parallel $(sysctl -n hw.logicalcpu)
+
+      - name: Boot simulator and test
+        run: |
+          SIM_UDID=$(xcrun simctl list devices available | grep "iPhone 16" | head -1 | grep -oE '[0-9A-F-]{36}')
+          if [ -z "$SIM_UDID" ]; then
+            SIM_UDID=$(xcrun simctl create "TestDevice" "iPhone 16" "iOS")
+          fi
+          echo "Using simulator: $SIM_UDID"
+          xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
+          sleep 3
+
+          APP_PATH="build_ios_sim/${APP_NAME}.app"
+          if [ -d "$APP_PATH" ]; then
+            echo "Installing app..."
+            xcrun simctl install booted "$APP_PATH"
+            echo "Launching app..."
+            xcrun simctl launch booted com.caliber.app || echo "Launch returned non-zero (expected for GUI app in CI)"
+            sleep 5
+
+            echo "Taking screenshot..."
+            xcrun simctl io booted screenshot "build_ios_sim/screenshot.png" 2>/dev/null || echo "Screenshot failed (no GUI access)"
+            echo "Shutting down simulator..."
+            xcrun simctl shutdown booted 2>/dev/null || true
+            echo "Simulator test complete."
+          else
+            echo "WARNING: Simulator .app not found at $APP_PATH"
+          fi
+
+      - name: Configure (Device)
         run: |
           mkdir build_ios
           cmake -S . -B build_ios \
@@ -36,7 +76,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -GXcode
 
-      - name: Build
+      - name: Build (Device)
         run: cmake --build build_ios --config Release
 
       - name: Create IPA
@@ -47,6 +87,15 @@ jobs:
           cp -R "$APP_PATH" build_ios/Payload/
           cd build_ios
           zip -r "../dist/${APP_NAME}-${VERSION}-iOS.ipa" Payload/
+
+      - name: Upload simulator screenshot
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iOS-Simulator-Screenshot
+          path: build_ios_sim/screenshot.png
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4

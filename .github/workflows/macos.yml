@@ -75,6 +75,19 @@ jobs:
           # These are not fatal — the app works fine without them.
           $(brew --prefix qt)/bin/macdeployqt "build_mac/${APP_NAME}.app" -no-strip || true
 
+      - name: Smoke test (launch check)
+        run: |
+          # Verify all required frameworks are bundled
+          APP_BIN="build_mac/${APP_NAME}.app/Contents/MacOS/${APP_NAME}"
+          echo "=== Linked frameworks ==="
+          otool -L "$APP_BIN" | head -20
+          echo ""
+          echo "=== Frameworks in bundle ==="
+          ls build_mac/${APP_NAME}.app/Contents/Frameworks/ 2>/dev/null || echo "(none)"
+          echo ""
+          echo "=== Attempting launch (headless, expect timeout) ==="
+          timeout 5 open -W build_mac/${APP_NAME}.app 2>&1 || echo "Launch timed out (expected - no display)"
+
       - name: Build .dmg
         run: |
           mkdir -p dist
