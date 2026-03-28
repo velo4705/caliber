@@ -5,6 +5,7 @@
 #include "widgets/formula_panel.h"
 #include "widgets/animated_stacked_widget.h"
 #include "widgets/gradient_theme_dialog.h"
+#include "widgets/mode_pager.h"
 #include "modes/basic/basic_widget.h"
 #include "modes/scientific/scientific_widget.h"
 #include "modes/programming/programming_widget.h"
@@ -88,8 +89,7 @@ MainWindow::~MainWindow() {
 void MainWindow::buildUI() {
     m_central      = new QWidget(this);
     m_sidebar      = new ModeSidebar(this);
-    m_stack        = new AnimatedStackedWidget(this);
-    m_stack->setAnimationDuration(200);
+    m_stack = new AnimatedStackedWidget(this);
 
     // History panel is parented to m_central so it overlays the content area
     m_historyPanel = new HistoryPanel(m_central);
@@ -186,75 +186,56 @@ void MainWindow::buildUI() {
     tb->setObjectName("mainToolbar");
     tb->setVisible(false);
 
-    // Mobile header: "Caliber" + history/formulas/settings buttons
-    auto* mobileHeader = new QWidget(m_central);
-    mobileHeader->setObjectName("mobileHeader");
-    mobileHeader->setFixedHeight(48);
-    auto* headerLayout = new QHBoxLayout(mobileHeader);
-    headerLayout->setContentsMargins(12, 0, 8, 0);
-    headerLayout->setSpacing(8);
+    // Use ModePager: header + content + full-width bottom mode bar
+    auto* pager = new ModePager(m_central);
 
-    auto* titleLabel = new QLabel("Caliber", mobileHeader);
-    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold; background: transparent;");
-    headerLayout->addWidget(titleLabel);
-    headerLayout->addStretch();
+    // Add all mode widgets to the pager's stack
+    pager->stack()->addWidget(new BasicWidget       (m_engine, m_history, m_historyPanel, this));
+    pager->stack()->addWidget(new ScientificWidget   (m_engine, m_history, m_historyPanel, this));
+    pager->stack()->addWidget(new ProgrammingWidget  (m_history, m_historyPanel, this));
+    pager->stack()->addWidget(new DateWidget         (this));
+    pager->stack()->addWidget(new ConversionWidget   (this));
+    pager->stack()->addWidget(new EquationsWidget    (this));
+    pager->stack()->addWidget(new GraphingWidget     (this));
+    pager->stack()->addWidget(new StatisticsWidget   (this));
+    pager->stack()->addWidget(new CalculusWidget     (this));
+    pager->stack()->addWidget(new FinancialWidget    (this));
+    pager->stack()->addWidget(new NumberTheoryWidget (this));
+    pager->stack()->addWidget(new ElectricalWidget   (this));
+    pager->stack()->addWidget(new DigitalLogicWidget (this));
+    pager->stack()->addWidget(new VectorsWidget      (this));
+    pager->stack()->addWidget(new PhysicsWidget      (this));
+    pager->stack()->addWidget(new ChemistryWidget    (this));
+    pager->stack()->addWidget(new CivilMechWidget    (this));
+    pager->stack()->addWidget(new AdvancedMathWidget (this));
+    pager->stack()->addWidget(new DiscreteMathWidget (this));
+    pager->stack()->addWidget(new McsWidget          (this));
+    pager->stack()->addWidget(new SignalProcessingWidget(this));
+    pager->stack()->addWidget(new ControlSystemsWidget  (this));
 
-    m_historyBtn = new QToolButton(mobileHeader);
-    m_historyBtn->setText("⏱");
-    m_historyBtn->setCheckable(true);
-    m_historyBtn->setFixedSize(40, 40);
-    m_historyBtn->setObjectName("historyToggleBtn");
-    m_historyBtn->setFocusPolicy(Qt::NoFocus);
-    headerLayout->addWidget(m_historyBtn);
+    // Replace m_stack reference for search/navigation
+    m_stack = pager->stack();
 
-    m_formulaBtn = new QToolButton(mobileHeader);
-    m_formulaBtn->setText("📖");
-    m_formulaBtn->setCheckable(true);
-    m_formulaBtn->setFixedSize(40, 40);
-    m_formulaBtn->setObjectName("historyToggleBtn");
-    m_formulaBtn->setFocusPolicy(Qt::NoFocus);
-    headerLayout->addWidget(m_formulaBtn);
+    // Also add history and formula buttons to the pager header area
+    // (ModePager header already has Caliber title + prev/next arrows)
 
-    auto* settingsBtn = new QToolButton(mobileHeader);
-    settingsBtn->setText("⚙");
-    settingsBtn->setFixedSize(40, 40);
-    settingsBtn->setObjectName("historyToggleBtn");
-    settingsBtn->setFocusPolicy(Qt::NoFocus);
-    headerLayout->addWidget(settingsBtn);
-
-    connect(settingsBtn, &QToolButton::clicked, this, [this, settingsBtn]{
-        QMenu menu(this);
-        auto* themeMenu = menu.addMenu("Theme");
-        QStringList names = {"Light","Dark","Midnight","Dracula","Nord","Monokai","Solarized","High Contrast"};
-        for (int i = 0; i < names.size(); ++i) {
-            auto* a = themeMenu->addAction(names[i]);
-            a->setCheckable(true);
-            a->setChecked(static_cast<int>(m_themeMode) == i + 1);
-            connect(a, &QAction::triggered, this, [this, i]{
-                m_themeMode = static_cast<ThemeMode>(i + 1);
-                applyTheme(); saveSettings();
-            });
-        }
-        menu.exec(settingsBtn->mapToGlobal(QPoint(0, settingsBtn->height())));
-    });
-
-    // Replace central layout: header | content | sidebar
     auto* mobileLayout = new QVBoxLayout(m_central);
     mobileLayout->setContentsMargins(0, 0, 0, 0);
     mobileLayout->setSpacing(0);
-    mobileLayout->addWidget(mobileHeader);
-    mobileLayout->addWidget(m_stack, 1);
-    mobileLayout->addWidget(m_sidebar);
+    mobileLayout->addWidget(pager, 1);
     m_central->setLayout(mobileLayout);
 
-    connect(m_sidebar, &ModeSidebar::modeChanged, this, &MainWindow::onModeChanged);
-    connect(m_historyBtn, &QToolButton::toggled, this, [this](bool c){
-        if (c != m_historyPanel->isDrawerOpen()) m_historyPanel->toggleDrawer();
-    });
-    connect(m_formulaBtn, &QToolButton::toggled, this, [this](bool c){
-        if (c != m_formulaPanel->isDrawerOpen()) m_formulaPanel->toggleDrawer();
-    });
+    connect(pager, &ModePager::modeChanged, this, &MainWindow::onModeChanged);
+
+    // History and formula toggles via long-press on the mode bar
+    // or add them to the pager header — for now keep the toolbar buttons available
+    m_historyBtn = new QToolButton(this);
+    m_historyBtn->setVisible(false); // hidden, accessible via menu
+    m_formulaBtn = new QToolButton(this);
+    m_formulaBtn->setVisible(false);
 #else
+    auto* animatedStack = qobject_cast<AnimatedStackedWidget*>(m_stack);
+    if (animatedStack) animatedStack->setAnimationDuration(200);
     applyLayout(false);
     connect(m_sidebar, &ModeSidebar::modeChanged, this, &MainWindow::onModeChanged);
     connect(m_historyBtn, &QToolButton::toggled, this, [this](bool checked) {

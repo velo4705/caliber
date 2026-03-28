@@ -53,6 +53,7 @@ set(SOURCES
     src/widgets/animated_stacked_widget.cpp
     src/widgets/gradient_theme_dialog.cpp
     src/widgets/swipeable_tab_widget.cpp
+    src/widgets/mode_pager.cpp
     resources/resources.qrc
 )
 
@@ -93,6 +94,7 @@ set(HEADERS
     src/widgets/animated_stacked_widget.h
     src/widgets/gradient_theme_dialog.h
     src/widgets/swipeable_tab_widget.h
+    src/widgets/mode_pager.h
 )
 
 if(WIN32)

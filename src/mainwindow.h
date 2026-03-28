@@ -1,5 +1,6 @@
 #pragma once
 #include <QMainWindow>
+#include <QStackedWidget>
 #include <QToolButton>
 #include <QLineEdit>
 #include <QCompleter>
@@ -57,7 +58,7 @@ private:
     void applyAccentColor();
 
     ModeSidebar*          m_sidebar;
-    AnimatedStackedWidget* m_stack;
+    QStackedWidget*       m_stack;
     HistoryPanel*   m_historyPanel;
     FormulaPanel*   m_formulaPanel = nullptr;
     QToolButton*    m_historyBtn   = nullptr;

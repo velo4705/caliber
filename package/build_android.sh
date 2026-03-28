@@ -82,10 +82,10 @@ cp "$BUILD/libcaliber_arm64-v8a.so" "$BUILD/android-build/libs/$ANDROID_ABIS/"
 "$HOST_QT/bin/androiddeployqt" \
     --input "$BUILD/android-caliber-deployment-settings.json" \
     --output "$BUILD/android-build" \
-    --apk "$BUILD/caliber.apk"
+    --apk "$BUILD/Caliber.apk"
 
 mkdir -p "$OUT"
-cp "$BUILD/android-build/build/outputs/apk/debug/android-build-debug.apk" "$OUT/caliber.apk"
+cp "$BUILD/Caliber.apk" "$OUT/"
 
 echo ""
-echo "Done: $OUT/caliber.apk"
+echo "Done: $OUT/Caliber.apk"
