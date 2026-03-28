@@ -6,6 +6,9 @@ on:
 env:
   APP_NAME: Caliber
   VERSION: "2.0.0"
+  ANDROID_HOME: /usr/local/lib/android/sdk
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+  ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/27.3.13750724
 
 jobs:
   build-android:
@@ -22,20 +25,17 @@ jobs:
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK components
         run: |
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+          unzip -q tools.zip
+          mv cmdline-tools latest
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          yes | sdkmanager --licenses > /dev/null 2>&1
           sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "ndk;27.3.13750724"
-          # Remove ALL other platform versions — androiddeployqt uses latest available
-          ls /usr/local/lib/android/sdk/platforms/
-          for dir in /usr/local/lib/android/sdk/platforms/android-*; do
-            if [ "$dir" != "/usr/local/lib/android/sdk/platforms/android-34" ]; then
-              sdkmanager --uninstall "$(basename "$dir")" 2>/dev/null || true
-            fi
-          done
-          echo "Remaining platforms:"
-          ls /usr/local/lib/android/sdk/platforms/
+          echo "Installed platforms:"
+          ls $ANDROID_HOME/platforms/
 
       - name: Install Qt6 (host + android)
         run: |
