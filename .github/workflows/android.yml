@@ -9,7 +9,6 @@ env:
   APP_NAME: Caliber
   VERSION: "2.0.0"
   ANDROID_API: 34
-  NDK_VERSION: 26.1.10909125
 
 jobs:
   build-android:
@@ -32,26 +31,19 @@ jobs:
         run: |
           sdkmanager --install \
             "platforms;android-${{ env.ANDROID_API }}" \
-            "build-tools;34.0.0" \
-            "ndk;${{ env.NDK_VERSION }}"
+            "build-tools;34.0.0"
 
       - name: Install Qt6 for Android
-        id: qt-install
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: '6.7.3'
-          target: 'android'
-          arch: 'android_arm64_v8a'
-          modules: 'qtcharts qtdatavis3d'
-          cache: true
-
-      - name: Debug Qt paths
         run: |
-          echo "Qt6_DIR=$Qt6_DIR"
-          echo "AQT_INSTALL_DIR=$AQT_INSTALL_DIR"
-          ls "$Qt6_DIR" 2>/dev/null || echo "Qt6_DIR not found"
-          find /opt/hostedtoolcache/Qt -name "Qt6Config.cmake" 2>/dev/null | head -5
-          find /home -name "Qt6Config.cmake" 2>/dev/null | head -5
+          pip install aqtinstall
+          aqt install-qt linux android 6.7.3 android_arm64_v8a \
+            --modules qtcharts qtdatavis3d \
+            --outputdir /opt/Qt
+          QT_DIR="/opt/Qt/6.7.3/android_arm64_v8a"
+          echo "Qt6_DIR=$QT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"
+          echo "ANDROIDDEPLOYQT=$QT_DIR/bin/androiddeployqt" >> "$GITHUB_ENV"
+          echo "Installed Qt at: $QT_DIR"
+          ls "$QT_DIR/lib/cmake/Qt6/" | head -10
 
       - name: Configure
         run: |
@@ -68,8 +60,6 @@ jobs:
 
       - name: Build APK
         run: |
-          ANDROIDDEPLOYQT=$(find "$Qt6_DIR/../.." -name androiddeployqt -type f | head -1)
-          echo "androiddeployqt: $ANDROIDDEPLOYQT"
           "$ANDROIDDEPLOYQT" \
             --input build_android/android-caliber-deployment-settings.json \
             --output build_android/android-build \
