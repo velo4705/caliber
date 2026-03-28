@@ -37,7 +37,7 @@ jobs:
         run: |
           pip install aqtinstall
           aqt install-qt linux android 6.7.3 android_arm64_v8a \
-            --modules qtcharts qtdatavis3d \
+            --modules qtcharts \
             --outputdir /opt/Qt
           QT_DIR="/opt/Qt/6.7.3/android_arm64_v8a"
           echo "Qt6_DIR=$QT_DIR/lib/cmake/Qt6" >> "$GITHUB_ENV"

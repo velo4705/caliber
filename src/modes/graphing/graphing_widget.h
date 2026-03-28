@@ -8,11 +8,13 @@
 #include <QtCharts/QAreaSeries>
 #include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
+#ifdef HAVE_DATAVISUALIZATION
 #include <QtDataVisualization/Q3DSurface>
 #include <QtDataVisualization/QSurface3DSeries>
 #include <QtDataVisualization/QSurfaceDataProxy>
 #include <QtDataVisualization/QValue3DAxis>
 #include <QtDataVisualization/Q3DInputHandler>
+#endif
 
 class QLineEdit;
 class QLabel;
@@ -53,7 +55,9 @@ protected:
 
 private:
     void buildUI();
+#ifdef HAVE_DATAVISUALIZATION
     void init3DSurface();  // lazy — called on first switch to 3D
+#endif
 
     // 2D
     void plotAll();
@@ -65,10 +69,12 @@ private:
     void shadeIntegrals();
     void onPlotModeChanged(int index);
 
+#ifdef HAVE_DATAVISUALIZATION
     // 3D
     void plot3D();
     void sync3DTheme();
     void toggleAutoRotate();
+#endif
 
     // shared
     void addFunction();
@@ -93,12 +99,14 @@ private:
     bool           m_chartDark = true;
 
     // ── 3D ───────────────────────────────────────────────────────────────────
+#ifdef HAVE_DATAVISUALIZATION
     Q3DSurface*          m_surface   = nullptr;
     QWidget*             m_surface3DContainer = nullptr;
     QSurface3DSeries*    m_series3D  = nullptr;
     QList<QSurface3DSeries*> m_extra3DSeries; // additional 3D surfaces
     QTimer*              m_rotationTimer = nullptr; // animated rotation
     bool                 m_autoRotate = false;
+#endif
 
     // ── Stacked view (2D / 3D) ────────────────────────────────────────────────
     // (no stacked widget — 3D container is a manual overlay)

@@ -29,12 +29,14 @@
 #include <QtCharts/QAreaSeries>
 #include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
+#ifdef HAVE_DATAVISUALIZATION
 #include <QtDataVisualization/Q3DSurface>
 #include <QtDataVisualization/QSurface3DSeries>
 #include <QtDataVisualization/QSurfaceDataProxy>
 #include <QtDataVisualization/QValue3DAxis>
 #include <QtDataVisualization/Q3DInputHandler>
 #include <QtDataVisualization/Q3DTheme>
+#endif
 #include <cmath>
 #include <limits>
 #include <algorithm>
@@ -265,12 +267,14 @@ void GraphingWidget::buildUI() {
 
     // 2D/3D radio buttons
     m_radio2D = new QRadioButton("2D", controlsRow);
-    m_radio3D = new QRadioButton("3D", controlsRow);
     m_radio2D->setChecked(true);
+#ifdef HAVE_DATAVISUALIZATION
+    m_radio3D = new QRadioButton("3D", controlsRow);
     auto* dimGroup = new QButtonGroup(controlsRow);
     dimGroup->addButton(m_radio2D); dimGroup->addButton(m_radio3D);
-    pl->addWidget(m_radio2D, 0, Qt::AlignVCenter);
     pl->addWidget(m_radio3D, 0, Qt::AlignVCenter);
+#endif
+    pl->addWidget(m_radio2D, 0, Qt::AlignVCenter);
 
     // Divider
     auto* div0 = new QFrame(controlsRow);
@@ -376,6 +380,7 @@ void GraphingWidget::buildUI() {
     pl->addWidget(m_shadeB,    0, Qt::AlignVCenter);
 
     // Auto-rotate toggle (3D mode only)
+#ifdef HAVE_DATAVISUALIZATION
     m_rotateBtn = new QToolButton(controlsRow);
     m_rotateBtn->setText("↻");
     m_rotateBtn->setToolTip("Toggle 3D auto-rotation");
@@ -384,6 +389,7 @@ void GraphingWidget::buildUI() {
     m_rotateBtn->setObjectName("historyToggleBtn");
     m_rotateBtn->hide();
     pl->addWidget(m_rotateBtn, 0, Qt::AlignVCenter);
+#endif
 
     // Divider
     auto* div3 = new QFrame(controlsRow);
@@ -442,9 +448,13 @@ void GraphingWidget::buildUI() {
     connect(m_shadeA, &QLineEdit::returnPressed, this, [this]{ if(m_shadeBtn->isChecked()) shadeIntegrals(); });
     connect(m_shadeB, &QLineEdit::returnPressed, this, [this]{ if(m_shadeBtn->isChecked()) shadeIntegrals(); });
     connect(m_radio2D, &QRadioButton::toggled, this, [this](bool on){ if (on) switchDimension(false); });
+#ifdef HAVE_DATAVISUALIZATION
     connect(m_radio3D, &QRadioButton::toggled, this, [this](bool on){ if (on) switchDimension(true);  });
+#endif
     connect(m_plotModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &GraphingWidget::onPlotModeChanged);
+#ifdef HAVE_DATAVISUALIZATION
     connect(m_rotateBtn, &QToolButton::toggled, this, &GraphingWidget::toggleAutoRotate);
+#endif
     connect(m_xMin, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
     connect(m_xMax, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
     connect(m_yMin, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
@@ -454,6 +464,7 @@ void GraphingWidget::buildUI() {
 }
 
 // ── Lazy 3D surface init ──────────────────────────────────────────────────────
+#ifdef HAVE_DATAVISUALIZATION
 void GraphingWidget::init3DSurface() {
     if (m_surface) return;  // already initialized
 
@@ -489,6 +500,7 @@ void GraphingWidget::init3DSurface() {
     m_surface->axisY()->setTitle("Z"); m_surface->axisY()->setTitleVisible(true);
     m_surface->axisZ()->setTitle("Y"); m_surface->axisZ()->setTitleVisible(true);
 }
+#endif
 
 // ── Chart theme ───────────────────────────────────────────────────────────────
 void GraphingWidget::applyChartTheme() {
@@ -529,6 +541,7 @@ void GraphingWidget::switchDimension(bool is3D) {
     m_is3D = is3D;
 
     if (is3D) {
+#ifdef HAVE_DATAVISUALIZATION
         init3DSurface();  // lazy init — only creates OpenGL context on first use
         sync3DTheme();
         m_chartView->hide();
@@ -540,11 +553,16 @@ void GraphingWidget::switchDimension(bool is3D) {
             m_surface3DContainer->setFocus();
             plot3D();
         }
+#endif
     } else {
+#ifdef HAVE_DATAVISUALIZATION
         if (m_surface3DContainer) m_surface3DContainer->hide();
+#endif
         m_chartView->show();
+#ifdef HAVE_DATAVISUALIZATION
         m_rotateBtn->hide();
         if (m_autoRotate) { m_autoRotate = false; m_rotateBtn->setChecked(false); if(m_rotationTimer) m_rotationTimer->stop(); }
+#endif
         plotAll();
     }
 
@@ -570,8 +588,10 @@ void GraphingWidget::repositionOverlays() {
     m_toggleBtn->move(w - btnW - 8, panelY - 34);
     m_toggleBtn->setText(m_panelOpen ? "⌄  Controls" : "⌃  Controls");
 
+#ifdef HAVE_DATAVISUALIZATION
     if (m_is3D && m_surface3DContainer && m_surface3DContainer->isVisible())
         m_surface3DContainer->setGeometry(0, 0, w, panelY);
+#endif
 
     m_panel->raise();
     m_toggleBtn->raise();
@@ -582,6 +602,7 @@ void GraphingWidget::resizeEvent(QResizeEvent* e) {
     repositionOverlays();
 }
 
+#ifdef HAVE_DATAVISUALIZATION
 void GraphingWidget::adjustFor3DOverlap(bool historyOpen, int historyWidth) {
     if (!m_is3D || !m_surface3DContainer || !m_surface3DContainer->isVisible()) return;
     int w = width(), h = height();
@@ -589,12 +610,15 @@ void GraphingWidget::adjustFor3DOverlap(bool historyOpen, int historyWidth) {
     int containerW = historyOpen ? w - historyWidth : w;
     m_surface3DContainer->setGeometry(0, 0, containerW, h - ph);
 }
+#endif
 
 void GraphingWidget::syncToAppTheme(bool dark) {
     m_chartDark = dark;
     m_themeBtn->setText(dark ? "☀" : "🌙");
     applyChartTheme();
+#ifdef HAVE_DATAVISUALIZATION
     if (m_surface) sync3DTheme();
+#endif
     if (!m_is3D) plotAll();
 }
 
@@ -616,8 +640,10 @@ void GraphingWidget::togglePanel() {
         m_toggleBtn->move(w - 128, h - 34);
     }
     m_anim->start();
+#ifdef HAVE_DATAVISUALIZATION
     if (m_is3D && m_surface3DContainer)
         m_surface3DContainer->setGeometry(0, 0, w, m_panelOpen ? openY : h);
+#endif
 }
 
 // ── Function chips ────────────────────────────────────────────────────────────
@@ -701,6 +727,7 @@ void GraphingWidget::addFunction() {
     m_entries.append(e);
     m_funcInput->clear();
     updateFunctionList();
+#ifdef HAVE_DATAVISUALIZATION
     if (m_is3D) {
         // Show container on first function added in 3D mode
         if (m_surface3DContainer && !m_surface3DContainer->isVisible()) {
@@ -713,8 +740,11 @@ void GraphingWidget::addFunction() {
         }
         plot3D();
     } else {
+#endif
         plotAll();
+#ifdef HAVE_DATAVISUALIZATION
     }
+#endif
 }
 
 void GraphingWidget::removeFunction(int index) {
@@ -729,14 +759,18 @@ void GraphingWidget::removeFunction(int index) {
     }
     m_entries.removeAt(index);
     updateFunctionList();
+#ifdef HAVE_DATAVISUALIZATION
     if (m_is3D) {
         if (m_entries.isEmpty() && m_surface3DContainer)
             m_surface3DContainer->hide();
         else
             plot3D();
     } else {
+#endif
         plotAll();
+#ifdef HAVE_DATAVISUALIZATION
     }
+#endif
 }
 
 // ── 2D plotting ───────────────────────────────────────────────────────────────
@@ -1021,6 +1055,7 @@ void GraphingWidget::plotParametric(PlotEntry& entry) {
 }
 
 // ── 3D plotting ───────────────────────────────────────────────────────────────
+#ifdef HAVE_DATAVISUALIZATION
 void GraphingWidget::plot3D() {
     if (!m_surface) return;
 
@@ -1129,17 +1164,26 @@ void GraphingWidget::plot3D() {
     m_surface->axisX()->setRange(xMin, xMax);
     m_surface->axisZ()->setRange(yMin, yMax);
 }
+#endif
 
 // ── Range / view ──────────────────────────────────────────────────────────────
 void GraphingWidget::onRangeChanged() {
     if (m_xMin->value() >= m_xMax->value() || m_yMin->value() >= m_yMax->value()) return;
+#ifdef HAVE_DATAVISUALIZATION
     m_is3D ? plot3D() : plotAll();
+#else
+    plotAll();
+#endif
 }
 
 void GraphingWidget::resetView() {
     m_xMin->setValue(-10); m_xMax->setValue(10);
     m_yMin->setValue(-10); m_yMax->setValue(10);
+#ifdef HAVE_DATAVISUALIZATION
     m_is3D ? plot3D() : plotAll();
+#else
+    plotAll();
+#endif
 }
 
 void GraphingWidget::exportGraph() {
@@ -1148,8 +1192,10 @@ void GraphingWidget::exportGraph() {
     if (path.isEmpty()) return;
     if (!m_is3D)
         m_chartView->grab().save(path);
+#ifdef HAVE_DATAVISUALIZATION
     else
         m_surface3DContainer->grab().save(path);
+#endif
 }
 
 QColor GraphingWidget::nextColor() {
@@ -1158,6 +1204,7 @@ QColor GraphingWidget::nextColor() {
 }
 
 // ── 3D theme sync ─────────────────────────────────────────────────────────────
+#ifdef HAVE_DATAVISUALIZATION
 void GraphingWidget::sync3DTheme() {
     if (!m_surface) return;
     auto* theme = m_surface->activeTheme();
@@ -1196,3 +1243,4 @@ void GraphingWidget::toggleAutoRotate() {
         if (m_rotationTimer) m_rotationTimer->stop();
     }
 }
+#endif

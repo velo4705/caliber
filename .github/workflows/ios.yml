@@ -30,14 +30,6 @@ jobs:
       - name: Configure (Simulator)
         run: |
           echo "Using Qt6_DIR: $Qt6_DIR"
-          IOS_SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
-          echo "iOS SDK: $IOS_SDK"
-
-          # Bridge GL/gl.h → OpenGLES/gl.h for iOS (Qt headers reference desktop GL)
-          GL_DIR="$IOS_SDK/usr/include/GL"
-          sudo mkdir -p "$GL_DIR"
-          echo '#include <OpenGLES/ES3/gl.h>' | sudo tee "$GL_DIR/gl.h" > /dev/null
-
           mkdir build_ios_sim
           cmake -S . -B build_ios_sim \
             -DCMAKE_SYSTEM_NAME=iOS \
@@ -84,12 +76,6 @@ jobs:
 
       - name: Configure (Device)
         run: |
-          IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-          # Bridge GL/gl.h → OpenGLES/gl.h for iOS
-          GL_DIR="$IOS_SDK/usr/include/GL"
-          sudo mkdir -p "$GL_DIR"
-          echo '#include <OpenGLES/ES3/gl.h>' | sudo tee "$GL_DIR/gl.h" > /dev/null
-
           mkdir build_ios
           cmake -S . -B build_ios \
             -DCMAKE_SYSTEM_NAME=iOS \

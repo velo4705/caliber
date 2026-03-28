@@ -7,7 +7,14 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Charts Network DataVisualization)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Charts Network)
+# DataVisualization only for desktop — mobile doesn't have desktop OpenGL headers
+if(NOT IOS AND NOT ANDROID)
+    find_package(Qt6 QUIET COMPONENTS DataVisualization)
+    if(Qt6DataVisualization_FOUND)
+        add_compile_definitions(HAVE_DATAVISUALIZATION)
+    endif()
+endif()
 
 set(SOURCES
     src/main.cpp
@@ -98,7 +105,7 @@ target_link_libraries(caliber
     Qt6::Widgets
     Qt6::Charts
     Qt6::Network
-    Qt6::DataVisualization
+    $<$<BOOL:${Qt6DataVisualization_FOUND}>:Qt6::DataVisualization>
 )
 
 # ── Windows deployment ────────────────────────────────────────────────────────
