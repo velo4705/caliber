@@ -52,6 +52,7 @@ set(SOURCES
     src/widgets/formula_panel.cpp
     src/widgets/animated_stacked_widget.cpp
     src/widgets/gradient_theme_dialog.cpp
+    src/widgets/swipeable_tab_widget.cpp
     resources/resources.qrc
 )
 
@@ -91,6 +92,7 @@ set(HEADERS
     src/widgets/formula_panel.h
     src/widgets/animated_stacked_widget.h
     src/widgets/gradient_theme_dialog.h
+    src/widgets/swipeable_tab_widget.h
 )
 
 if(WIN32)
@@ -131,7 +133,7 @@ endif()
 
 # ── Android ──────────────────────────────────────────────────────────────────
 if(ANDROID)
-    set(QT_ANDROID_APP_ICON "@drawable/icon")
+    set(QT_ANDROID_APP_ICON "@mipmap/ic_launcher")
     set(QT_ANDROID_APP_NAME "Caliber")
     set(QT_ANDROID_PACKAGE_NAME "com.caliber.app")
     set(QT_ANDROID_APP_VERSION_NAME "2.0.0")

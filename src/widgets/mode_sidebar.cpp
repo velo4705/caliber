@@ -90,10 +90,10 @@ void ModeSidebar::buildLayout() {
         for (int i = 0; i < m_buttons.size(); ++i) {
             auto* btn = m_buttons[i];
             btn->setParent(container);
-            btn->setText(s_modes[i].label);
+            btn->setText(s_modes[i].icon + " " + s_modes[i].label);
             btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-            btn->setMinimumHeight(36);
-            btn->setStyleSheet("text-align: left; padding-left: 12px;");
+            btn->setMinimumHeight(44);
+            btn->setStyleSheet("text-align: left; padding-left: 12px; font-size: 14px;");
             innerLayout->addWidget(btn);
         }
         innerLayout->addStretch();
@@ -114,23 +114,43 @@ void ModeSidebar::buildLayout() {
         m_layout->addWidget(scroll);
 
     } else {
-        // Horizontal bottom bar
-        setMinimumHeight(52); setMaximumHeight(52);
+        // Horizontal bottom bar — scrollable grid for mobile
+        setMinimumHeight(80); setMaximumHeight(100);
         setMinimumWidth(0);   setMaximumWidth(QWIDGETSIZE_MAX);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-        m_layout = new QBoxLayout(QBoxLayout::LeftToRight, this);
-        m_layout->setContentsMargins(4, 4, 4, 4);
-        m_layout->setSpacing(2);
+        // Container widget inside scroll area
+        auto* container = new QWidget();
+        container->setObjectName("modeSidebar");
+        auto* innerLayout = new QBoxLayout(QBoxLayout::LeftToRight, container);
+        innerLayout->setContentsMargins(6, 4, 6, 4);
+        innerLayout->setSpacing(4);
 
         for (int i = 0; i < m_buttons.size(); ++i) {
             auto* btn = m_buttons[i];
-            // Short labels for horizontal mode
+            btn->setParent(container);
+            // Icon on top, label below — compact for horizontal
             btn->setText(s_modes[i].icon + "\n" + s_modes[i].label);
-            btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-            btn->setStyleSheet("text-align: center; padding: 2px; font-size: 11px;");
-            m_layout->addWidget(btn);
+            btn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+            btn->setFixedWidth(56);
+            btn->setMinimumHeight(68);
+            btn->setStyleSheet("text-align: center; padding: 4px 2px; font-size: 10px; line-height: 1.1;");
+            innerLayout->addWidget(btn);
         }
+        container->setLayout(innerLayout);
+
+        auto* scroll = new QScrollArea(this);
+        scroll->setWidget(container);
+        scroll->setWidgetResizable(true);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setObjectName("sidebarScroll");
+
+        m_layout = new QBoxLayout(QBoxLayout::TopToBottom, this);
+        m_layout->setContentsMargins(0, 0, 0, 0);
+        m_layout->setSpacing(0);
+        m_layout->addWidget(scroll);
     }
 
     setLayout(m_layout);

@@ -41,6 +41,8 @@
 #include <QLabel>
 #include <QSettings>
 #include <QStyleHints>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QKeyEvent>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -177,8 +179,83 @@ void MainWindow::buildUI() {
     toolbar->addWidget(m_formulaBtn);
 
     setCentralWidget(m_central);
-    applyLayout(false);
 
+#if defined(Q_OS_ANDROID)
+    // Hide desktop toolbar
+    auto* tb = addToolBar("Main");
+    tb->setObjectName("mainToolbar");
+    tb->setVisible(false);
+
+    // Mobile header: "Caliber" + history/formulas/settings buttons
+    auto* mobileHeader = new QWidget(m_central);
+    mobileHeader->setObjectName("mobileHeader");
+    mobileHeader->setFixedHeight(48);
+    auto* headerLayout = new QHBoxLayout(mobileHeader);
+    headerLayout->setContentsMargins(12, 0, 8, 0);
+    headerLayout->setSpacing(8);
+
+    auto* titleLabel = new QLabel("Caliber", mobileHeader);
+    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold; background: transparent;");
+    headerLayout->addWidget(titleLabel);
+    headerLayout->addStretch();
+
+    m_historyBtn = new QToolButton(mobileHeader);
+    m_historyBtn->setText("⏱");
+    m_historyBtn->setCheckable(true);
+    m_historyBtn->setFixedSize(40, 40);
+    m_historyBtn->setObjectName("historyToggleBtn");
+    m_historyBtn->setFocusPolicy(Qt::NoFocus);
+    headerLayout->addWidget(m_historyBtn);
+
+    m_formulaBtn = new QToolButton(mobileHeader);
+    m_formulaBtn->setText("📖");
+    m_formulaBtn->setCheckable(true);
+    m_formulaBtn->setFixedSize(40, 40);
+    m_formulaBtn->setObjectName("historyToggleBtn");
+    m_formulaBtn->setFocusPolicy(Qt::NoFocus);
+    headerLayout->addWidget(m_formulaBtn);
+
+    auto* settingsBtn = new QToolButton(mobileHeader);
+    settingsBtn->setText("⚙");
+    settingsBtn->setFixedSize(40, 40);
+    settingsBtn->setObjectName("historyToggleBtn");
+    settingsBtn->setFocusPolicy(Qt::NoFocus);
+    headerLayout->addWidget(settingsBtn);
+
+    connect(settingsBtn, &QToolButton::clicked, this, [this, settingsBtn]{
+        QMenu menu(this);
+        auto* themeMenu = menu.addMenu("Theme");
+        QStringList names = {"Light","Dark","Midnight","Dracula","Nord","Monokai","Solarized","High Contrast"};
+        for (int i = 0; i < names.size(); ++i) {
+            auto* a = themeMenu->addAction(names[i]);
+            a->setCheckable(true);
+            a->setChecked(static_cast<int>(m_themeMode) == i + 1);
+            connect(a, &QAction::triggered, this, [this, i]{
+                m_themeMode = static_cast<ThemeMode>(i + 1);
+                applyTheme(); saveSettings();
+            });
+        }
+        menu.exec(settingsBtn->mapToGlobal(QPoint(0, settingsBtn->height())));
+    });
+
+    // Replace central layout: header | content | sidebar
+    auto* mobileLayout = new QVBoxLayout(m_central);
+    mobileLayout->setContentsMargins(0, 0, 0, 0);
+    mobileLayout->setSpacing(0);
+    mobileLayout->addWidget(mobileHeader);
+    mobileLayout->addWidget(m_stack, 1);
+    mobileLayout->addWidget(m_sidebar);
+    m_central->setLayout(mobileLayout);
+
+    connect(m_sidebar, &ModeSidebar::modeChanged, this, &MainWindow::onModeChanged);
+    connect(m_historyBtn, &QToolButton::toggled, this, [this](bool c){
+        if (c != m_historyPanel->isDrawerOpen()) m_historyPanel->toggleDrawer();
+    });
+    connect(m_formulaBtn, &QToolButton::toggled, this, [this](bool c){
+        if (c != m_formulaPanel->isDrawerOpen()) m_formulaPanel->toggleDrawer();
+    });
+#else
+    applyLayout(false);
     connect(m_sidebar, &ModeSidebar::modeChanged, this, &MainWindow::onModeChanged);
     connect(m_historyBtn, &QToolButton::toggled, this, [this](bool checked) {
         if (checked != m_historyPanel->isDrawerOpen())
@@ -189,6 +266,7 @@ void MainWindow::buildUI() {
         if (checked != m_formulaPanel->isDrawerOpen())
             m_formulaPanel->toggleDrawer();
     });
+#endif
 
     // When history drawer toggles, shrink 3D container so it doesn't overlap
     connect(m_historyPanel, &HistoryPanel::drawerToggled, this, [this](bool open) {
@@ -669,8 +747,14 @@ void MainWindow::restoreSettings() {
 
     if (s.contains("window/geometry"))
         restoreGeometry(s.value("window/geometry").toByteArray());
-    else
+    else {
+#if defined(Q_OS_ANDROID)
+        // On Android, use screen size
+        resize(QGuiApplication::primaryScreen()->availableSize());
+#else
         resize(1100, 680);
+#endif
+    }
 
     if (s.contains("window/state"))
         restoreState(s.value("window/state").toByteArray());
