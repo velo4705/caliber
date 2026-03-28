@@ -7,6 +7,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+# iOS workaround: pre-create OpenGL::GL target before Qt6 loads
+if(IOS)
+    include(${CMAKE_SOURCE_DIR}/cmake/ProvideOpenGL.cmake)
+endif()
+
 find_package(Qt6 REQUIRED COMPONENTS Widgets Charts Network)
 # DataVisualization only for desktop — mobile doesn't have desktop OpenGL headers
 if(NOT IOS AND NOT ANDROID)
