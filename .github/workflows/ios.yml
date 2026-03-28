@@ -30,9 +30,14 @@ jobs:
       - name: Configure (Simulator)
         run: |
           echo "Using Qt6_DIR: $Qt6_DIR"
-          # Find iOS simulator SDK path for OpenGL ES framework
           IOS_SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
           echo "iOS SDK: $IOS_SDK"
+
+          # Bridge GL/gl.h → OpenGLES/gl.h for iOS (Qt headers reference desktop GL)
+          GL_DIR="$IOS_SDK/usr/include/GL"
+          sudo mkdir -p "$GL_DIR"
+          echo '#include <OpenGLES/ES3/gl.h>' | sudo tee "$GL_DIR/gl.h" > /dev/null
+
           mkdir build_ios_sim
           cmake -S . -B build_ios_sim \
             -DCMAKE_SYSTEM_NAME=iOS \
@@ -44,10 +49,6 @@ jobs:
             -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH \
             -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH \
             -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
-            -DOPENGL_gl_LIBRARY="$IOS_SDK/System/Library/Frameworks/OpenGLES.framework" \
-            -DOPENGL_INCLUDE_DIR="$IOS_SDK/System/Library/Frameworks/OpenGLES.framework/Headers" \
-            -DOPENGL_opengl_LIBRARY="$IOS_SDK/System/Library/Frameworks/OpenGLES.framework" \
-            -DOPENGL_GLES2_INCLUDE_DIR="$IOS_SDK/System/Library/Frameworks/OpenGLES.framework/Headers" \
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build (Simulator)
@@ -84,6 +85,11 @@ jobs:
       - name: Configure (Device)
         run: |
           IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          # Bridge GL/gl.h → OpenGLES/gl.h for iOS
+          GL_DIR="$IOS_SDK/usr/include/GL"
+          sudo mkdir -p "$GL_DIR"
+          echo '#include <OpenGLES/ES3/gl.h>' | sudo tee "$GL_DIR/gl.h" > /dev/null
+
           mkdir build_ios
           cmake -S . -B build_ios \
             -DCMAKE_SYSTEM_NAME=iOS \
@@ -94,10 +100,6 @@ jobs:
             -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH \
             -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH \
             -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
-            -DOPENGL_gl_LIBRARY="$IOS_SDK/System/Library/Frameworks/OpenGLES.framework" \
-            -DOPENGL_INCLUDE_DIR="$IOS_SDK/System/Library/Frameworks/OpenGLES.framework/Headers" \
-            -DOPENGL_opengl_LIBRARY="$IOS_SDK/System/Library/Frameworks/OpenGLES.framework" \
-            -DOPENGL_GLES2_INCLUDE_DIR="$IOS_SDK/System/Library/Frameworks/OpenGLES.framework/Headers" \
             -DCMAKE_BUILD_TYPE=Release \
             -GXcode
 
