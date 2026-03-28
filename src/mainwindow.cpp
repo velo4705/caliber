@@ -193,7 +193,9 @@ void MainWindow::buildUI() {
     // When history drawer toggles, shrink 3D container so it doesn't overlap
     connect(m_historyPanel, &HistoryPanel::drawerToggled, this, [this](bool open) {
         auto* gw = qobject_cast<GraphingWidget*>(m_stack->widget(6));
+#ifdef HAVE_DATAVISUALIZATION
         if (gw) gw->adjustFor3DOverlap(open, 240);
+#endif
     });
 }
 

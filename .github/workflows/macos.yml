@@ -1,8 +1,6 @@
 name: macOS Build
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 env:
@@ -18,8 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          brew install qt create-dmg librsvg
+        run: brew install qt create-dmg librsvg
 
       - name: Configure
         run: |
@@ -37,7 +34,6 @@ jobs:
           APP_DIR="build_mac/${APP_NAME}.app"
           mkdir -p "$APP_DIR/Contents/MacOS"
           mkdir -p "$APP_DIR/Contents/Resources"
-
           cp build_mac/caliber "$APP_DIR/Contents/MacOS/${APP_NAME}"
 
           cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
@@ -60,7 +56,6 @@ jobs:
           </plist>
           PLIST
 
-          # Generate .icns from SVG
           ICONSET="build_mac/caliber.iconset"
           mkdir -p "$ICONSET"
           for SIZE in 16 32 64 128 256 512; do
@@ -70,23 +65,7 @@ jobs:
           iconutil -c icns "$ICONSET" -o "$APP_DIR/Contents/Resources/caliber.icns"
 
       - name: macdeployqt
-        run: |
-          # macdeployqt may warn about optional QML deps (QtPdf, QtSvg, etc.)
-          # These are not fatal — the app works fine without them.
-          $(brew --prefix qt)/bin/macdeployqt "build_mac/${APP_NAME}.app" -no-strip || true
-
-      - name: Smoke test (launch check)
-        run: |
-          # Verify all required frameworks are bundled
-          APP_BIN="build_mac/${APP_NAME}.app/Contents/MacOS/${APP_NAME}"
-          echo "=== Linked frameworks ==="
-          otool -L "$APP_BIN" | head -20
-          echo ""
-          echo "=== Frameworks in bundle ==="
-          ls build_mac/${APP_NAME}.app/Contents/Frameworks/ 2>/dev/null || echo "(none)"
-          echo ""
-          echo "=== Attempting launch (headless, expect timeout) ==="
-          timeout 5 open -W build_mac/${APP_NAME}.app 2>&1 || echo "Launch timed out (expected - no display)"
+        run: $(brew --prefix qt)/bin/macdeployqt "build_mac/${APP_NAME}.app" -no-strip || true
 
       - name: Build .dmg
         run: |
@@ -102,15 +81,9 @@ jobs:
             "dist/${APP_NAME}-${VERSION}.dmg" \
             "build_mac/${APP_NAME}.app"
 
-      - name: Upload DMG artifact
+      - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
           name: macOS-DMG
           path: dist/${{ env.APP_NAME }}-${{ env.VERSION }}.dmg
           retention-days: 30
-
-      - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/${{ env.APP_NAME }}-${{ env.VERSION }}.dmg

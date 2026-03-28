@@ -7,11 +7,6 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# iOS workaround: pre-create OpenGL::GL target before Qt6 loads
-if(IOS)
-    include(${CMAKE_SOURCE_DIR}/cmake/ProvideOpenGL.cmake)
-endif()
-
 find_package(Qt6 REQUIRED COMPONENTS Widgets Charts Network)
 # DataVisualization only for desktop — mobile doesn't have desktop OpenGL headers
 if(NOT IOS AND NOT ANDROID)
@@ -100,13 +95,18 @@ set(HEADERS
 
 if(WIN32)
     add_executable(caliber WIN32 ${SOURCES} ${HEADERS} windows/caliber.rc)
+elseif(ANDROID)
+    qt_add_executable(caliber ${SOURCES} ${HEADERS})
+    set_target_properties(caliber PROPERTIES
+        QT_ANDROID_APP_SOURCE_DIR "${CMAKE_SOURCE_DIR}/android"
+    )
 else()
     add_executable(caliber ${SOURCES} ${HEADERS})
 endif()
 
 target_include_directories(caliber PRIVATE src)
 
-target_link_libraries(caliber
+target_link_libraries(caliber PRIVATE
     Qt6::Widgets
     Qt6::Charts
     Qt6::Network
@@ -167,7 +167,9 @@ endif()
 
 # ── Install rules ─────────────────────────────────────────────────────────────
 include(GNUInstallDirs)
-if(UNIX AND NOT APPLE)
+if(ANDROID)
+    # Install rules handled by androiddeployqt
+elseif(UNIX AND NOT APPLE)
     install(TARGETS caliber RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
     install(FILES resources/icons/caliber.svg
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)

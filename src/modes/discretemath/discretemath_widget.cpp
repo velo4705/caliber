@@ -327,7 +327,7 @@ void DiscreteMathWidget::computeRecurrence() {
     terms[0]=f0; if(n>1) terms[1]=f1;
     for(int i=2;i<n;i++) terms[i]=a*terms[i-1]+b*terms[i-2];
     QStringList termStrs; for(int i=0;i<qMin(n,12);i++) termStrs<<QString::number(terms[i],'g',6);
-    for(int i=2;i<qMin(n,6);i++) steps<<QString("T(%1) = %2×%3 + %4×%5 = %6").arg(i).arg(a).arg(terms[i-1],'g',4).arg(b).arg(terms[i-2],'g',4).arg(terms[i],'g',6);
+    for(int i=2;i<qMin(n,6);i++) steps<<QString("T(%1) = %2×%3 + %4×%5 = %6").arg(i).arg(a).arg(terms[i-1],0,'g',4).arg(b).arg(terms[i-2],0,'g',4).arg(terms[i],0,'g',6);
     m_recResult->setText(QString("First %1 terms:\n%2%3").arg(n).arg(termStrs.join(", ")).arg(n>12?"...":""));
     showSteps(m_recSteps,m_recShow,steps);
 }
