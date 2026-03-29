@@ -2,9 +2,11 @@
 
 A graphical calculator built with C++ and Qt6. Covers every calculation mode a STEM student needs — from basic arithmetic to university-level solvers across 22 modes.
 
+**[Website](https://velo4705.github.io/caliber)** · [Releases](../../releases) · [Issues](../../issues)
+
 ![Caliber](resources/icons/caliber.svg)
 
-Website Link: https://velo4705.github.io/caliber
+
 
 ---
 
