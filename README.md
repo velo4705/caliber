@@ -1,19 +1,8 @@
 # Caliber
 
-A graphical calculator built with C++ and Qt6. Covers every calculation mode you'd need — from basic arithmetic to function graphing — in a clean, themeable interface.
+A graphical calculator built with C++ and Qt6. Covers every calculation mode a STEM student needs — from basic arithmetic to university-level solvers across 22 modes.
 
 ![Caliber](resources/icons/caliber.svg)
-
----
-
-## Screenshots
-
-| | |
-|---|---|
-| ![Basic](screenshots/basic.png) | ![Scientific](screenshots/scientific.png) |
-| ![Programming](screenshots/programming.png) | ![Date](screenshots/datecalc.png) |
-| ![Conversion](screenshots/conversion.png) | ![Equations](screenshots/equations.png) |
-| ![Graphing 2D](screenshots/graph2d.png) | ![Graphing 3D](screenshots/graph3d.png) |
 
 ---
 
@@ -27,7 +16,52 @@ A graphical calculator built with C++ and Qt6. Covers every calculation mode you
 | Date | Date difference, add/subtract durations, age calculator, day of week |
 | Conversion | 13 unit categories + live currency conversion via API |
 | Equations | Linear, quadratic, system solver (Gaussian), matrix operations |
-| Graphing | 2D function plotter, multiple functions, zoom/pan, export to image |
+| Graphing | 2D/3D plotter, polar/parametric, zoom/pan/trace, integral shading, derivative overlay, intersections |
+| Statistics | Descriptive stats, distributions, hypothesis testing, regression, ANOVA, chi-square, histogram |
+| Calculus | Symbolic differentiation, integration (single/double/triple), limits, Taylor series, root finder |
+| Financial | Compound interest, loans, NPV/IRR, percentage calculations |
+| Number Theory | Primes, GCD/LCM, modular arithmetic, base conversion, sequences |
+| Electrical | Ohm's law, RLC circuits, voltage dividers, op-amps, dB, phasors, power factor |
+| Digital Logic | Truth tables, K-maps, number systems, flip-flops, adders, MUX/DEMUX, IEEE 754 |
+| Vectors | Arithmetic, dot/cross products, magnitude, angle, projection, line/plane equations |
+| Physics | Kinematics, Newton's laws, energy, projectile motion, waves, thermodynamics, electrostatics |
+| Chemistry | Molar mass, ideal gas law, pH, dilution, thermochemistry |
+| Civil/Mech | Beam analysis, stress/strain, fluid mechanics, heat transfer, gears |
+| Advanced Math | Complex numbers, linear algebra, series, triangle solver, polynomials, set theory |
+| Discrete Math | Graph theory (BFS/DFS/Dijkstra), combinatorics, relations, recurrence, Boolean algebra |
+| MCS | Asymptotic analysis, Master Theorem, floating point, formal logic, hashing |
+| Signal Processing | DFT, filter design, sampling/Nyquist, convolution, transfer functions |
+| Control Systems | Transfer functions, Routh-Hurwitz, PID tuning, steady-state error, state space |
+
+---
+
+## Features
+
+### Solvers
+- Step-by-step breakdowns across multiple modes (equations, calculus, statistics, vectors, etc.)
+- Keyboard input — type directly using keyboard/numpad in Basic, Scientific, and Programming modes
+- Live expression preview — see results as you type
+
+### Graphing
+- 2D: Multiple functions, zoom/pan/trace, derivative overlay (f'), integral shading, intersection finder
+- 3D: Surface plotter (requires OpenGL), auto-rotation, multiple surfaces
+- Polar and parametric plotting modes
+- Export plots as PNG/JPEG
+
+### Themes
+- 9 built-in themes: Light, Dark, Midnight, Dracula, Nord, Monokai, Solarized, High Contrast, Follow System
+- **Custom Gradient Theme** — pick any two colors, auto-derives all UI colors with luminance-based contrast
+- Community themes — drop `.qss` files in `~/.config/Caliber/themes/`
+- Accent color override via View menu
+
+### Interface
+- Resizable sidebar — drag to resize, shows full mode names
+- History panel — search, filter, pin entries, export to TXT/CSV
+- Formula Book — searchable reference with ~80 formulas across all modes
+- Per-mode formula filtering — shows only formulas relevant to current mode
+- Global solver search bar — jump to any mode+tab instantly
+- Smooth mode transitions — cross-fade animation between modes
+- Font size control — 10–18pt, persisted in settings
 
 ---
 
@@ -41,27 +75,11 @@ Download the package for your platform from the [Releases](../../releases) page.
 | Fedora / RHEL | `caliber-2.0.0.rpm` | `sudo rpm -i caliber-2.0.0.rpm` |
 | Arch Linux | `PKGBUILD` | `makepkg -si` |
 | Any Linux | `caliber-2.0.0.tar.gz` | Extract and run |
-| Any Linux (sandboxed) | `com.caliber.app.flatpak` | `flatpak install` |
-| Windows | `Caliber-2.0.0-Windows-x64.zip` | Extract and run `caliber.exe` |
+| Windows | `Caliber-2.0.0-Setup.exe` | Run installer |
+| Windows (portable) | `Caliber-2.0.0-Windows-x64.zip` | Extract and run `caliber.exe` |
 | macOS | `Caliber-2.0.0.dmg` | Open and drag to Applications |
 
 ---
-
-### Linux — .deb (Ubuntu / Debian)
-
-```bash
-sudo dpkg -i caliber-2.0.0.deb
-# install any missing Qt6 dependencies:
-sudo apt-get install -f
-```
-
-### Linux — .rpm (Fedora / RHEL / openSUSE)
-
-```bash
-sudo rpm -i caliber-2.0.0.rpm
-# or with dnf:
-sudo dnf install caliber-2.0.0.rpm
-```
 
 ### Linux — build from source
 
@@ -70,85 +88,26 @@ sudo dnf install caliber-2.0.0.rpm
 sudo dnf install qt6-qtbase-devel qt6-qtcharts-devel qt6-qtdatavis3d-devel
 
 # Ubuntu / Debian
-sudo apt install qt6-base-dev qt6-charts-dev qt6-datavis3d-dev
+sudo apt install qt6-base-dev qt6-charts-dev
 
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
-make -j$(nproc)
-sudo make install
+cmake --build . --parallel $(nproc)
+sudo cmake --install .
 ```
 
-**Uninstall:** `sudo make uninstall` or remove `/usr/bin/caliber` manually.
-
-### Linux — Arch / AUR
-
-```bash
-git clone https://github.com/velo4705/caliber
-cd caliber/package
-makepkg -si
-```
-
-### Linux — Flatpak (any distro)
-
-```bash
-flatpak install com.caliber.app-2.0.0.flatpak
-# or from Flathub once published:
-flatpak install flathub com.caliber.app
-```
-
-### Linux — tar.gz (portable, any distro)
-
-```bash
-tar -xzf caliber-2.0.0-Linux.tar.gz
-cd caliber-2.0.0-Linux
-sudo cp usr/bin/caliber /usr/local/bin/
-sudo cp usr/share/applications/caliber.desktop /usr/share/applications/
-sudo cp usr/share/icons/hicolor/scalable/apps/caliber.svg \
-        /usr/share/icons/hicolor/scalable/apps/
-```
-
----
-
-### Windows
-
-1. Download `Caliber-2.0.0-Windows-x64.zip` from [Releases](../../releases).
-2. Extract the zip anywhere (e.g. `C:\Programs\Caliber`).
-3. Run `caliber.exe` — no installation needed, all DLLs are included.
-
-Optionally, right-click `caliber.exe` → Send to → Desktop to create a shortcut.
-
-**Build installer from source** (requires Qt6 MSVC, CMake, Visual Studio 2019/2022, NSIS):
+### Windows — build from source
 
 ```bat
-python windows\make_ico.py        :: one-time icon conversion (pip install cairosvg Pillow)
-windows\build.bat C:\Qt\6.7.0\msvc2019_64
+windows\build.bat C:\Qt\6.8.0\msvc2019_64
 ```
 
----
-
-### macOS — .dmg
-
-1. Download `Caliber-2.0.0.dmg` from [Releases](../../releases).
-2. Open the `.dmg` and drag `Caliber.app` to your Applications folder.
-
-**Build from source** (requires Qt6 via Homebrew, Xcode CLT):
+### macOS — build from source
 
 ```bash
 brew install qt create-dmg librsvg
 bash package/build_macos.sh
 ```
-
----
-
-## Features
-
-- 8 built-in themes: Light, Dark, Midnight Blue, Dracula, Nord, Monokai, Solarized Dark, Follow System
-- Custom theme support — load any `.qss` file from disk via View → Theme → Load Custom Theme
-- Settings persistence — remembers window size, last mode, and theme across restarts
-- Keyboard shortcuts — `Ctrl+1` through `Ctrl+7` to switch modes instantly
-- History panel — click any past calculation to restore it
-- Currency conversion — fetches live rates from [open.er-api.com](https://open.er-api.com), caches offline
-- Graph export — save plots as PNG or JPEG
 
 ---
 
@@ -158,6 +117,7 @@ bash package/build_macos.sh
 |---|---|
 | `Ctrl+1` – `Ctrl+7` | Switch to mode 1–7 |
 | `Ctrl+H` | Toggle history panel |
+| `Ctrl+F` | Toggle formula book |
 | `Ctrl+Shift+S` | Theme: Follow System |
 | `Ctrl+Shift+L` | Theme: Light |
 | `Ctrl+Shift+D` | Theme: Dark |
@@ -170,5 +130,11 @@ bash package/build_macos.sh
 ## Stack
 
 - C++17
-- Qt6 (Widgets · Charts · Network)
-- CMake
+- Qt6 (Widgets · Charts · DataVisualization · Network)
+- CMake 3.16+
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
