@@ -226,6 +226,28 @@ void MainWindow::buildUI() {
     m_central->setLayout(mobileLayout);
 
     connect(pager, &ModePager::modeChanged, this, &MainWindow::onModeChanged);
+    connect(pager, &ModePager::settingsClicked, this, [this]{
+        QMenu menu(this);
+        auto* themeMenu = menu.addMenu("Theme");
+        QStringList names = {"Light","Dark","Midnight","Dracula","Nord","Monokai","Solarized","High Contrast"};
+        for (int i = 0; i < names.size(); ++i) {
+            auto* a = themeMenu->addAction(names[i]);
+            a->setCheckable(true);
+            a->setChecked(static_cast<int>(m_themeMode) == i + 1);
+            connect(a, &QAction::triggered, this, [this, i]{
+                m_themeMode = static_cast<ThemeMode>(i + 1);
+                applyTheme();
+                applyMobileOverrides();
+                saveSettings();
+            });
+        }
+        menu.addSeparator();
+        menu.addAction("History", [this]{ m_historyPanel->toggleDrawer(); });
+        menu.addAction("Formulas", [this]{ m_formulaPanel->toggleDrawer(); });
+        menu.exec(QCursor::pos());
+    });
+
+    applyMobileOverrides();
 
     // History and formula toggles via long-press on the mode bar
     // or add them to the pager header — for now keep the toolbar buttons available
@@ -707,6 +729,48 @@ QScrollBar::handle:vertical:hover { background: %3; }
 void MainWindow::syncGraphTheme(bool dark) {
     auto* gw = qobject_cast<GraphingWidget*>(m_stack->widget(6));
     if (gw) gw->syncToAppTheme(dark);
+}
+
+void MainWindow::applyMobileOverrides() {
+#if defined(Q_OS_ANDROID)
+    // Compact overrides — smaller elements, tighter spacing
+    static const QString mobile = R"(
+        QPushButton[class="calcButton"] {
+            min-height: 44px; font-size: 15px; padding: 4px;
+            border-radius: 6px; margin: 1px;
+        }
+        QPushButton[class="operatorButton"] {
+            min-height: 44px; font-size: 15px; padding: 4px;
+            border-radius: 6px; margin: 1px;
+        }
+        QPushButton[class="actionButton"] {
+            min-height: 44px; font-size: 15px; padding: 4px;
+            border-radius: 6px; margin: 1px;
+        }
+        QPushButton[class="clearButton"] {
+            min-height: 44px; font-size: 15px; padding: 4px;
+            border-radius: 6px; margin: 1px;
+        }
+        QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QDateEdit {
+            min-height: 36px; font-size: 14px; padding: 4px 6px;
+        }
+        QTabBar::tab {
+            font-size: 12px; padding: 4px 10px; min-height: 32px;
+        }
+        QLabel { font-size: 13px; }
+        QToolButton {
+            min-height: 36px; font-size: 14px; padding: 4px;
+        }
+        QTextEdit { font-size: 13px; }
+        QGroupBox { font-size: 13px; }
+        QTableWidget { font-size: 12px; }
+        QHeaderView::section { font-size: 12px; padding: 2px; }
+        #displayWidget { border-radius: 8px; }
+        #expressionLabel { font-size: 12px; }
+        #resultLabel { font-size: 24px; }
+    )";
+    qApp->setStyleSheet(qApp->styleSheet() + mobile);
+#endif
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────

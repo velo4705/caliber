@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Caliber — Android package builder
-# Produces: caliber.apk
+# Produces: Caliber.apk
 #
 # Requirements:
 #   - Qt6 for Android installed (e.g. via Qt Online Installer)

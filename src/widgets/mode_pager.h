@@ -18,6 +18,7 @@ public:
 
 signals:
     void modeChanged(CalcMode mode);
+    void settingsClicked();
 
 private:
     void showModeMenu();
@@ -26,6 +27,7 @@ private:
     QPushButton*    m_modeButton;
     QToolButton*    m_prevBtn;
     QToolButton*    m_nextBtn;
+    QToolButton*    m_settingsBtn;
 
     static const QVector<QPair<QString, CalcMode>> s_modes;
 };

@@ -69,6 +69,16 @@ ModePager::ModePager(QWidget* parent)
     m_nextBtn->setFocusPolicy(Qt::NoFocus);
     headerLayout->addWidget(m_nextBtn);
 
+    // Settings button at top right
+    m_settingsBtn = new QToolButton(header);
+    m_settingsBtn->setText("⚙");
+    m_settingsBtn->setFixedSize(44, 44);
+    m_settingsBtn->setObjectName("historyToggleBtn");
+    m_settingsBtn->setFocusPolicy(Qt::NoFocus);
+    headerLayout->addWidget(m_settingsBtn);
+
+    connect(m_settingsBtn, &QToolButton::clicked, this, &ModePager::settingsClicked);
+
     layout->addWidget(header);
 
     // Stacked content area

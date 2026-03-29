@@ -53,6 +53,7 @@ private:
     void loadCommunityThemes();
     void loadGradientTheme();
     void syncGraphTheme(bool dark);
+    void applyMobileOverrides();
     void buildSearchIndex();
     void onSearchActivated(const QString& text = {});
     void applyAccentColor();
