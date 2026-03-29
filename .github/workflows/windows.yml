@@ -19,10 +19,18 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.*'
-          modules: 'qtcharts qtdatavis3d'
+          modules: 'qtcharts'
 
       - name: Install NSIS
-        run: choco install nsis -y
+        shell: powershell
+        run: |
+          choco install nsis -y --no-progress
+          # Refresh PATH so makensis is available
+          $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+
+      - name: Verify NSIS
+        shell: cmd
+        run: makensis /VERSION
 
       - name: Configure
         shell: cmd
