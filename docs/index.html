@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caliber — The Ultimate Calculator</title>
+    <link rel="icon" type="image/svg+xml" href="caliber.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="bg-gradient"></div>
+<div class="bg-grid"></div>
+<div class="math-particles" id="mathParticles"></div>
+
+<nav>
+    <div class="logo">
+        <img src="caliber.svg" alt="Caliber">
+        <span class="brand">Caliber</span>
+        <span class="version-badge">v2.0</span>
+    </div>
+    <ul>
+        <li><a href="#modes">Modes</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#download">Download</a></li>
+        <li><a href="https://github.com/velo4705/caliber" target="_blank">GitHub</a></li>
+        <li><a href="https://github.com/velo4705/caliber/releases" class="nav-cta">Download</a></li>
+    </ul>
+</nav>
+
+<div class="hero">
+    <div class="showcase">
+        <img src="caliber.svg" alt="Caliber" width="120" height="120">
+    </div>
+    <h1>Caliber</h1>
+    <p>The ultimate graphical calculator for STEM. 22 solver modes covering everything from basic arithmetic to university-level control systems.</p>
+    <div class="badges">
+        <span class="badge">C++17</span>
+        <span class="badge">Qt6</span>
+        <span class="badge">Linux</span>
+        <span class="badge">Windows</span>
+        <span class="badge">macOS</span>
+        <span class="badge">MIT License</span>
+    </div>
+    <div class="cta">
+        <a href="#download" class="btn btn-primary">Download</a>
+        <a href="https://github.com/velo4705/caliber" target="_blank" class="btn btn-secondary">View on GitHub</a>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat"><div class="stat-num">22</div><div class="stat-label">Solver Modes</div></div>
+    <div class="stat"><div class="stat-num">10+</div><div class="stat-label">Themes</div></div>
+    <div class="stat"><div class="stat-num">80+</div><div class="stat-label">Formulas</div></div>
+    <div class="stat"><div class="stat-num">3</div><div class="stat-label">Platforms</div></div>
+</div>
+
+<section id="modes">
+    <h2 class="section-title">All 22 Modes</h2>
+    <p class="section-sub">Every calculation you'll ever need — from quick arithmetic to advanced university solvers.</p>
+    <div class="mode-grid">
+        <div class="mode-card"><h3>Basic</h3><p>Arithmetic with live expression preview and keyboard input.</p></div>
+        <div class="mode-card"><h3>Scientific</h3><p>Trig, logarithms, powers, constants (π, e), DEG/RAD/GRAD.</p></div>
+        <div class="mode-card"><h3>Programming</h3><p>HEX/DEC/OCT/BIN, bitwise ops, 8–64 bit width, bit visualizer.</p></div>
+        <div class="mode-card"><h3>Date</h3><p>Date difference, add/subtract durations, age calculator, day of week.</p></div>
+        <div class="mode-card"><h3>Conversion</h3><p>13 unit categories + live currency conversion via API.</p></div>
+        <div class="mode-card"><h3>Equations</h3><p>Linear, quadratic, system solver (Gaussian), matrix operations.</p></div>
+        <div class="mode-card"><h3>Graphing</h3><p>2D/3D plotter, polar/parametric, trace, derivative overlay, intersections.</p></div>
+        <div class="mode-card"><h3>Statistics</h3><p>Descriptive stats, distributions, hypothesis testing, regression, ANOVA.</p></div>
+        <div class="mode-card"><h3>Calculus</h3><p>Differentiation, integration, limits, Taylor series, root finder.</p></div>
+        <div class="mode-card"><h3>Financial</h3><p>Compound interest, loans, NPV/IRR, percentage calculations.</p></div>
+        <div class="mode-card"><h3>Number Theory</h3><p>Primes, GCD/LCM, modular arithmetic, base conversion, sequences.</p></div>
+        <div class="mode-card"><h3>Electrical</h3><p>Ohm's law, RLC circuits, voltage dividers, op-amps, dB, phasors.</p></div>
+        <div class="mode-card"><h3>Digital Logic</h3><p>Truth tables, K-maps, flip-flops, adders, MUX/DEMUX, IEEE 754.</p></div>
+        <div class="mode-card"><h3>Vectors</h3><p>Dot/cross products, magnitude, projection, line/plane equations.</p></div>
+        <div class="mode-card"><h3>Physics</h3><p>Kinematics, energy, projectile motion, waves, thermodynamics.</p></div>
+        <div class="mode-card"><h3>Chemistry</h3><p>Molar mass, ideal gas law, pH, dilution, thermochemistry.</p></div>
+        <div class="mode-card"><h3>Civil/Mech</h3><p>Beam analysis, stress/strain, fluid mechanics, heat transfer.</p></div>
+        <div class="mode-card"><h3>Advanced Math</h3><p>Complex numbers, linear algebra, series, triangle solver, polynomials.</p></div>
+        <div class="mode-card"><h3>Discrete Math</h3><p>Graph theory (BFS/DFS/Dijkstra), combinatorics, Boolean algebra.</p></div>
+        <div class="mode-card"><h3>MCS</h3><p>Asymptotic analysis, Master Theorem, floating point, formal logic.</p></div>
+        <div class="mode-card"><h3>Signals</h3><p>DFT, filter design, sampling/Nyquist, convolution, transfer functions.</p></div>
+        <div class="mode-card"><h3>Control Systems</h3><p>Transfer functions, Routh-Hurwitz, PID tuning, state space.</p></div>
+    </div>
+</section>
+
+<section id="features">
+    <h2 class="section-title">Features</h2>
+    <p class="section-sub">Built for speed, designed for power users.</p>
+    <div class="feat-grid">
+        <div class="feat-card">
+            <div class="feat-icon">∑</div>
+            <h3>Step-by-Step Solvers</h3>
+            <p>See every step of equations, calculus, statistics, and vector calculations. Learn as you solve.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon">∫</div>
+            <h3>Advanced Graphing</h3>
+            <p>2D with trace, intersections, derivative overlays, and integral shading. 3D surface plotter with rotation.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon">🎨</div>
+            <h3>10+ Themes</h3>
+            <p>9 built-in themes plus a custom gradient builder. Pick any two colors and the UI adapts automatically.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon">📖</div>
+            <h3>Formula Book</h3>
+            <p>80+ searchable formulas across all modes. Per-mode filtering shows only relevant formulas.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon">⌨️</div>
+            <h3>Keyboard Input</h3>
+            <p>Type directly using keyboard or numpad in Basic, Scientific, and Programming modes. No clicking needed.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon">⏱️</div>
+            <h3>History & Pinning</h3>
+            <p>Search, filter, and pin your favorite calculations. Export history to TXT or CSV.</p>
+        </div>
+    </div>
+</section>
+
+<section id="download">
+    <h2 class="section-title">Download</h2>
+    <p class="section-sub">Available for Linux, Windows, and macOS.</p>
+    <table class="install-table">
+        <thead>
+            <tr><th>Platform</th><th>Package</th><th>Install</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Ubuntu / Debian</td><td><code>caliber-2.0.0.deb</code></td><td><code>sudo dpkg -i caliber-2.0.0.deb</code></td></tr>
+            <tr><td>Fedora / RHEL</td><td><code>caliber-2.0.0.rpm</code></td><td><code>sudo rpm -i caliber-2.0.0.rpm</code></td></tr>
+            <tr><td>Arch Linux</td><td><code>PKGBUILD</code></td><td><code>makepkg -si</code></td></tr>
+            <tr><td>Any Linux</td><td><code>caliber-2.0.0.tar.gz</code></td><td>Extract and run</td></tr>
+            <tr><td>Windows</td><td><code>Caliber-2.0.0-Setup.exe</code></td><td>Run installer</td></tr>
+            <tr><td>Windows (portable)</td><td><code>Caliber-2.0.0.zip</code></td><td>Extract and run</td></tr>
+            <tr><td>macOS</td><td><code>Caliber-2.0.0.dmg</code></td><td>Drag to Applications</td></tr>
+        </tbody>
+    </table>
+    <div style="text-align:center;margin-top:32px">
+        <a href="https://github.com/velo4705/caliber/releases" class="btn btn-primary">Download Caliber</a>
+    </div>
+</section>
+
+<footer>
+    <p>Caliber v2.0.0 &middot; MIT License &middot;
+        <a href="https://github.com/velo4705/caliber">GitHub</a> &middot;
+        <a href="https://github.com/velo4705/caliber/issues">Issues</a>
+    </p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -4,6 +4,8 @@ A graphical calculator built with C++ and Qt6. Covers every calculation mode a S
 
 ![Caliber](resources/icons/caliber.svg)
 
+Website Link: https://velo4705.github.io/caliber
+
 ---
 
 ## Modes
