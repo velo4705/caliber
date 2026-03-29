@@ -232,8 +232,6 @@ void GraphingWidget::buildUI() {
     // 3D surface is lazy-initialized on first switch to 3D mode
     // (avoids OpenGL context creation at startup — important for VMs / no-GPU)
 
-    applyChartTheme();
-
     // ── Bottom panel ─────────────────────────────────────────────────────────
     m_panel = new QWidget(this);
     m_panel->setObjectName("graphBottomPanel");
@@ -246,14 +244,23 @@ void GraphingWidget::buildUI() {
     panelVL->setSpacing(0);
 
     // ── Chip row (always visible, both 2D and 3D) ─────────────────────────
-    m_3dChipRow = new QWidget(m_panel);
-    m_3dChipRow->setFixedHeight(40);
-    m_3dChipRow->setStyleSheet("background:transparent;");
-    m_3dChipRowLayout = new QHBoxLayout(m_3dChipRow);
+    auto* chipContainer = new QWidget();
+    chipContainer->setObjectName("graphChipContainer");
+    chipContainer->setStyleSheet("background:transparent;");
+    m_3dChipRowLayout = new QHBoxLayout(chipContainer);
     m_3dChipRowLayout->setContentsMargins(12,4,12,4);
     m_3dChipRowLayout->setSpacing(6);
     m_3dChipRowLayout->addStretch();
-    panelVL->addWidget(m_3dChipRow);
+
+    auto* chipScroll = new QScrollArea(m_panel);
+    chipScroll->setWidget(chipContainer);
+    chipScroll->setWidgetResizable(true);
+    chipScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    chipScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    chipScroll->setFixedHeight(40);
+    chipScroll->setFrameShape(QFrame::NoFrame);
+    chipScroll->setStyleSheet("background:transparent;");
+    panelVL->addWidget(chipScroll);
 
     // ── Controls row ──────────────────────────────────────────────────────
     auto* controlsRow = new QWidget(m_panel);
@@ -340,44 +347,33 @@ void GraphingWidget::buildUI() {
     div2->setFrameShape(QFrame::VLine); div2->setFrameShadow(QFrame::Sunken);
     pl->addWidget(div2);
 
-    // Chart theme toggle
-    m_themeBtn = new QToolButton(controlsRow);
-    m_themeBtn->setText("☀");
-    m_themeBtn->setToolTip("Toggle chart light/dark");
-    m_themeBtn->setFixedSize(H, H);
-    m_themeBtn->setObjectName("historyToggleBtn");
-    pl->addWidget(m_themeBtn, 0, Qt::AlignVCenter);
+    // Toggle buttons in 2-row grid
+    auto* toggleGrid = new QWidget(controlsRow);
+    toggleGrid->setStyleSheet("background:transparent;");
+    auto* tg = new QGridLayout(toggleGrid);
+    tg->setContentsMargins(0,0,0,0); tg->setSpacing(4);
 
-    // Derivative overlay toggle
-    m_derivBtn = new QToolButton(controlsRow);
-    m_derivBtn->setText("f'");
-    m_derivBtn->setToolTip("Toggle f'(x) derivative overlay");
-    m_derivBtn->setFixedSize(H, H);
-    m_derivBtn->setCheckable(true);
-    m_derivBtn->setObjectName("historyToggleBtn");
-    pl->addWidget(m_derivBtn, 0, Qt::AlignVCenter);
+    auto mkToggle = [toggleGrid, tg](const QString& text, const QString& tip, bool checkable, int row, int col) -> QToolButton* {
+        auto* btn = new QToolButton(toggleGrid);
+        btn->setText(text); btn->setToolTip(tip);
+        btn->setFixedSize(36, 28); btn->setCheckable(checkable);
+        btn->setObjectName("graphToggleBtn");
+        tg->addWidget(btn, row, col);
+        return btn;
+    };
 
-    // Intersection finder toggle
-    m_intersectBtn = new QToolButton(controlsRow);
-    m_intersectBtn->setText("∩");
-    m_intersectBtn->setToolTip("Find and mark intersections between curves");
-    m_intersectBtn->setFixedSize(H, H);
-    m_intersectBtn->setCheckable(true);
-    m_intersectBtn->setObjectName("historyToggleBtn");
-    pl->addWidget(m_intersectBtn, 0, Qt::AlignVCenter);
+    m_themeBtn    = mkToggle("☀", "Toggle chart light/dark", true, 0, 0);
+    m_derivBtn    = mkToggle("f'", "Toggle f'(x) derivative", true, 0, 1);
+    m_intersectBtn= mkToggle("∩",  "Find intersections", true, 0, 2);
+    m_shadeBtn    = mkToggle("∫",  "Shade area under curve", true, 0, 3);
 
-    // Integral shading
-    m_shadeBtn = new QToolButton(controlsRow);
-    m_shadeBtn->setText("∫");
-    m_shadeBtn->setToolTip("Shade area under curve between a and b");
-    m_shadeBtn->setFixedSize(H, H);
-    m_shadeBtn->setCheckable(true);
-    m_shadeBtn->setObjectName("historyToggleBtn");
-    m_shadeA = new QLineEdit(controlsRow); m_shadeA->setPlaceholderText("a"); m_shadeA->setFixedWidth(48); m_shadeA->setAlignment(Qt::AlignCenter);
-    m_shadeB = new QLineEdit(controlsRow); m_shadeB->setPlaceholderText("b"); m_shadeB->setFixedWidth(48); m_shadeB->setAlignment(Qt::AlignCenter);
-    pl->addWidget(m_shadeBtn,  0, Qt::AlignVCenter);
-    pl->addWidget(m_shadeA,    0, Qt::AlignVCenter);
-    pl->addWidget(m_shadeB,    0, Qt::AlignVCenter);
+    // Shade range inputs in row 1
+    m_shadeA = new QLineEdit(toggleGrid); m_shadeA->setPlaceholderText("a"); m_shadeA->setFixedWidth(48); m_shadeA->setAlignment(Qt::AlignCenter); m_shadeA->setStyleSheet("font-size:12px;");
+    m_shadeB = new QLineEdit(toggleGrid); m_shadeB->setPlaceholderText("b"); m_shadeB->setFixedWidth(48); m_shadeB->setAlignment(Qt::AlignCenter); m_shadeB->setStyleSheet("font-size:12px;");
+    tg->addWidget(m_shadeA, 1, 0, 1, 2);
+    tg->addWidget(m_shadeB, 1, 2, 1, 2);
+
+    pl->addWidget(toggleGrid, 0, Qt::AlignVCenter);
 
     // Auto-rotate toggle (3D mode only)
 #ifdef HAVE_DATAVISUALIZATION
@@ -413,14 +409,17 @@ void GraphingWidget::buildUI() {
     m_anim->setDuration(220);
     m_anim->setEasingCurve(QEasingCurve::OutCubic);
 
+    // Apply chart theme now that all panel widgets exist
+    applyChartTheme();
+
     // Connections
     connect(addBtn,      &QPushButton::clicked,     this, &GraphingWidget::addFunction);
     connect(m_funcInput, &QLineEdit::returnPressed,  this, &GraphingWidget::addFunction);
     connect(resetBtn,    &QPushButton::clicked,      this, &GraphingWidget::resetView);
     connect(exportBtn,   &QPushButton::clicked,      this, &GraphingWidget::exportGraph);
     connect(m_toggleBtn, &QToolButton::clicked,      this, &GraphingWidget::togglePanel);
-    connect(m_themeBtn,  &QToolButton::clicked,      this, [this]{
-        m_chartDark = !m_chartDark;
+    connect(m_themeBtn,  &QToolButton::toggled,       this, [this](bool on){
+        m_chartDark = !on;
         m_themeBtn->setText(m_chartDark ? "☀" : "🌙");
         applyChartTheme();
         plotAll();
@@ -534,6 +533,13 @@ void GraphingWidget::applyChartTheme() {
     QColor labelColor = m_chartDark ? QColor(180,180,180) : QColor(60,60,60);
     if (m_axisX) { m_axisX->setLabelsColor(labelColor); m_axisX->setTitleBrush(QBrush(labelColor)); }
     if (m_axisY) { m_axisY->setLabelsColor(labelColor); m_axisY->setTitleBrush(QBrush(labelColor)); }
+
+    // Update "Controls" button text color for chart theme
+    if (m_toggleBtn) {
+        m_toggleBtn->setObjectName("controlsToggle");
+        QColor tc = m_chartDark ? QColor(0xcc,0xcc,0xcc) : QColor(0x33,0x33,0x33);
+        m_toggleBtn->setStyleSheet(QString("#controlsToggle{color:%1;background:transparent;font-size:12px;padding:4px 8px;}").arg(tc.name()));
+    }
 }
 
 // ── Dimension switch ──────────────────────────────────────────────────────────
@@ -683,9 +689,10 @@ void GraphingWidget::updateFunctionList() {
         delete it;
     }
 
+    auto* chipParent = qobject_cast<QWidget*>(m_3dChipRowLayout->parent());
     for (int i = 0; i < m_entries.size(); ++i) {
         auto& entry = m_entries[i];
-        auto* chip = makeChip(m_3dChipRow, entry.expression, entry.color);
+        auto* chip = makeChip(chipParent, entry.expression, entry.color);
         m_3dChipRowLayout->addWidget(chip);
 
         auto* dot = qobject_cast<QPushButton*>(chip->property("dotBtn").value<QObject*>());

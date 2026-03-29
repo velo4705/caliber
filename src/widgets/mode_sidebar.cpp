@@ -5,28 +5,28 @@
 #include <QFrame>
 
 const QVector<ModeSidebar::ModeEntry> ModeSidebar::s_modes = {
-    { "Basic",       "⊞", CalcMode::Basic       },
-    { "Scientific",  "∑", CalcMode::Scientific  },
-    { "Programming", "</>",CalcMode::Programming },
-    { "Date",        "📅", CalcMode::Date        },
-    { "Conversion",  "⇄",  CalcMode::Conversion  },
-    { "Equations",   "∫",  CalcMode::Equations   },
-    { "Graphing",    "〜", CalcMode::Graphing    },
-    { "Statistics",  "σ",  CalcMode::Statistics  },
-    { "Calculus",    "∂",  CalcMode::Calculus     },
-    { "Financial",   "$",  CalcMode::Financial    },
-    { "Number Th.",  "ℕ",  CalcMode::NumberTheory },
-    { "Electrical",  "⚡", CalcMode::Electrical   },
-    { "Dig. Logic",  "⊕", CalcMode::DigitalLogic },
-    { "Vectors",     "→", CalcMode::Vectors      },
-    { "Physics",     "⚛", CalcMode::Physics      },
-    { "Chemistry",   "⚗", CalcMode::Chemistry    },
-    { "Civil/Mech",  "🔧", CalcMode::CivilMech   },
-    { "Adv. Math",   "∞",  CalcMode::AdvancedMath },
-    { "Discrete",    "⊆",  CalcMode::DiscreteMath },
-    { "MCS",         "λ",  CalcMode::MCS          },
-    { "Signals",     "∿",  CalcMode::SignalProc   },
-    { "Control",     "⊙",  CalcMode::ControlSys  },
+    { "Basic",          "⊞", CalcMode::Basic       },
+    { "Scientific",     "∑", CalcMode::Scientific  },
+    { "Programming",    "</>",CalcMode::Programming },
+    { "Date",           "📅", CalcMode::Date        },
+    { "Conversion",     "⇄",  CalcMode::Conversion  },
+    { "Equations",      "∫",  CalcMode::Equations   },
+    { "Graphing",       "〜", CalcMode::Graphing    },
+    { "Statistics",     "σ",  CalcMode::Statistics  },
+    { "Calculus",       "∂",  CalcMode::Calculus     },
+    { "Financial",      "$",  CalcMode::Financial    },
+    { "Number Theory",  "ℕ",  CalcMode::NumberTheory },
+    { "Electrical",     "⚡", CalcMode::Electrical   },
+    { "Digital Logic",  "⊕",  CalcMode::DigitalLogic },
+    { "Vectors",        "→",  CalcMode::Vectors      },
+    { "Physics",        "⚛",  CalcMode::Physics      },
+    { "Chemistry",      "⚗",  CalcMode::Chemistry    },
+    { "Civil/Mech",     "🔧", CalcMode::CivilMech   },
+    { "Advanced Math",  "∞",  CalcMode::AdvancedMath },
+    { "Discrete Math",  "⊆",  CalcMode::DiscreteMath },
+    { "MCS",            "λ",  CalcMode::MCS          },
+    { "Signals",        "∿",  CalcMode::SignalProc   },
+    { "Control",        "⊙",  CalcMode::ControlSys  },
 };
 
 ModeSidebar::ModeSidebar(QWidget* parent)
@@ -69,7 +69,7 @@ void ModeSidebar::buildLayout() {
     bool vertical = (m_orientation == SidebarOrientation::Vertical);
 
     if (vertical) {
-        setMinimumWidth(120); setMaximumWidth(300);
+        setMinimumWidth(120); setMaximumWidth(500);
         setMinimumHeight(0);  setMaximumHeight(QWIDGETSIZE_MAX);
         setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 

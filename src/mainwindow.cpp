@@ -5,7 +5,6 @@
 #include "widgets/formula_panel.h"
 #include "widgets/animated_stacked_widget.h"
 #include "widgets/gradient_theme_dialog.h"
-#include "widgets/mode_pager.h"
 #include "modes/basic/basic_widget.h"
 #include "modes/scientific/scientific_widget.h"
 #include "modes/programming/programming_widget.h"
@@ -42,8 +41,6 @@
 #include <QLabel>
 #include <QSettings>
 #include <QStyleHints>
-#include <QGuiApplication>
-#include <QScreen>
 #include <QKeyEvent>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -59,6 +56,7 @@
 #include <QCompleter>
 #include <QTabWidget>
 #include <QSplitter>
+#include <functional>
 #include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
 #include <QEasingCurve>
@@ -95,28 +93,43 @@ void MainWindow::buildUI() {
     m_historyPanel = new HistoryPanel(m_central);
     m_formulaPanel = new FormulaPanel(m_central);
 
-    m_stack->addWidget(new BasicWidget      (m_engine, m_history, m_historyPanel, this)); // 0
-    m_stack->addWidget(new ScientificWidget (m_engine, m_history, m_historyPanel, this)); // 1
-    m_stack->addWidget(new ProgrammingWidget(m_history, m_historyPanel, this));           // 2
-    m_stack->addWidget(new DateWidget       (this));                                       // 3
-    m_stack->addWidget(new ConversionWidget (this));                                       // 4
-    m_stack->addWidget(new EquationsWidget  (this));                                       // 5
-    m_stack->addWidget(new GraphingWidget   (this));                                       // 6
-    m_stack->addWidget(new StatisticsWidget (this));                                       // 7
-    m_stack->addWidget(new CalculusWidget     (this));                                       // 8
-    m_stack->addWidget(new FinancialWidget    (this));                                       // 9
-    m_stack->addWidget(new NumberTheoryWidget (this));                                       // 10
-    m_stack->addWidget(new ElectricalWidget    (this));                                       // 11
-    m_stack->addWidget(new DigitalLogicWidget  (this));                                       // 12
-    m_stack->addWidget(new VectorsWidget       (this));                                       // 13
-    m_stack->addWidget(new PhysicsWidget       (this));                                       // 14
-    m_stack->addWidget(new ChemistryWidget     (this));                                       // 15
-    m_stack->addWidget(new CivilMechWidget     (this));                                       // 16
-    m_stack->addWidget(new AdvancedMathWidget  (this));                                       // 17
-    m_stack->addWidget(new DiscreteMathWidget  (this));                                       // 18
-    m_stack->addWidget(new McsWidget           (this));                                       // 19
-    m_stack->addWidget(new SignalProcessingWidget(this));                                     // 20
-    m_stack->addWidget(new ControlSystemsWidget (this));                                      // 21
+    // Lazy mode widget creation — only build the widget when user switches to it
+    // This speeds up startup significantly by deferring expensive widget construction
+    struct ModeFactory {
+        std::function<QWidget*()> create;
+        QWidget* widget = nullptr;
+    };
+    m_modeFactories.resize(22);
+    m_modeFactories[0]  = { [this]{ return new BasicWidget(m_engine, m_history, m_historyPanel, this); } };
+    m_modeFactories[1]  = { [this]{ return new ScientificWidget(m_engine, m_history, m_historyPanel, this); } };
+    m_modeFactories[2]  = { [this]{ return new ProgrammingWidget(m_history, m_historyPanel, this); } };
+    m_modeFactories[3]  = { [this]{ return new DateWidget(this); } };
+    m_modeFactories[4]  = { [this]{ return new ConversionWidget(this); } };
+    m_modeFactories[5]  = { [this]{ return new EquationsWidget(this); } };
+    m_modeFactories[6]  = { [this]{ return new GraphingWidget(this); } };
+    m_modeFactories[7]  = { [this]{ return new StatisticsWidget(this); } };
+    m_modeFactories[8]  = { [this]{ return new CalculusWidget(this); } };
+    m_modeFactories[9]  = { [this]{ return new FinancialWidget(this); } };
+    m_modeFactories[10] = { [this]{ return new NumberTheoryWidget(this); } };
+    m_modeFactories[11] = { [this]{ return new ElectricalWidget(this); } };
+    m_modeFactories[12] = { [this]{ return new DigitalLogicWidget(this); } };
+    m_modeFactories[13] = { [this]{ return new VectorsWidget(this); } };
+    m_modeFactories[14] = { [this]{ return new PhysicsWidget(this); } };
+    m_modeFactories[15] = { [this]{ return new ChemistryWidget(this); } };
+    m_modeFactories[16] = { [this]{ return new CivilMechWidget(this); } };
+    m_modeFactories[17] = { [this]{ return new AdvancedMathWidget(this); } };
+    m_modeFactories[18] = { [this]{ return new DiscreteMathWidget(this); } };
+    m_modeFactories[19] = { [this]{ return new McsWidget(this); } };
+    m_modeFactories[20] = { [this]{ return new SignalProcessingWidget(this); } };
+    m_modeFactories[21] = { [this]{ return new ControlSystemsWidget(this); } };
+
+    // Add placeholder widgets to stack (empty at first, created on demand)
+    for (int i = 0; i < 22; ++i)
+        m_stack->addWidget(new QWidget(this));
+
+    // Eagerly create the first mode (Basic) for instant display
+    ensureModeCreated(0);
+    if (QWidget* w = m_stack->currentWidget()) w->setFocus();
 
     // ── Toolbar with history toggle button ────────────────────────────────────
     auto* toolbar = addToolBar("Main");
@@ -180,82 +193,6 @@ void MainWindow::buildUI() {
 
     setCentralWidget(m_central);
 
-#if defined(Q_OS_ANDROID)
-    // Hide desktop toolbar
-    auto* tb = addToolBar("Main");
-    tb->setObjectName("mainToolbar");
-    tb->setVisible(false);
-
-    // Use ModePager: header + content + full-width bottom mode bar
-    auto* pager = new ModePager(m_central);
-
-    // Add all mode widgets to the pager's stack
-    pager->stack()->addWidget(new BasicWidget       (m_engine, m_history, m_historyPanel, this));
-    pager->stack()->addWidget(new ScientificWidget   (m_engine, m_history, m_historyPanel, this));
-    pager->stack()->addWidget(new ProgrammingWidget  (m_history, m_historyPanel, this));
-    pager->stack()->addWidget(new DateWidget         (this));
-    pager->stack()->addWidget(new ConversionWidget   (this));
-    pager->stack()->addWidget(new EquationsWidget    (this));
-    pager->stack()->addWidget(new GraphingWidget     (this));
-    pager->stack()->addWidget(new StatisticsWidget   (this));
-    pager->stack()->addWidget(new CalculusWidget     (this));
-    pager->stack()->addWidget(new FinancialWidget    (this));
-    pager->stack()->addWidget(new NumberTheoryWidget (this));
-    pager->stack()->addWidget(new ElectricalWidget   (this));
-    pager->stack()->addWidget(new DigitalLogicWidget (this));
-    pager->stack()->addWidget(new VectorsWidget      (this));
-    pager->stack()->addWidget(new PhysicsWidget      (this));
-    pager->stack()->addWidget(new ChemistryWidget    (this));
-    pager->stack()->addWidget(new CivilMechWidget    (this));
-    pager->stack()->addWidget(new AdvancedMathWidget (this));
-    pager->stack()->addWidget(new DiscreteMathWidget (this));
-    pager->stack()->addWidget(new McsWidget          (this));
-    pager->stack()->addWidget(new SignalProcessingWidget(this));
-    pager->stack()->addWidget(new ControlSystemsWidget  (this));
-
-    // Replace m_stack reference for search/navigation
-    m_stack = pager->stack();
-
-    // Also add history and formula buttons to the pager header area
-    // (ModePager header already has Caliber title + prev/next arrows)
-
-    auto* mobileLayout = new QVBoxLayout(m_central);
-    mobileLayout->setContentsMargins(0, 0, 0, 0);
-    mobileLayout->setSpacing(0);
-    mobileLayout->addWidget(pager, 1);
-    m_central->setLayout(mobileLayout);
-
-    connect(pager, &ModePager::modeChanged, this, &MainWindow::onModeChanged);
-    connect(pager, &ModePager::settingsClicked, this, [this]{
-        QMenu menu(this);
-        auto* themeMenu = menu.addMenu("Theme");
-        QStringList names = {"Light","Dark","Midnight","Dracula","Nord","Monokai","Solarized","High Contrast"};
-        for (int i = 0; i < names.size(); ++i) {
-            auto* a = themeMenu->addAction(names[i]);
-            a->setCheckable(true);
-            a->setChecked(static_cast<int>(m_themeMode) == i + 1);
-            connect(a, &QAction::triggered, this, [this, i]{
-                m_themeMode = static_cast<ThemeMode>(i + 1);
-                applyTheme();
-                applyMobileOverrides();
-                saveSettings();
-            });
-        }
-        menu.addSeparator();
-        menu.addAction("History", [this]{ m_historyPanel->toggleDrawer(); });
-        menu.addAction("Formulas", [this]{ m_formulaPanel->toggleDrawer(); });
-        menu.exec(QCursor::pos());
-    });
-
-    applyMobileOverrides();
-
-    // History and formula toggles via long-press on the mode bar
-    // or add them to the pager header — for now keep the toolbar buttons available
-    m_historyBtn = new QToolButton(this);
-    m_historyBtn->setVisible(false); // hidden, accessible via menu
-    m_formulaBtn = new QToolButton(this);
-    m_formulaBtn->setVisible(false);
-#else
     auto* animatedStack = qobject_cast<AnimatedStackedWidget*>(m_stack);
     if (animatedStack) animatedStack->setAnimationDuration(200);
     applyLayout(false);
@@ -269,7 +206,6 @@ void MainWindow::buildUI() {
         if (checked != m_formulaPanel->isDrawerOpen())
             m_formulaPanel->toggleDrawer();
     });
-#endif
 
     // When history drawer toggles, shrink 3D container so it doesn't overlap
     connect(m_historyPanel, &HistoryPanel::drawerToggled, this, [this](bool open) {
@@ -313,6 +249,7 @@ void MainWindow::applyLayout(bool portrait) {
         m_splitter->setCollapsible(0, false);
         m_splitter->setCollapsible(1, false);
         m_splitter->setHandleWidth(3);
+        m_splitter->setSizes({170, 930});
         auto* hl = new QHBoxLayout(m_central);
         hl->setContentsMargins(0, 0, 0, 0);
         hl->setSpacing(0);
@@ -496,20 +433,31 @@ void MainWindow::applyTheme() {
 
     if (m_themeMode == ThemeMode::Gradient) {
         // Generate QSS from gradient colors
-        bool dark = m_gradientDarkBase;
         QColor c1 = m_gradientStart;
         QColor c2 = m_gradientEnd;
-        QColor mid = QColor((c1.red()+c2.red())/2, (c1.green()+c2.green())/2, (c1.blue()+c2.blue())/2);
 
-        // Derive UI colors from the gradient
-        QColor bg        = dark ? mid.darker(180) : mid.lighter(200);
-        QColor sidebarBg = dark ? c1.darker(200)  : c1.lighter(220);
-        QColor cardBg    = dark ? mid.darker(140) : mid.lighter(180);
-        QColor border    = dark ? mid.lighter(130) : mid.darker(130);
-        QColor text      = dark ? QColor(0xe8,0xe8,0xe8) : QColor(0x1a,0x1a,0x1a);
-        QColor textDim   = dark ? QColor(0x88,0x88,0x88) : QColor(0x66,0x66,0x66);
-        QColor textBright= dark ? QColor(0xff,0xff,0xff) : QColor(0x00,0x00,0x00);
-        QColor accent    = c2.lighter(dark ? 130 : 90);
+        // Compute luminance from BOTH gradient endpoints (not just midpoint)
+        auto lum = [](const QColor& c) -> double {
+            return (0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()) / 255.0;
+        };
+        double avgLum = (lum(c1) + lum(c2)) / 2.0;
+        bool dark = avgLum < 0.5;
+
+        // Derive UI colors from the END color — small adjustments only so it blends
+        QColor mid       = dark ? QColor((c1.red()+c2.red())/2, (c1.green()+c2.green())/2, (c1.blue()+c2.blue())/2) : QColor((c1.red()+c2.red())/2, (c1.green()+c2.green())/2, (c1.blue()+c2.blue())/2);
+        QColor bg        = dark ? c2.darker(130) : c2.lighter(130);
+        QColor sidebarBg = dark ? c1.darker(140) : c1.lighter(140);
+        QColor cardBg    = dark ? c2.darker(115) : c2.lighter(115);
+        QColor border    = dark ? c2.lighter(120) : c2.darker(120);
+
+        // Text color: white on dark backgrounds, black on light backgrounds
+        // Use the actual card background luminance for final decision
+        double cardLum = lum(cardBg);
+        bool cardDark  = cardLum < 0.5;
+        QColor text    = cardDark ? QColor(0xff,0xff,0xff) : QColor(0x00,0x00,0x00);
+        QColor textDim = cardDark ? QColor(0xaa,0xaa,0xaa) : QColor(0x55,0x55,0x55);
+        QColor textBright = QColor(0xff,0xff,0xff);
+        QColor accent    = c2.lighter(dark ? 140 : 80);
         QColor accentDark= c1.darker(dark ? 110 : 120);
 
         // Compute gradient coordinates from angle
@@ -527,11 +475,20 @@ void MainWindow::applyTheme() {
         QString gradAction = QString("qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 %1, stop:1 %2)")
             .arg(c1.lighter(120).name()).arg(c2.lighter(110).name());
 
+        // Semi-transparent card backgrounds so gradient shows through
+        QString cardRgba = QString("rgba(%1,%2,%3,0.75)")
+            .arg(cardBg.red()).arg(cardBg.green()).arg(cardBg.blue());
+
         QString qss = QString(R"(
 * { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-size: 14px; outline: none; }
 QMainWindow { background: %1; }
 QWidget { background-color: %11; color: %2; }
-#modeSidebar { background-color: %3; border-right: 1px solid %4; min-width: 120px; max-width: 300px; }
+QToolTip { background-color: #333333; color: #ffffff; border: 1px solid #555555; padding: 4px; border-radius: 4px; }
+QStackedWidget { background: transparent; }
+QTabWidget { background: transparent; }
+QTabWidget::pane { background-color: %11; border: 1px solid %4; border-radius: 8px; }
+QTabWidget QWidget { background-color: %11; }
+#modeSidebar { background-color: %3; border-right: 1px solid %4; min-width: 120px; max-width: 500px; }
 #modeSidebar QLabel { color: %5; font-size: 15px; font-weight: bold; padding: 4px 0 12px 0; }
 #modeSidebar QPushButton { background: transparent; border: none; border-radius: 8px; padding: 10px 12px; text-align: left; color: %6; font-size: 13px; }
 #modeSidebar QPushButton:hover { background: rgba(%7,%8,%9,0.15); color: %2; }
@@ -580,6 +537,10 @@ QTextEdit { background-color: %11; border: 1px solid %4; border-radius: 6px; col
 QFrame[frameShape="4"] { color: %4; }
 #graphBottomPanel { background-color: rgba(%18,%19,%20,0.95); border-top: 1px solid %4; }
 #graphBottomPanel QWidget { background-color: transparent; }
+#graphToggleBtn { background-color: transparent; border: 1px solid %4; border-radius: 6px; font-size: 13px; padding: 2px; color: %2; }
+#graphToggleBtn:hover { background-color: rgba(%7,%8,%9,0.15); }
+#graphToggleBtn:checked { background-color: #ffffff; color: #000000; border-color: #ffffff; }
+#graphToggleBtn:checked:hover { background-color: #dddddd; }
 QToolButton { background-color: transparent; border: 1px solid %4; border-radius: 6px; padding: 4px 8px; color: %2; }
 QToolButton:hover { background-color: rgba(%7,%8,%9,0.2); }
 QToolButton:checked { background-color: %10; color: %15; border-color: %10; }
@@ -731,46 +692,16 @@ void MainWindow::syncGraphTheme(bool dark) {
     if (gw) gw->syncToAppTheme(dark);
 }
 
-void MainWindow::applyMobileOverrides() {
-#if defined(Q_OS_ANDROID)
-    // Compact overrides — smaller elements, tighter spacing
-    static const QString mobile = R"(
-        QPushButton[class="calcButton"] {
-            min-height: 44px; font-size: 15px; padding: 4px;
-            border-radius: 6px; margin: 1px;
-        }
-        QPushButton[class="operatorButton"] {
-            min-height: 44px; font-size: 15px; padding: 4px;
-            border-radius: 6px; margin: 1px;
-        }
-        QPushButton[class="actionButton"] {
-            min-height: 44px; font-size: 15px; padding: 4px;
-            border-radius: 6px; margin: 1px;
-        }
-        QPushButton[class="clearButton"] {
-            min-height: 44px; font-size: 15px; padding: 4px;
-            border-radius: 6px; margin: 1px;
-        }
-        QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QDateEdit {
-            min-height: 36px; font-size: 14px; padding: 4px 6px;
-        }
-        QTabBar::tab {
-            font-size: 12px; padding: 4px 10px; min-height: 32px;
-        }
-        QLabel { font-size: 13px; }
-        QToolButton {
-            min-height: 36px; font-size: 14px; padding: 4px;
-        }
-        QTextEdit { font-size: 13px; }
-        QGroupBox { font-size: 13px; }
-        QTableWidget { font-size: 12px; }
-        QHeaderView::section { font-size: 12px; padding: 2px; }
-        #displayWidget { border-radius: 8px; }
-        #expressionLabel { font-size: 12px; }
-        #resultLabel { font-size: 24px; }
-    )";
-    qApp->setStyleSheet(qApp->styleSheet() + mobile);
-#endif
+void MainWindow::ensureModeCreated(int index) {
+    if (index < 0 || index >= static_cast<int>(m_modeFactories.size())) return;
+    auto& f = m_modeFactories[index];
+    if (!f.widget) {
+        f.widget = f.create();
+        QWidget* old = m_stack->widget(index);
+        m_stack->removeWidget(old);
+        delete old;
+        m_stack->insertWidget(index, f.widget);
+    }
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -792,24 +723,19 @@ void MainWindow::restoreSettings() {
 
     if (s.contains("window/geometry"))
         restoreGeometry(s.value("window/geometry").toByteArray());
-    else {
-#if defined(Q_OS_ANDROID)
-        // On Android, use screen size
-        resize(QGuiApplication::primaryScreen()->availableSize());
-#else
+    else
         resize(1100, 680);
-#endif
-    }
 
     if (s.contains("window/state"))
         restoreState(s.value("window/state").toByteArray());
 
-    int mode = s.value("ui/mode", 0).toInt();
-    m_stack->setCurrentIndex(mode);
-    m_sidebar->setCurrentMode(static_cast<CalcMode>(mode));
-
+    // Load theme BEFORE applying — so gradient colors are available
     m_themeMode = static_cast<ThemeMode>(s.value("ui/theme", 0).toInt());
     m_customThemePath = s.value("ui/customTheme", "").toString();
+    m_gradientStart    = QColor(s.value("gradient/start", "#1a1a2e").toString());
+    m_gradientEnd      = QColor(s.value("gradient/end",   "#16213e").toString());
+    m_gradientDarkBase = s.value("gradient/darkBase", true).toBool();
+    m_gradientAngle    = s.value("gradient/angle", 45).toInt();
 
     if (m_themeGroup) {
         auto actions = m_themeGroup->actions();
@@ -819,6 +745,11 @@ void MainWindow::restoreSettings() {
 
     applyTheme();
 
+    int mode = s.value("ui/mode", 0).toInt();
+    ensureModeCreated(mode);
+    m_stack->setCurrentIndex(mode);
+    m_sidebar->setCurrentMode(static_cast<CalcMode>(mode));
+
     // Restore font size
     m_fontSize = s.value("ui/fontSize", 12).toInt();
     QFont appFont = QApplication::font();
@@ -826,12 +757,6 @@ void MainWindow::restoreSettings() {
     QApplication::setFont(appFont);
 
     m_accentColor = s.value("ui/accentColor", "").toString();
-
-    // Load gradient theme settings
-    m_gradientStart    = QColor(s.value("gradient/start", "#1a1a2e").toString());
-    m_gradientEnd      = QColor(s.value("gradient/end",   "#16213e").toString());
-    m_gradientDarkBase = s.value("gradient/darkBase", true).toBool();
-    m_gradientAngle    = s.value("gradient/angle", 45).toInt();
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -856,8 +781,13 @@ void MainWindow::keyPressEvent(QKeyEvent* event) {
 void MainWindow::onModeChanged(CalcMode mode) {
     int idx = static_cast<int>(mode);
     if (idx == m_stack->currentIndex()) return;
+    ensureModeCreated(idx);
     m_stack->setCurrentIndex(idx);
     saveSettings();
+
+    // Auto-focus the mode widget for keyboard input
+    if (QWidget* w = m_stack->currentWidget())
+        w->setFocus();
 
     // Update formula panel mode filter
     static const QStringList modeNames = {

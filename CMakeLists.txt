@@ -52,8 +52,6 @@ set(SOURCES
     src/widgets/formula_panel.cpp
     src/widgets/animated_stacked_widget.cpp
     src/widgets/gradient_theme_dialog.cpp
-    src/widgets/swipeable_tab_widget.cpp
-    src/widgets/mode_pager.cpp
     resources/resources.qrc
 )
 
@@ -93,8 +91,6 @@ set(HEADERS
     src/widgets/formula_panel.h
     src/widgets/animated_stacked_widget.h
     src/widgets/gradient_theme_dialog.h
-    src/widgets/swipeable_tab_widget.h
-    src/widgets/mode_pager.h
 )
 
 if(WIN32)
@@ -133,47 +129,9 @@ if(WIN32)
     endif()
 endif()
 
-# ── Android ──────────────────────────────────────────────────────────────────
-if(ANDROID)
-    set(QT_ANDROID_APP_ICON "@mipmap/ic_launcher")
-    set(QT_ANDROID_APP_NAME "Caliber")
-    set(QT_ANDROID_PACKAGE_NAME "com.caliber.app")
-    set(QT_ANDROID_APP_VERSION_NAME "2.0.0")
-    set(QT_ANDROID_APP_VERSION_CODE "20000")
-    set(QT_ANDROID_MIN_SDK_VERSION "28")
-    set(QT_ANDROID_TARGET_SDK_VERSION "34")
-    set(QT_ANDROID_PLATFORM "android-34")
-    set(QT_ANDROID_MANIFEST "${CMAKE_SOURCE_DIR}/android/AndroidManifest.xml")
-    set(QT_ANDROID_EXTRA_LIBS "${QT_ANDROID_EXTRA_LIBS}")
-
-    # Copy Android resources
-    qt_add_resources(caliber "android_res"
-        PREFIX "/"
-        FILES
-            android/res/values/strings.xml
-    )
-endif()
-
-# ── iOS ──────────────────────────────────────────────────────────────────────
-if(IOS)
-    set_target_properties(caliber PROPERTIES
-        MACOSX_BUNDLE TRUE
-        MACOSX_BUNDLE_BUNDLE_NAME "Caliber"
-        MACOSX_BUNDLE_BUNDLE_VERSION "2.0.0"
-        MACOSX_BUNDLE_SHORT_VERSION_STRING "2.0.0"
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.caliber.app"
-        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/ios/Info.plist"
-        XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
-        XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "16.0"
-        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
-    )
-endif()
-
 # ── Install rules ─────────────────────────────────────────────────────────────
 include(GNUInstallDirs)
-if(ANDROID)
-    # Install rules handled by androiddeployqt
-elseif(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE)
     install(TARGETS caliber RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
     install(FILES resources/icons/caliber.svg
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)

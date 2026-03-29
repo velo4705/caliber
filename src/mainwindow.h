@@ -6,6 +6,8 @@
 #include <QCompleter>
 #include <QMap>
 #include <QPair>
+#include <functional>
+#include <vector>
 #include "widgets/mode_sidebar.h"
 
 class AnimatedStackedWidget;
@@ -53,10 +55,16 @@ private:
     void loadCommunityThemes();
     void loadGradientTheme();
     void syncGraphTheme(bool dark);
-    void applyMobileOverrides();
     void buildSearchIndex();
     void onSearchActivated(const QString& text = {});
     void applyAccentColor();
+    void ensureModeCreated(int index);
+
+    struct ModeFactory {
+        std::function<QWidget*()> create;
+        QWidget* widget = nullptr;
+    };
+    std::vector<ModeFactory> m_modeFactories;
 
     ModeSidebar*          m_sidebar;
     QStackedWidget*       m_stack;

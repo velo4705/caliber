@@ -3,14 +3,73 @@ name: Linux Build
 on:
   workflow_dispatch:
 
-# Linux builds are done locally:
-#   bash package/build_linux.sh
+env:
+  APP_NAME: Caliber
+  VERSION: "2.0.0"
 
 jobs:
-  info:
+  build-linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
-      - run: |
-          echo "Linux builds are done locally."
-          echo "  bash package/build_linux.sh"
-          echo "Produces: .deb, .rpm, .tar.gz"
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev qt6-charts-dev qt6-datavis3d-dev \
+            libqt6opengl6-dev libqt6network6-dev cmake ninja-build dpkg-dev rpm
+
+      - name: Configure
+        run: |
+          mkdir build
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr
+
+      - name: Build
+        run: cmake --build build --parallel $(nproc)
+
+      - name: Package .deb
+        run: |
+          cd build
+          cpack -G DEB
+          mkdir -p ../dist
+          mv *.deb ../dist/
+
+      - name: Package .rpm
+        run: |
+          cd build
+          cpack -G RPM
+          mv *.rpm ../dist/
+
+      - name: Package .tar.gz
+        run: |
+          cd build
+          cpack -G TGZ
+          mv *.tar.gz ../dist/
+
+      - name: List packages
+        run: ls -lh dist/
+
+      - name: Upload DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linux-DEB
+          path: dist/*.deb
+          retention-days: 30
+
+      - name: Upload RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linux-RPM
+          path: dist/*.rpm
+          retention-days: 30
+
+      - name: Upload TAR.GZ
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linux-TAR
+          path: dist/*.tar.gz
+          retention-days: 30
