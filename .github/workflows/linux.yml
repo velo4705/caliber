@@ -18,8 +18,10 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qt6-base-dev qt6-charts-dev qt6-datavis3d-dev \
-            libqt6opengl6-dev libqt6network6-dev cmake ninja-build dpkg-dev rpm
+          sudo apt-get install -y qt6-base-dev qt6-charts-dev \
+            libqt6opengl6-dev libqt6network6-dev cmake ninja-build dpkg-dev rpm \
+            qt6-5compat-dev 2>/dev/null || true
+          # DataVisualization may not be available on all distros — build without it
 
       - name: Configure
         run: |
