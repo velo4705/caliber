@@ -22,9 +22,15 @@ jobs:
           modules: 'qtcharts'
 
       - name: Install NSIS
-        uses: joncloud/makensis-action@v4
-        with:
-          arguments: '/VERSION'
+        shell: powershell
+        run: |
+          Invoke-WebRequest -Uri "https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10.zip/download" -OutFile nsis.zip
+          Expand-Archive nsis.zip -DestinationPath "C:\nsis"
+          echo "C:\nsis\nsis-3.10" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Verify NSIS
+        shell: cmd
+        run: makensis /VERSION
 
       - name: Configure
         shell: cmd
@@ -50,10 +56,10 @@ jobs:
         run: copy windows\installer.nsi dist\win64\
 
       - name: Build NSIS installer
-        uses: joncloud/makensis-action@v4
-        with:
-          script-file: dist/win64/installer.nsi
-          arguments: '/V4'
+        shell: cmd
+        run: |
+          cd dist\win64
+          makensis installer.nsi
 
       - name: Create portable zip
         shell: powershell
