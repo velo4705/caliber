@@ -75,8 +75,10 @@ MainWindow::MainWindow(QWidget* parent)
     setMinimumSize(800, 560);
     setWindowIcon(QIcon(":/icons/caliber.svg"));
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged,
             this, &MainWindow::onSystemThemeChanged);
+#endif
 }
 
 MainWindow::~MainWindow() {
@@ -425,7 +427,11 @@ void MainWindow::applyTheme() {
     }
 
     if (m_themeMode == ThemeMode::System) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
         bool dark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+#else
+        bool dark = false; // fallback for older Qt
+#endif
         loadTheme(dark ? ":/themes/dark.qss" : ":/themes/light.qss");
         syncGraphTheme(dark);
         return;

@@ -22,15 +22,16 @@ jobs:
           modules: 'qtcharts'
 
       - name: Install NSIS
-        shell: powershell
+        shell: cmd
         run: |
           choco install nsis -y --no-progress
-          # Refresh PATH so makensis is available
-          $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+          refreshenv
 
       - name: Verify NSIS
         shell: cmd
-        run: makensis /VERSION
+        run: |
+          call "C:\ProgramData\chocolatey\bin\RefreshEnv.cmd"
+          makensis /VERSION
 
       - name: Configure
         shell: cmd
@@ -58,6 +59,7 @@ jobs:
       - name: Build NSIS installer
         shell: cmd
         run: |
+          call "C:\ProgramData\chocolatey\bin\RefreshEnv.cmd"
           cd dist\win64
           makensis installer.nsi
 
