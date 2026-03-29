@@ -22,16 +22,9 @@ jobs:
           modules: 'qtcharts'
 
       - name: Install NSIS
-        shell: cmd
-        run: |
-          choco install nsis -y --no-progress
-          refreshenv
-
-      - name: Verify NSIS
-        shell: cmd
-        run: |
-          call "C:\ProgramData\chocolatey\bin\RefreshEnv.cmd"
-          makensis /VERSION
+        uses: joncloud/makensis-action@v4
+        with:
+          arguments: '/VERSION'
 
       - name: Configure
         shell: cmd
@@ -57,11 +50,10 @@ jobs:
         run: copy windows\installer.nsi dist\win64\
 
       - name: Build NSIS installer
-        shell: cmd
-        run: |
-          call "C:\ProgramData\chocolatey\bin\RefreshEnv.cmd"
-          cd dist\win64
-          makensis installer.nsi
+        uses: joncloud/makensis-action@v4
+        with:
+          script-file: dist/win64/installer.nsi
+          arguments: '/V4'
 
       - name: Create portable zip
         shell: powershell
