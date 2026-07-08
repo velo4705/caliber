@@ -2,6 +2,7 @@
 #include <QWidget>
 #include <QVector>
 #include <QVBoxLayout>
+#include <QStackedWidget>
 #include <QPropertyAnimation>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
@@ -109,17 +110,12 @@ private:
 #endif
 
     // ── Stacked view (2D / 3D) ────────────────────────────────────────────────
-    // (no stacked widget — 3D container is a manual overlay)
-
-    // ── Chip overlay (top-left) — REMOVED, chips now live in panel chip row ──
+    QStackedWidget* m_stackedWidget = nullptr;
 
     // ── Bottom panel ──────────────────────────────────────────────────────────
     QWidget*            m_panel;
-    QWidget*            m_3dChipRow = nullptr;   // extra row shown only in 3D
+    QWidget*            m_3dChipRow = nullptr;
     QHBoxLayout*        m_3dChipRowLayout = nullptr;
-    QToolButton*        m_toggleBtn;
-    QPropertyAnimation* m_anim;
-    bool                m_panelOpen = true;
 
     QLineEdit*      m_funcInput;
     QLineEdit*      m_funcInputY = nullptr; // for parametric y(t)
@@ -127,6 +123,7 @@ private:
     QLabel*         m_paramLabel = nullptr; // "y(t) =" label for parametric
     QDoubleSpinBox* m_xMin, *m_xMax;
     QDoubleSpinBox* m_yMin, *m_yMax;
+    QDoubleSpinBox* m_zMin = nullptr, *m_zMax = nullptr; // 3D only
     QLabel*         m_statusLabel = nullptr;  // unused, kept for ABI compat
     QRadioButton*   m_radio2D;
     QRadioButton*   m_radio3D;

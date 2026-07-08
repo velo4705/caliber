@@ -61,6 +61,7 @@ public:
         : QChartView(chart, parent)
     {
         setMouseTracking(true);
+        setFocusPolicy(Qt::StrongFocus);
 
         // Trace tooltip label
         m_tooltip = new QLabel(this);
@@ -71,6 +72,32 @@ public:
             " padding: 3px 7px; font-size: 12px; font-family: monospace; }");
         m_tooltip->hide();
         m_tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
+    }
+
+    // Trace marker accessor — plotAll() may delete it, so ensureTraceMarker()
+    // recreates it on demand.
+    QScatterSeries* ensureTraceMarker() {
+        if (!m_traceMarker) {
+            m_traceMarker = new QScatterSeries();
+            m_traceMarker->setName("__trace__");
+            m_traceMarker->setMarkerSize(12);
+            m_traceMarker->setBorderColor(Qt::white);
+            m_traceMarker->setBrush(Qt::white);
+            chart()->addSeries(m_traceMarker);
+            // Attach to same axes as first visible series (or defaults)
+            auto axes = chart()->axes();
+            for (auto* a : axes) {
+                if (auto* va = qobject_cast<QValueAxis*>(a))
+                    m_traceMarker->attachAxis(va);
+            }
+        }
+        return m_traceMarker;
+    }
+
+    void hideTrace() {
+        if (m_traceMarker) m_traceMarker->setVisible(false);
+        m_tooltip->hide();
+        m_traceSeriesIndex = -1;
     }
 
 protected:
@@ -101,7 +128,7 @@ protected:
             e->accept();
         } else {
             QChartView::mouseMoveEvent(e);
-            updateTrace(e->pos());
+            updateMouseTrace(e->pos());
         }
     }
 
@@ -120,15 +147,184 @@ protected:
         QChartView::leaveEvent(e);
     }
 
-private:
-    void updateTrace(const QPoint& pos) {
-        // Map pixel position to chart coordinates (always reflects current zoom/pan)
-        QPointF chartPt = chart()->mapToValue(pos);
-        double cx = chartPt.x();
+    void keyPressEvent(QKeyEvent* e) override {
+        const Qt::Key key = static_cast<Qt::Key>(e->key());
+        const Qt::KeyboardModifiers mod = e->modifiers();
+        const QList<QLineSeries*> slist = visibleSeries();
 
-        // Find nearest point across all visible series (skip axis helper series)
-        double bestDist = 1e300;
-        double bestX = 0, bestY = 0;
+        // ── Shift + Arrow → Pan ───────────────────────────────────────────
+        if (mod & Qt::ShiftModifier) {
+            switch (key) {
+            case Qt::Key_Left:  chart()->scroll( 30, 0); e->accept(); return;
+            case Qt::Key_Right: chart()->scroll(-30, 0); e->accept(); return;
+            case Qt::Key_Up:    chart()->scroll(0,  30); e->accept(); return;
+            case Qt::Key_Down:  chart()->scroll(0, -30); e->accept(); return;
+            default: break;
+            }
+        }
+
+        switch (key) {
+        // ── Left / Right → Trace along curve ──────────────────────────────
+        case Qt::Key_Left:
+        case Qt::Key_Right: {
+            if (slist.isEmpty()) { e->accept(); return; }
+
+            // Initialize trace on first press
+            if (m_traceSeriesIndex < 0 || m_traceSeriesIndex >= slist.size())
+                m_traceSeriesIndex = 0;
+
+            // Step = 1/50 of visible x range
+            auto xAxes = chart()->axes(Qt::Horizontal);
+            double step = 1.0;
+            if (!xAxes.isEmpty()) {
+                if (auto* xa = qobject_cast<QValueAxis*>(xAxes.first()))
+                    step = (xa->max() - xa->min()) / 50.0;
+            }
+
+            if (key == Qt::Key_Left) m_traceX -= step;
+            else                     m_traceX += step;
+
+            // Clamp to visible range
+            if (!xAxes.isEmpty()) {
+                if (auto* xa = qobject_cast<QValueAxis*>(xAxes.first()))
+                    m_traceX = qBound(xa->min(), m_traceX, xa->max());
+            }
+
+            updateKeyboardTrace();
+            e->accept();
+            return;
+        }
+
+        // ── Up / Down → Pan vertically ────────────────────────────────────
+        case Qt::Key_Up:    chart()->scroll(0,  30); e->accept(); return;
+        case Qt::Key_Down:  chart()->scroll(0, -30); e->accept(); return;
+
+        // ── Tab / Shift+Tab → Cycle curves ────────────────────────────────
+        case Qt::Key_Tab: {
+            if (slist.isEmpty()) { e->accept(); return; }
+            // Initialize trace position on first tab
+            if (m_traceSeriesIndex < 0 || m_traceSeriesIndex >= slist.size()) {
+                m_traceSeriesIndex = 0;
+                m_traceX = centerVisibleX();
+            }
+            m_traceSeriesIndex = (m_traceSeriesIndex + 1) % slist.size();
+            updateKeyboardTrace();
+            e->accept();
+            return;
+        }
+        case Qt::Key_Backtab: {
+            if (slist.isEmpty()) { e->accept(); return; }
+            if (m_traceSeriesIndex < 0 || m_traceSeriesIndex >= slist.size()) {
+                m_traceSeriesIndex = 0;
+                m_traceX = centerVisibleX();
+            }
+            m_traceSeriesIndex = (m_traceSeriesIndex - 1 + slist.size()) % slist.size();
+            updateKeyboardTrace();
+            e->accept();
+            return;
+        }
+
+        // ── + / - → Zoom ──────────────────────────────────────────────────
+        case Qt::Key_Plus:
+        case Qt::Key_Equal:
+            chart()->zoom(0.85);
+            m_tooltip->hide();
+            e->accept();
+            return;
+        case Qt::Key_Minus:
+            chart()->zoom(1.0 / 0.85);
+            m_tooltip->hide();
+            e->accept();
+            return;
+
+        // ── Escape → Clear trace ──────────────────────────────────────────
+        case Qt::Key_Escape:
+            hideTrace();
+            e->accept();
+            return;
+
+        default:
+            QChartView::keyPressEvent(e);
+        }
+    }
+
+private:
+    // ── Helpers ────────────────────────────────────────────────────────────
+    QList<QLineSeries*> visibleSeries() const {
+        QList<QLineSeries*> out;
+        for (auto* s : chart()->series()) {
+            auto* ls = qobject_cast<QLineSeries*>(s);
+            if (ls && ls->isVisible() && !ls->name().startsWith("__"))
+                out.append(ls);
+        }
+        return out;
+    }
+
+    double centerVisibleX() const {
+        auto xAxes = chart()->axes(Qt::Horizontal);
+        if (!xAxes.isEmpty()) {
+            if (auto* xa = qobject_cast<QValueAxis*>(xAxes.first()))
+                return (xa->min() + xa->max()) / 2.0;
+        }
+        return 0.0;
+    }
+
+    int findNearestPointIndex(QLineSeries* series, double x) const {
+        const auto& pts = series->points();
+        if (pts.isEmpty()) return -1;
+        int best = 0;
+        double bestDist = std::abs(pts[0].x() - x);
+        for (int i = 1; i < pts.size(); ++i) {
+            double d = std::abs(pts[i].x() - x);
+            if (d < bestDist) { bestDist = d; best = i; }
+        }
+        return best;
+    }
+
+    void updateKeyboardTrace() {
+        const QList<QLineSeries*> slist = visibleSeries();
+        if (slist.isEmpty() || m_traceSeriesIndex < 0 || m_traceSeriesIndex >= slist.size()) {
+            hideTrace();
+            return;
+        }
+
+        QLineSeries* series = slist[m_traceSeriesIndex];
+        const int idx = findNearestPointIndex(series, m_traceX);
+        if (idx < 0) { hideTrace(); return; }
+
+        const QPointF pt = series->points()[idx];
+
+        // Update marker
+        auto* marker = ensureTraceMarker();
+        marker->clear();
+        marker->append(pt.x(), pt.y());
+        marker->setColor(series->pen().color());
+        marker->setBorderColor(series->pen().color());
+        marker->setBrush(series->pen().color());
+        marker->setVisible(true);
+
+        // Update tooltip
+        const QPointF px = chart()->mapToPosition(pt);
+        m_tooltip->setText(QString("x = %1\ny = %2\nCurve: %3")
+            .arg(pt.x(), 0, 'g', 6).arg(pt.y(), 0, 'g', 6)
+            .arg(series->name()));
+        m_tooltip->adjustSize();
+
+        int tx = int(px.x()) + 14;
+        int ty = int(px.y()) - m_tooltip->height() - 4;
+        if (tx + m_tooltip->width() > width())  tx = int(px.x()) - m_tooltip->width() - 8;
+        if (ty < 0) ty = int(px.y()) + 14;
+        m_tooltip->move(tx, ty);
+        m_tooltip->show();
+        m_tooltip->raise();
+    }
+
+    // ── Mouse trace (hover) ───────────────────────────────────────────────
+    void updateMouseTrace(const QPoint& pos) {
+        const QPointF chartPt = chart()->mapToValue(pos);
+        const double cx = chartPt.x();
+
+        double bestDist = 1e300, bestX = 0, bestY = 0;
         bool found = false;
 
         for (auto* s : chart()->series()) {
@@ -136,14 +332,11 @@ private:
             if (!ls || !ls->isVisible() || ls->name().startsWith("__")) continue;
             const auto& pts = ls->points();
             if (pts.isEmpty()) continue;
-
-            // Find the point with x closest to cursor x
             for (const QPointF& p : pts) {
                 double dist = std::abs(p.x() - cx);
                 if (dist < bestDist) {
                     bestDist = dist;
-                    bestX = p.x();
-                    bestY = p.y();
+                    bestX = p.x(); bestY = p.y();
                     found = true;
                 }
             }
@@ -151,10 +344,10 @@ private:
 
         if (!found) { m_tooltip->hide(); return; }
 
-        // Only show if the snapped point is reasonably close in pixel space
-        QPointF snappedPx = chart()->mapToPosition(QPointF(bestX, bestY));
-        double pixDist = std::hypot(snappedPx.x() - pos.x(), snappedPx.y() - pos.y());
-        if (pixDist > 40) { m_tooltip->hide(); return; }
+        const QPointF snappedPx = chart()->mapToPosition(QPointF(bestX, bestY));
+        if (std::hypot(snappedPx.x() - pos.x(), snappedPx.y() - pos.y()) > 40) {
+            m_tooltip->hide(); return;
+        }
 
         m_tooltip->setText(QString("x = %1\ny = %2")
             .arg(bestX, 0, 'g', 6).arg(bestY, 0, 'g', 6));
@@ -169,9 +362,12 @@ private:
         m_tooltip->raise();
     }
 
-    bool   m_panning = false;
-    QPoint m_lastPan;
-    QLabel* m_tooltip;
+    bool              m_panning = false;
+    QPoint            m_lastPan;
+    QLabel*           m_tooltip;
+    int               m_traceSeriesIndex = -1;
+    double            m_traceX = 0;
+    QScatterSeries*   m_traceMarker = nullptr;
 };
 
 static QPushButton* mkBtn(const QString& t, const QString& cls, QWidget* p) {
@@ -189,9 +385,19 @@ GraphingWidget::GraphingWidget(QWidget* parent)
 }
 
 void GraphingWidget::buildUI() {
-    auto* root = new QVBoxLayout(this);
+    const int H = 32;
+    const int SIDEBAR_W = 200;
+
+    // ── Root: center (chart+panel) + sidebar ───────────────────────────────
+    auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0,0,0,0);
     root->setSpacing(0);
+
+    // ── Center: chart (70%) + bottom panel (30%) ──────────────────────────
+    auto* centerContainer = new QWidget();
+    auto* centerLayout = new QVBoxLayout(centerContainer);
+    centerLayout->setContentsMargins(0,0,0,0);
+    centerLayout->setSpacing(0);
 
     // 2D chart
     m_chart = new QChart();
@@ -223,27 +429,112 @@ void GraphingWidget::buildUI() {
     m_axisX->setGridLinePen(gridPen);
     m_axisY->setGridLinePen(gridPen);
 
-    m_chartView = new ZoomChartView(m_chart, this);
+    m_chartView = new ZoomChartView(m_chart, centerContainer);
     m_chartView->setRenderHint(QPainter::Antialiasing);
     m_chartView->setRubberBand(QChartView::NoRubberBand);
-    root->addWidget(m_chartView, 1);
-    setLayout(root);
 
-    // 3D surface is lazy-initialized on first switch to 3D mode
-    // (avoids OpenGL context creation at startup — important for VMs / no-GPU)
+    m_stackedWidget = new QStackedWidget(centerContainer);
+    m_stackedWidget->addWidget(m_chartView);  // page 0 = 2D chart
+    centerLayout->addWidget(m_stackedWidget, 7);
 
-    // ── Bottom panel ─────────────────────────────────────────────────────────
-    m_panel = new QWidget(this);
+    // ── Right sidebar ──────────────────────────────────────────────────────
+    auto* sidebar = new QWidget();
+    sidebar->setFixedWidth(SIDEBAR_W);
+    sidebar->setObjectName("graphSidebar");
+    auto* sbLayout = new QVBoxLayout(sidebar);
+    sbLayout->setContentsMargins(8, 8, 8, 8);
+    sbLayout->setSpacing(8);
+
+    // Divider helper
+    auto mkDiv = [sidebar]() -> QFrame* {
+        auto* d = new QFrame(sidebar);
+        d->setFrameShape(QFrame::HLine); d->setFrameShadow(QFrame::Sunken);
+        return d;
+    };
+
+    // X range
+    sbLayout->addWidget(new QLabel("X Range:", sidebar));
+    auto* xRow = new QHBoxLayout(); xRow->setSpacing(4);
+    m_xMin = new QDoubleSpinBox(sidebar); m_xMin->setRange(-1e6,1e6); m_xMin->setValue(-10); m_xMin->setDecimals(1); m_xMin->setFixedWidth(68); m_xMin->setFixedHeight(H);
+    m_xMax = new QDoubleSpinBox(sidebar); m_xMax->setRange(-1e6,1e6); m_xMax->setValue(10);  m_xMax->setDecimals(1); m_xMax->setFixedWidth(68); m_xMax->setFixedHeight(H);
+    xRow->addWidget(m_xMin);
+    auto* xArrow = new QLabel("\xe2\x86\x92"); xArrow->setFixedWidth(16); xArrow->setAlignment(Qt::AlignCenter);
+    xRow->addWidget(xArrow);
+    xRow->addWidget(m_xMax);
+    sbLayout->addLayout(xRow);
+
+    // Y range
+    sbLayout->addWidget(new QLabel("Y Range:", sidebar));
+    auto* yRow = new QHBoxLayout(); yRow->setSpacing(4);
+    m_yMin = new QDoubleSpinBox(sidebar); m_yMin->setRange(-1e6,1e6); m_yMin->setValue(-10); m_yMin->setDecimals(1); m_yMin->setFixedWidth(68); m_yMin->setFixedHeight(H);
+    m_yMax = new QDoubleSpinBox(sidebar); m_yMax->setRange(-1e6,1e6); m_yMax->setValue(10);  m_yMax->setDecimals(1); m_yMax->setFixedWidth(68); m_yMax->setFixedHeight(H);
+    yRow->addWidget(m_yMin);
+    auto* yArrow = new QLabel("\xe2\x86\x92"); yArrow->setFixedWidth(16); yArrow->setAlignment(Qt::AlignCenter);
+    yRow->addWidget(yArrow);
+    yRow->addWidget(m_yMax);
+    sbLayout->addLayout(yRow);
+
+    // Z range (3D only)
+#ifdef HAVE_DATAVISUALIZATION
+    sbLayout->addWidget(new QLabel("Z Range:", sidebar));
+    auto* zRow = new QHBoxLayout(); zRow->setSpacing(4);
+    m_zMin = new QDoubleSpinBox(sidebar); m_zMin->setRange(-1e6,1e6); m_zMin->setValue(-10); m_zMin->setDecimals(1); m_zMin->setFixedWidth(68); m_zMin->setFixedHeight(H);
+    m_zMax = new QDoubleSpinBox(sidebar); m_zMax->setRange(-1e6,1e6); m_zMax->setValue(10);  m_zMax->setDecimals(1); m_zMax->setFixedWidth(68); m_zMax->setFixedHeight(H);
+    zRow->addWidget(m_zMin);
+    auto* zArrow = new QLabel("\xe2\x86\x92"); zArrow->setFixedWidth(16); zArrow->setAlignment(Qt::AlignCenter);
+    zRow->addWidget(zArrow);
+    zRow->addWidget(m_zMax);
+    sbLayout->addLayout(zRow);
+#endif
+
+    sbLayout->addWidget(mkDiv());
+
+    // Toggle buttons — full width, stacked vertically
+    auto mkFullToggle = [sidebar, sbLayout](const QString& text, const QString& tip, bool checkable) -> QToolButton* {
+        auto* btn = new QToolButton(sidebar);
+        btn->setText(text); btn->setToolTip(tip);
+        btn->setCheckable(checkable);
+        btn->setObjectName("graphToggleBtn");
+        btn->setFixedHeight(H);
+        btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        sbLayout->addWidget(btn);
+        return btn;
+    };
+
+    m_themeBtn     = mkFullToggle("\xe2\x98\x80  Theme", "Toggle chart light/dark", true);
+    m_derivBtn     = mkFullToggle("f'  Derivative", "Toggle f'(x) derivative", true);
+    m_intersectBtn = mkFullToggle("\xe2\x88\xa9  Intersect",  "Find intersections", true);
+    m_shadeBtn     = mkFullToggle("\xe2\x88\xab  Shade Area",  "Shade area under curve", true);
+
+    // Shade range inputs — full width, side by side
+    sbLayout->addWidget(new QLabel("Shade Range:", sidebar));
+    auto* shadeRow = new QHBoxLayout(); shadeRow->setSpacing(4);
+    m_shadeA = new QLineEdit(sidebar); m_shadeA->setPlaceholderText("a"); m_shadeA->setAlignment(Qt::AlignCenter); m_shadeA->setStyleSheet("font-size:12px;"); m_shadeA->setFixedHeight(H);
+    m_shadeB = new QLineEdit(sidebar); m_shadeB->setPlaceholderText("b"); m_shadeB->setAlignment(Qt::AlignCenter); m_shadeB->setStyleSheet("font-size:12px;"); m_shadeB->setFixedHeight(H);
+    shadeRow->addWidget(m_shadeA);
+    shadeRow->addWidget(m_shadeB);
+    sbLayout->addLayout(shadeRow);
+
+    sbLayout->addWidget(mkDiv());
+
+    // Reset + Export
+    auto* resetBtn  = mkBtn("Reset",  "operatorButton", sidebar); resetBtn->setFixedHeight(H);
+    auto* exportBtn = mkBtn("Export", "calcButton",     sidebar); exportBtn->setFixedHeight(H);
+    sbLayout->addWidget(resetBtn);
+    sbLayout->addWidget(exportBtn);
+    sbLayout->addSpacing(16);
+
+    // ── Bottom panel (full width of center): chips + input ──────────────────
+    m_panel = new QWidget();
     m_panel->setObjectName("graphBottomPanel");
     m_panel->setAttribute(Qt::WA_StyledBackground, true);
     m_panel->setFixedHeight(PANEL_HEIGHT_3D);
-    // No inline stylesheet — themed via app QSS (#graphBottomPanel)
 
     auto* panelVL = new QVBoxLayout(m_panel);
     panelVL->setContentsMargins(0,0,0,0);
     panelVL->setSpacing(0);
 
-    // ── Chip row (always visible, both 2D and 3D) ─────────────────────────
+    // Chip row
     auto* chipContainer = new QWidget();
     chipContainer->setObjectName("graphChipContainer");
     chipContainer->setStyleSheet("background:transparent;");
@@ -257,157 +548,72 @@ void GraphingWidget::buildUI() {
     chipScroll->setWidgetResizable(true);
     chipScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     chipScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    chipScroll->setFixedHeight(40);
+    chipScroll->setFixedHeight(30);
     chipScroll->setFrameShape(QFrame::NoFrame);
     chipScroll->setStyleSheet("background:transparent;");
     panelVL->addWidget(chipScroll);
 
-    // ── Controls row ──────────────────────────────────────────────────────
-    auto* controlsRow = new QWidget(m_panel);
-    controlsRow->setFixedHeight(PANEL_HEIGHT);
-    panelVL->addWidget(controlsRow);
+    // Input row
+    auto* inputRow = new QWidget(m_panel);
+    inputRow->setFixedHeight(PANEL_HEIGHT);
+    panelVL->addWidget(inputRow);
 
-    const int H = 32;
-    auto* pl = new QHBoxLayout(controlsRow);
-    pl->setContentsMargins(12,0,12,0);
-    pl->setSpacing(10);
+    auto* il = new QHBoxLayout(inputRow);
+    il->setContentsMargins(12,0,12,0);
+    il->setSpacing(10);
 
-    // 2D/3D radio buttons
-    m_radio2D = new QRadioButton("2D", controlsRow);
+    // 2D / 3D radio buttons
+    m_radio2D = new QRadioButton("2D", inputRow);
     m_radio2D->setChecked(true);
+    il->addWidget(m_radio2D, 0, Qt::AlignVCenter);
 #ifdef HAVE_DATAVISUALIZATION
-    m_radio3D = new QRadioButton("3D", controlsRow);
-    auto* dimGroup = new QButtonGroup(controlsRow);
+    m_radio3D = new QRadioButton("3D", inputRow);
+    auto* dimGroup = new QButtonGroup(inputRow);
     dimGroup->addButton(m_radio2D); dimGroup->addButton(m_radio3D);
-    pl->addWidget(m_radio3D, 0, Qt::AlignVCenter);
+    il->addWidget(m_radio3D, 0, Qt::AlignVCenter);
 #endif
-    pl->addWidget(m_radio2D, 0, Qt::AlignVCenter);
 
     // Divider
-    auto* div0 = new QFrame(controlsRow);
-    div0->setFrameShape(QFrame::VLine); div0->setFrameShadow(QFrame::Sunken);
-    pl->addWidget(div0);
+    auto* ilDiv = new QFrame(inputRow);
+    ilDiv->setFrameShape(QFrame::VLine); ilDiv->setFrameShadow(QFrame::Sunken);
+    il->addWidget(ilDiv);
 
-    // Function input
-    m_plotModeCombo = new QComboBox(controlsRow);
+    m_plotModeCombo = new QComboBox(inputRow);
     m_plotModeCombo->addItems({"Cartesian", "Polar", "Parametric"});
     m_plotModeCombo->setFixedHeight(H);
     m_plotModeCombo->setToolTip("Plot mode");
-    pl->addWidget(m_plotModeCombo, 0, Qt::AlignVCenter);
+    il->addWidget(m_plotModeCombo, 0, Qt::AlignVCenter);
 
-    m_funcInput = new QLineEdit(controlsRow);
+    m_funcInput = new QLineEdit(inputRow);
     m_funcInput->setPlaceholderText("e.g.  sin(x)  or  x^2 - 4");
     m_funcInput->setFixedHeight(H);
     m_funcInput->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    m_paramLabel = new QLabel("y(t) =", controlsRow);
+    m_paramLabel = new QLabel("y(t) =", inputRow);
     m_paramLabel->hide();
-    m_funcInputY = new QLineEdit(controlsRow);
+    m_funcInputY = new QLineEdit(inputRow);
     m_funcInputY->setPlaceholderText("e.g.  cos(t)");
     m_funcInputY->setFixedHeight(H);
     m_funcInputY->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_funcInputY->hide();
 
-    auto* addBtn = mkBtn("+", "actionButton", controlsRow);
+    auto* addBtn = mkBtn("+", "actionButton", inputRow);
     addBtn->setFixedSize(H, H);
     addBtn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    pl->addWidget(m_funcInput, 4, Qt::AlignVCenter);
-    pl->addWidget(m_paramLabel, 0, Qt::AlignVCenter);
-    pl->addWidget(m_funcInputY, 3, Qt::AlignVCenter);
-    pl->addWidget(addBtn,      0, Qt::AlignVCenter);
+    il->addWidget(m_funcInput, 4, Qt::AlignVCenter);
+    il->addWidget(m_paramLabel, 0, Qt::AlignVCenter);
+    il->addWidget(m_funcInputY, 3, Qt::AlignVCenter);
+    il->addWidget(addBtn,      0, Qt::AlignVCenter);
 
-    // Divider
-    auto* div1 = new QFrame(controlsRow);
-    div1->setFrameShape(QFrame::VLine); div1->setFrameShadow(QFrame::Sunken);
-    pl->addWidget(div1);
+    centerLayout->addWidget(m_panel, 3);
 
-    // X/Y range
-    auto* rangeWidget = new QWidget(controlsRow);
-    rangeWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    auto* rl = new QVBoxLayout(rangeWidget);
-    rl->setContentsMargins(0,0,0,0); rl->setSpacing(4);
+    // Add sidebar to root (right side, full height)
+    root->addWidget(centerContainer, 1);
+    root->addWidget(sidebar);
+    setLayout(root);
 
-    auto* xRow = new QHBoxLayout(); xRow->setSpacing(4); xRow->setContentsMargins(0,0,0,0);
-    xRow->addWidget(new QLabel("X:", controlsRow));
-    m_xMin = new QDoubleSpinBox(controlsRow); m_xMin->setRange(-1e6,1e6); m_xMin->setValue(-10); m_xMin->setDecimals(1); m_xMin->setFixedSize(68,H);
-    m_xMax = new QDoubleSpinBox(controlsRow); m_xMax->setRange(-1e6,1e6); m_xMax->setValue(10);  m_xMax->setDecimals(1); m_xMax->setFixedSize(68,H);
-    xRow->addWidget(m_xMin); xRow->addWidget(new QLabel("→",controlsRow)); xRow->addWidget(m_xMax);
-    rl->addLayout(xRow);
-
-    auto* yRow = new QHBoxLayout(); yRow->setSpacing(4); yRow->setContentsMargins(0,0,0,0);
-    yRow->addWidget(new QLabel("Y:", controlsRow));
-    m_yMin = new QDoubleSpinBox(controlsRow); m_yMin->setRange(-1e6,1e6); m_yMin->setValue(-10); m_yMin->setDecimals(1); m_yMin->setFixedSize(68,H);
-    m_yMax = new QDoubleSpinBox(controlsRow); m_yMax->setRange(-1e6,1e6); m_yMax->setValue(10);  m_yMax->setDecimals(1); m_yMax->setFixedSize(68,H);
-    yRow->addWidget(m_yMin); yRow->addWidget(new QLabel("→",controlsRow)); yRow->addWidget(m_yMax);
-    rl->addLayout(yRow);
-    pl->addWidget(rangeWidget, 0, Qt::AlignVCenter);
-
-    // Divider
-    auto* div2 = new QFrame(controlsRow);
-    div2->setFrameShape(QFrame::VLine); div2->setFrameShadow(QFrame::Sunken);
-    pl->addWidget(div2);
-
-    // Toggle buttons in 2-row grid
-    auto* toggleGrid = new QWidget(controlsRow);
-    toggleGrid->setStyleSheet("background:transparent;");
-    auto* tg = new QGridLayout(toggleGrid);
-    tg->setContentsMargins(0,0,0,0); tg->setSpacing(4);
-
-    auto mkToggle = [toggleGrid, tg](const QString& text, const QString& tip, bool checkable, int row, int col) -> QToolButton* {
-        auto* btn = new QToolButton(toggleGrid);
-        btn->setText(text); btn->setToolTip(tip);
-        btn->setFixedSize(36, 28); btn->setCheckable(checkable);
-        btn->setObjectName("graphToggleBtn");
-        tg->addWidget(btn, row, col);
-        return btn;
-    };
-
-    m_themeBtn    = mkToggle("☀", "Toggle chart light/dark", true, 0, 0);
-    m_derivBtn    = mkToggle("f'", "Toggle f'(x) derivative", true, 0, 1);
-    m_intersectBtn= mkToggle("∩",  "Find intersections", true, 0, 2);
-    m_shadeBtn    = mkToggle("∫",  "Shade area under curve", true, 0, 3);
-
-    // Shade range inputs in row 1
-    m_shadeA = new QLineEdit(toggleGrid); m_shadeA->setPlaceholderText("a"); m_shadeA->setFixedWidth(48); m_shadeA->setAlignment(Qt::AlignCenter); m_shadeA->setStyleSheet("font-size:12px;");
-    m_shadeB = new QLineEdit(toggleGrid); m_shadeB->setPlaceholderText("b"); m_shadeB->setFixedWidth(48); m_shadeB->setAlignment(Qt::AlignCenter); m_shadeB->setStyleSheet("font-size:12px;");
-    tg->addWidget(m_shadeA, 1, 0, 1, 2);
-    tg->addWidget(m_shadeB, 1, 2, 1, 2);
-
-    pl->addWidget(toggleGrid, 0, Qt::AlignVCenter);
-
-    // Auto-rotate toggle (3D mode only)
-#ifdef HAVE_DATAVISUALIZATION
-    m_rotateBtn = new QToolButton(controlsRow);
-    m_rotateBtn->setText("↻");
-    m_rotateBtn->setToolTip("Toggle 3D auto-rotation");
-    m_rotateBtn->setFixedSize(H, H);
-    m_rotateBtn->setCheckable(true);
-    m_rotateBtn->setObjectName("historyToggleBtn");
-    m_rotateBtn->hide();
-    pl->addWidget(m_rotateBtn, 0, Qt::AlignVCenter);
-#endif
-
-    // Divider
-    auto* div3 = new QFrame(controlsRow);
-    div3->setFrameShape(QFrame::VLine); div3->setFrameShadow(QFrame::Sunken);
-    pl->addWidget(div3);
-
-    // Reset + Export
-    auto* resetBtn  = mkBtn("Reset",  "operatorButton", controlsRow); resetBtn->setFixedHeight(H);  resetBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    auto* exportBtn = mkBtn("Export", "calcButton",     controlsRow); exportBtn->setFixedHeight(H); exportBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    pl->addWidget(resetBtn,  1, Qt::AlignVCenter);
-    pl->addWidget(exportBtn, 1, Qt::AlignVCenter);
-
-    // ── Toggle button ─────────────────────────────────────────────────────────
-    m_toggleBtn = new QToolButton(this);
-    m_toggleBtn->setText("⌃  Controls");
-    m_toggleBtn->setObjectName("historyToggleBtn");
-    m_toggleBtn->setFixedHeight(28);
-    m_toggleBtn->setFocusPolicy(Qt::NoFocus);
-
-    m_anim = new QPropertyAnimation(this, "panelY", this);
-    m_anim->setDuration(220);
-    m_anim->setEasingCurve(QEasingCurve::OutCubic);
+    // 3D surface is lazy-initialized on first switch to 3D mode
+    // (avoids OpenGL context creation at startup — important for VMs / no-GPU)
 
     // Apply chart theme now that all panel widgets exist
     applyChartTheme();
@@ -417,10 +623,9 @@ void GraphingWidget::buildUI() {
     connect(m_funcInput, &QLineEdit::returnPressed,  this, &GraphingWidget::addFunction);
     connect(resetBtn,    &QPushButton::clicked,      this, &GraphingWidget::resetView);
     connect(exportBtn,   &QPushButton::clicked,      this, &GraphingWidget::exportGraph);
-    connect(m_toggleBtn, &QToolButton::clicked,      this, &GraphingWidget::togglePanel);
     connect(m_themeBtn,  &QToolButton::toggled,       this, [this](bool on){
         m_chartDark = !on;
-        m_themeBtn->setText(m_chartDark ? "☀" : "🌙");
+        m_themeBtn->setText(m_chartDark ? "\xe2\x98\x80  Theme" : "\xf0\x9f\x8c\x99  Theme");
         applyChartTheme();
         plotAll();
     });
@@ -458,6 +663,10 @@ void GraphingWidget::buildUI() {
     connect(m_xMax, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
     connect(m_yMin, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
     connect(m_yMax, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
+#ifdef HAVE_DATAVISUALIZATION
+    connect(m_zMin, &QDoubleSpinBox::valueChanged, this, [this](double){ if(m_is3D) plot3D(); });
+    connect(m_zMax, &QDoubleSpinBox::valueChanged, this, [this](double){ if(m_is3D) plot3D(); });
+#endif
 
     // No default functions — start with a blank canvas
 }
@@ -475,11 +684,11 @@ void GraphingWidget::init3DSurface() {
     inputHandler->setSelectionEnabled(true);
     m_surface->setActiveInputHandler(inputHandler);
 
-    m_surface3DContainer = QWidget::createWindowContainer(m_surface, this);
+    m_surface3DContainer = QWidget::createWindowContainer(m_surface, m_stackedWidget);
     m_surface3DContainer->setMinimumSize(200, 200);
     m_surface3DContainer->setFocusPolicy(Qt::StrongFocus);
     m_surface3DContainer->setMouseTracking(true);
-    m_surface3DContainer->hide();
+    m_stackedWidget->addWidget(m_surface3DContainer);  // page 1 = 3D surface
 
     m_series3D = new QSurface3DSeries();
     m_series3D->setDrawMode(QSurface3DSeries::DrawSurface);
@@ -533,13 +742,6 @@ void GraphingWidget::applyChartTheme() {
     QColor labelColor = m_chartDark ? QColor(180,180,180) : QColor(60,60,60);
     if (m_axisX) { m_axisX->setLabelsColor(labelColor); m_axisX->setTitleBrush(QBrush(labelColor)); }
     if (m_axisY) { m_axisY->setLabelsColor(labelColor); m_axisY->setTitleBrush(QBrush(labelColor)); }
-
-    // Update "Controls" button text color for chart theme
-    if (m_toggleBtn) {
-        m_toggleBtn->setObjectName("controlsToggle");
-        QColor tc = m_chartDark ? QColor(0xcc,0xcc,0xcc) : QColor(0x33,0x33,0x33);
-        m_toggleBtn->setStyleSheet(QString("#controlsToggle{color:%1;background:transparent;font-size:12px;padding:4px 8px;}").arg(tc.name()));
-    }
 }
 
 // ── Dimension switch ──────────────────────────────────────────────────────────
@@ -550,31 +752,24 @@ void GraphingWidget::switchDimension(bool is3D) {
 #ifdef HAVE_DATAVISUALIZATION
         init3DSurface();  // lazy init — only creates OpenGL context on first use
         sync3DTheme();
-        m_chartView->hide();
-        m_rotateBtn->show();
+        m_stackedWidget->setCurrentIndex(1);  // switch to 3D page
+        if (m_rotateBtn) m_rotateBtn->show();
         if (!m_entries.isEmpty()) {
-            int ph = m_panelOpen ? PANEL_HEIGHT_3D : 0;
-            m_surface3DContainer->setGeometry(0, 0, width(), height() - ph);
-            m_surface3DContainer->show();
-            m_surface3DContainer->setFocus();
             plot3D();
         }
 #endif
     } else {
 #ifdef HAVE_DATAVISUALIZATION
-        if (m_surface3DContainer) m_surface3DContainer->hide();
+        m_stackedWidget->setCurrentIndex(0);  // switch to 2D chart page
 #endif
-        m_chartView->show();
 #ifdef HAVE_DATAVISUALIZATION
-        m_rotateBtn->hide();
+        if (m_rotateBtn) m_rotateBtn->hide();
         if (m_autoRotate) { m_autoRotate = false; m_rotateBtn->setChecked(false); if(m_rotationTimer) m_rotationTimer->stop(); }
 #endif
         plotAll();
     }
 
     updateFunctionList();
-    m_panel->raise();
-    m_toggleBtn->raise();
 }
 
 // ── Overlay positioning ───────────────────────────────────────────────────────
@@ -582,45 +777,23 @@ int  GraphingWidget::panelY() const   { return m_panel->y(); }
 void GraphingWidget::setPanelY(int y) { m_panel->move(0, y); }
 
 void GraphingWidget::repositionOverlays() {
-    int w = width(), h = height();
-    int ph = PANEL_HEIGHT_3D;
-    int panelY = m_panelOpen ? h - ph : h;
-
-    m_panel->setFixedWidth(w);
-    m_panel->move(0, panelY);
-
-    int btnW = 120;
-    m_toggleBtn->setFixedWidth(btnW);
-    m_toggleBtn->move(w - btnW - 8, panelY - 34);
-    m_toggleBtn->setText(m_panelOpen ? "⌄  Controls" : "⌃  Controls");
-
-#ifdef HAVE_DATAVISUALIZATION
-    if (m_is3D && m_surface3DContainer && m_surface3DContainer->isVisible())
-        m_surface3DContainer->setGeometry(0, 0, w, panelY);
-#endif
-
-    m_panel->raise();
-    m_toggleBtn->raise();
 }
 
 void GraphingWidget::resizeEvent(QResizeEvent* e) {
     QWidget::resizeEvent(e);
-    repositionOverlays();
 }
 
 #ifdef HAVE_DATAVISUALIZATION
 void GraphingWidget::adjustFor3DOverlap(bool historyOpen, int historyWidth) {
-    if (!m_is3D || !m_surface3DContainer || !m_surface3DContainer->isVisible()) return;
-    int w = width(), h = height();
-    int ph = m_panelOpen ? PANEL_HEIGHT_3D : 0;
-    int containerW = historyOpen ? w - historyWidth : w;
-    m_surface3DContainer->setGeometry(0, 0, containerW, h - ph);
+    // 3D container is in a stacked widget — layout handles sizing automatically.
+    // This method is kept for ABI compat but is now a no-op.
+    Q_UNUSED(historyOpen); Q_UNUSED(historyWidth);
 }
 #endif
 
 void GraphingWidget::syncToAppTheme(bool dark) {
     m_chartDark = dark;
-    m_themeBtn->setText(dark ? "☀" : "🌙");
+    m_themeBtn->setText(dark ? "\xe2\x98\x80  Theme" : "\xf0\x9f\x8c\x99  Theme");
     applyChartTheme();
 #ifdef HAVE_DATAVISUALIZATION
     if (m_surface) sync3DTheme();
@@ -629,27 +802,7 @@ void GraphingWidget::syncToAppTheme(bool dark) {
 }
 
 void GraphingWidget::togglePanel() {
-    m_anim->stop();
-    int w = width(), h = height(), ph = PANEL_HEIGHT_3D;
-    int openY = h - ph;
-    m_panel->setFixedWidth(w);
-    if (!m_panelOpen) {
-        m_panel->show(); m_panel->raise();
-        m_anim->setStartValue(h); m_anim->setEndValue(openY);
-        m_panelOpen = true;
-        m_toggleBtn->setText("⌄  Controls");
-        m_toggleBtn->move(w - 128, openY - 34);
-    } else {
-        m_anim->setStartValue(openY); m_anim->setEndValue(h);
-        m_panelOpen = false;
-        m_toggleBtn->setText("⌃  Controls");
-        m_toggleBtn->move(w - 128, h - 34);
-    }
-    m_anim->start();
-#ifdef HAVE_DATAVISUALIZATION
-    if (m_is3D && m_surface3DContainer)
-        m_surface3DContainer->setGeometry(0, 0, w, m_panelOpen ? openY : h);
-#endif
+    // No-op — panel is always visible in layout
 }
 
 // ── Function chips ────────────────────────────────────────────────────────────
@@ -738,12 +891,11 @@ void GraphingWidget::addFunction() {
     if (m_is3D) {
         // Show container on first function added in 3D mode
         if (m_surface3DContainer && !m_surface3DContainer->isVisible()) {
-            int ph = m_panelOpen ? PANEL_HEIGHT_3D : 0;
+            int ph = PANEL_HEIGHT_3D;
             m_surface3DContainer->setGeometry(0, 0, width(), height() - ph);
             m_surface3DContainer->show();
             m_surface3DContainer->setFocus();
             m_panel->raise();
-            m_toggleBtn->raise();
         }
         plot3D();
     } else {

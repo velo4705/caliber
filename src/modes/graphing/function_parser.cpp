@@ -21,6 +21,17 @@ double FunctionParser::evaluate(const QString& expression, double x) {
     return m_parser.evaluate(expr.toStdString());
 }
 
+double FunctionParser::evaluatePolar(const QString& expression, double theta) {
+    QString expr = substituteVar(expression, "theta", theta);
+    expr = substituteVar(expr, "x", theta);
+    return m_parser.evaluate(expr.toStdString());
+}
+
+double FunctionParser::evaluateParametric(const QString& expression, double t) {
+    QString expr = substituteVar(expression, "t", t);
+    return m_parser.evaluate(expr.toStdString());
+}
+
 double FunctionParser::evaluate(const QString& expression, double x, double y) {
     QString expr = substituteVar(expression, "x", x);
     expr = substituteVar(expr, "y", y);

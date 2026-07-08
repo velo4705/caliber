@@ -313,3 +313,21 @@ QLabel { color: #1a1a1a; background: transparent; }
     background: #ffffff;
     border-top: 1px solid #e0e0e0;
 }
+
+/* ── Graph right sidebar ──────────────────────────────────────────────────── */
+#graphSidebar {
+    background: #ffffff;
+    border-left: 1px solid #e0e0e0;
+}
+#graphSidebar QLineEdit {
+    background: #f5f5f5;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    color: #333333;
+}
+#graphSidebar QDoubleSpinBox {
+    background: #f5f5f5;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    color: #333333;
+}

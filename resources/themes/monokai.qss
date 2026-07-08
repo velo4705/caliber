@@ -66,3 +66,21 @@ QHeaderView::section { background: #272822; color: #a6e22e; border: 1px solid #4
     background: #111111;
     border-top: 1px solid #222222;
 }
+
+/* ── Graph right sidebar ──────────────────────────────────────────────────── */
+#graphSidebar {
+    background: #111111;
+    border-left: 1px solid #222222;
+}
+#graphSidebar QLineEdit {
+    background: #1e1e1a;
+    border: 1px solid #49483e;
+    border-radius: 4px;
+    color: #f8f8f2;
+}
+#graphSidebar QDoubleSpinBox {
+    background: #1e1e1a;
+    border: 1px solid #49483e;
+    border-radius: 4px;
+    color: #f8f8f2;
+}
