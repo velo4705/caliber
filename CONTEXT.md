@@ -260,19 +260,24 @@ break there. Keep it that way.
 ## Deployment
 
 The public site is the app itself: `https://velo4705.github.io/caliber/`.
-`.github/workflows/deploy.yml` builds `web/` and publishes it on every push to
-`main`.
 
-**One-time setup, already done by the owner:** Settings → Pages → Source →
-*GitHub Actions*. If the source is left on "Deploy from a branch", GitHub
-serves `main/docs` and the workflow is ignored — that was the old setup, and
-it is why the Qt marketing page used to be live. The `docs/` folder is now
-deleted and must not come back.
+**It is published by committing the built app to `docs/`.** Run
+`npm run publish:pages` in `web/`, which builds and copies `dist/` to `../docs`
+with a `.nojekyll` file. `.nojekyll` is the important part — it makes GitHub
+Pages skip Jekyll and serve the files verbatim. Without it the Pages builder
+still runs Jekyll, which wants a source directory and a theme, and fails with
+`No such file or directory: docs`.
 
-`base: './'` in `vite.config.ts` is what makes the subpath work. `npm run
-serve:subpath` serves `dist/` at `http://127.0.0.1:4321/caliber/` so the
-subpath build can be checked locally before deploying. The visual check runs
-against it unchanged.
+**The alternative is Actions.** Set Settings → Pages → Source → *GitHub
+Actions* and `.github/workflows/deploy.yml` will build and deploy `web/dist` on
+every push, with nothing committed to the repository. It is deliberately
+`workflow_dispatch`-only, so it does not fail against a branch-based Pages
+configuration. Switch to it if you would rather not commit build output.
+
+`base: './'` in `vite.config.ts` is what makes the subpath work either way.
+`npm run serve:subpath` serves `dist/` at `http://127.0.0.1:4321/caliber/`
+so the subpath build can be checked locally before deploying. The visual check
+runs against it unchanged.
 
 ---
 

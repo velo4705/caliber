@@ -12,7 +12,8 @@
     "check": "esbuild scripts/selfcheck.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/selfcheck.mjs --log-level=warning --define:import.meta.env.DEV=false && node node_modules/.cache/selfcheck.mjs",
     "verify": "tsx scripts/visual-check.ts",
     "bench": "tsx scripts/bench.ts",
-    "serve:subpath": "tsx scripts/serve-subpath.mts"
+    "serve:subpath": "tsx scripts/serve-subpath.mts",
+    "publish:pages": "npm run build && tsx scripts/publish-pages.mts"
   },
   "dependencies": {
     "react": "^18.3.1",

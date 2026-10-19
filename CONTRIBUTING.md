@@ -218,6 +218,20 @@ any amount of description.
 
 ---
 
+## Publishing
+
+The site is published by committing the built app to `docs/`:
+
+```bash
+cd web
+npm run publish:pages
+git add docs && git commit -m "build: publish" && git push
+```
+
+GitHub Pages serves it as a plain static site because the build includes a
+`.nojekyll` file, which makes Pages skip Jekyll entirely. If you ever see
+`No such file or directory: docs` from a Pages build, that file is missing.
+
 ## Where to help
 
 The most useful contributions right now are **breadth**: 51 solvers is a long

@@ -2,7 +2,7 @@ import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
 import { extname, join, resolve } from 'node:path'
 
-const DIST = resolve(process.cwd(), 'dist')
+const DIST = resolve(process.cwd(), process.env.SERVE_DIR ?? 'dist')
 const PREFIX = '/caliber'
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',

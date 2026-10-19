@@ -1,8 +1,13 @@
 name: Deploy to GitHub Pages
 
+# The site is published by committing the built app to docs/, which GitHub
+# Pages serves as a plain static site (.nojekyll makes it skip Jekyll).
+# This workflow is the alternative: switch the Pages source to "GitHub
+# Actions" in the repository settings and it will deploy web/dist on every
+# push instead. It is manual-only by default so that it does not fail
+# against a branch-based Pages configuration.
+
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

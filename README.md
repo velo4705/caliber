@@ -186,13 +186,32 @@ web/src/
 `base` is set to `'./'` in `vite.config.ts`, so `web/dist/` works on any static
 host at any subpath, without path rewriting.
 
+**GitHub Pages** serves the built app from `docs/`. To publish:
+
 ```bash
-npm run build
-# copy web/dist/ to GitHub Pages, Netlify, Cloudflare Pages, S3, anything
+cd web
+npm run publish:pages    # builds, then copies dist/ to ../docs with .nojekyll
+git add docs && git commit -m "build: publish" && git push
 ```
 
-GitHub Pages is wired up by `.github/workflows/deploy.yml`, which builds `web/`
-and publishes it on every push to `main`.
+`.nojekyll` is what makes this work: it tells GitHub Pages to skip Jekyll and
+serve the files verbatim. Without it the Pages builder still runs Jekyll,
+which wants a source directory and a theme — and fails on a plain static
+build with `No such file or directory: docs`.
+
+The alternative is **Settings → Pages → Source → GitHub Actions**, which
+enables `.github/workflows/deploy.yml` to build and deploy on every push with
+nothing committed to the repository. It is manual-only by default so that it
+does not fail against a branch-based configuration. The trade is build output
+in your history: Vite's content-hashed filenames mean every publish adds new
+blobs.
+
+Any other static host works too:
+
+```bash
+npm run build
+# copy web/dist/ to Netlify, Cloudflare Pages, S3, anything
+```
 
 ---
 
