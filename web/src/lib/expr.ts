@@ -10,6 +10,16 @@ export class ExprError extends Error {
   }
 }
 
+export type Node =
+  | { t: 'num'; v: number }
+  | { t: 'var'; name: string; pos: number }
+  | { t: 'bin'; op: '+' | '-' | '*' | '/' | '%'; l: Node; r: Node }
+  | { t: 'neg'; e: Node }
+  | { t: 'pos'; e: Node }
+  | { t: 'pow'; b: Node; e: Node }
+  | { t: 'fact'; e: Node }
+  | { t: 'call'; name: string; args: Node[] }
+
 const CONSTANTS: Record<string, number> = {
   pi: Math.PI,
   π: Math.PI,
@@ -55,120 +65,123 @@ const F2 = new Set(['atan2', 'pow', 'min', 'max', 'mod', 'hypot', 'gcd', 'lcm', 
 
 const TRIG_DEG = new Set(['sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh'])
 
-export class Parser {
+export function gcd(a: number, b: number): number {
+  a = Math.abs(a)
+  b = Math.abs(b)
+  while (b) {
+    const t = b
+    b = a % b
+    a = t
+  }
+  return a
+}
+
+export function lcm(a: number, b: number): number {
+  if (!a || !b) return 0
+  return Math.abs(a * b) / gcd(a, b)
+}
+
+function toRadians(v: number, mode: AngleMode): number {
+  if (mode === 'deg') return (v * Math.PI) / 180
+  if (mode === 'grad') return (v * Math.PI) / 200
+  return v
+}
+
+function fromRadians(v: number, mode: AngleMode): number {
+  if (mode === 'deg') return (v * 180) / Math.PI
+  if (mode === 'grad') return (v * 200) / Math.PI
+  return v
+}
+
+/* ── Parser: expression string → AST ─────────────────────────────────────── */
+
+class AstParser {
   private expr = ''
   private pos = 0
-  private vars: Record<string, number> = {}
 
-  constructor(angleMode: AngleMode = 'rad', vars: Record<string, number> = {}) {
-    this.angleMode = angleMode
-    this.vars = vars
-  }
-
-  private angleMode: AngleMode
-
-  setAngleMode(m: AngleMode) {
-    this.angleMode = m
-  }
-
-  setVars(vars: Record<string, number>) {
-    this.vars = vars
-  }
-
-  evaluate(expression: string): number {
+  constructor(expression: string) {
     this.expr = expression
-    this.pos = 0
+  }
+
+  parse(): Node {
     if (this.expr.trim() === '') throw new ExprError('Empty expression', 0)
-    const result = this.parseExpression()
+    const node = this.parseExpression()
     this.skipWhitespace()
     if (!this.isEnd()) throw new ExprError(`Unexpected "${this.current()}"`, this.pos)
-    if (!Number.isFinite(result)) throw new ExprError('Result is not finite', 0)
-    return result
+    return node
   }
 
-  private toRadians(v: number): number {
-    if (this.angleMode === 'deg') return (v * Math.PI) / 180
-    if (this.angleMode === 'grad') return (v * Math.PI) / 200
-    return v
-  }
-
-  private fromRadians(v: number): number {
-    if (this.angleMode === 'deg') return (v * 180) / Math.PI
-    if (this.angleMode === 'grad') return (v * 200) / Math.PI
-    return v
-  }
-
-  private parseExpression(): number {
+  private parseExpression(): Node {
     let left = this.parseTerm()
     for (;;) {
       this.skipWhitespace()
       const c = this.current()
       if (c === '+') {
         this.pos++
-        left += this.parseTerm()
+        left = { t: 'bin', op: '+', l: left, r: this.parseTerm() }
       } else if (c === '-') {
         this.pos++
-        left -= this.parseTerm()
+        left = { t: 'bin', op: '-', l: left, r: this.parseTerm() }
       } else return left
     }
   }
 
-  private parseTerm(): number {
+  private parseTerm(): Node {
     let left = this.parseUnary()
     for (;;) {
       this.skipWhitespace()
       const c = this.current()
       if (c === '*') {
         this.pos++
-        left *= this.parseUnary()
+        left = { t: 'bin', op: '*', l: left, r: this.parseUnary() }
       } else if (c === '/') {
         this.pos++
-        left /= this.parseUnary()
+        left = { t: 'bin', op: '/', l: left, r: this.parseUnary() }
       } else if (c === '%') {
         this.pos++
-        left %= this.parseUnary()
+        left = { t: 'bin', op: '%', l: left, r: this.parseUnary() }
       } else if (c !== '' && (c === '(' || /[0-9.]/.test(c) || /[a-zA-Z_π]/.test(c))) {
-        left *= this.parseUnary()
+        left = { t: 'bin', op: '*', l: left, r: this.parseUnary() }
       } else return left
     }
   }
 
-  private parseUnary(): number {
+  private parseUnary(): Node {
     this.skipWhitespace()
     const c = this.current()
     if (c === '-') {
       this.pos++
-      return -this.parseUnary()
+      return { t: 'neg', e: this.parseUnary() }
     }
     if (c === '+') {
       this.pos++
-      return this.parseUnary()
+      return { t: 'pos', e: this.parseUnary() }
     }
     return this.parsePower()
   }
 
-  private parsePower(): number {
+  private parsePower(): Node {
     const base = this.parsePostfix()
     this.skipWhitespace()
     if (this.current() === '^') {
       this.pos++
-      return Math.pow(base, this.parseUnary())
+      return { t: 'pow', b: base, e: this.parseUnary() }
     }
     return base
   }
 
-  private parsePostfix(): number {
+  private parsePostfix(): Node {
     let v = this.parsePrimary()
     for (;;) {
       this.skipWhitespace()
       if (this.current() === '!') {
         this.pos++
-        v = factorial(v)
+        v = { t: 'fact', e: v }
       } else return v
     }
   }
 
-  private parsePrimary(): number {
+  private parsePrimary(): Node {
     this.skipWhitespace()
     const c = this.current()
 
@@ -186,32 +199,32 @@ export class Parser {
       while (/[0-9.]/.test(this.current())) this.pos++
       const n = Number(this.expr.slice(start, this.pos))
       if (Number.isNaN(n)) throw new ExprError('Malformed number', start)
-      return n
+      return { t: 'num', v: n }
     }
 
     if (/[a-zA-Z_π]/.test(c)) {
+      const namePos = this.pos
       const name = this.parseIdentifier()
       this.skipWhitespace()
-      const upper = name.toLowerCase()
+      const lower = name.toLowerCase()
 
       if (this.current() === '(') {
-        const isKnown = F1.has(upper) || F2.has(upper)
-        if (!isKnown) throw new ExprError(`Unknown function "${name}"`, this.pos)
+        if (!F1.has(lower) && !F2.has(lower)) {
+          throw new ExprError(`Unknown function "${name}"`, this.pos)
+        }
         this.pos++
         const args = this.parseArgs()
-        return this.callFunction(upper, args)
+        return { t: 'call', name: lower, args }
       }
 
-      if (this.vars[upper] !== undefined) return this.vars[upper] as number
-      if (CONSTANTS[lower(name)] !== undefined) return CONSTANTS[lower(name)] as number
-      throw new ExprError(`Unknown name "${name}"`, this.pos)
+      return { t: 'var', name, pos: namePos }
     }
 
     throw new ExprError(c === '' ? 'Unexpected end of expression' : `Unexpected "${c}"`, this.pos)
   }
 
-  private parseArgs(): number[] {
-    const args: number[] = []
+  private parseArgs(): Node[] {
+    const args: Node[] = []
     this.skipWhitespace()
     if (this.current() === ')') {
       this.pos++
@@ -239,60 +252,6 @@ export class Parser {
     return this.expr.slice(start, this.pos)
   }
 
-  private callFunction(name: string, a: number[]): number {
-    const need = F1.has(name) ? 1 : 2
-    if (a.length !== need) {
-      throw new ExprError(`${name}() expects ${need} argument${need > 1 ? 's' : ''}`, 0)
-    }
-    const x = a[0] as number
-    const y = a[1] as number
-
-    if (name === 'mod') return x % y
-    if (name === 'pow') return Math.pow(x, y)
-    if (name === 'min') return Math.min(x, y)
-    if (name === 'max') return Math.max(x, y)
-    if (name === 'atan2') return this.fromRadians(Math.atan2(x, y))
-    if (name === 'hypot') return Math.hypot(x, y)
-    if (name === 'logb') return Math.log(x) / Math.log(y)
-    if (name === 'gcd') return gcd(Math.abs(x), Math.abs(y))
-    if (name === 'lcm') return lcm(Math.abs(x), Math.abs(y))
-
-    const trig = TRIG_DEG.has(name) ? this.toRadians(x) : x
-
-    switch (name) {
-      case 'sin': return Math.sin(trig)
-      case 'cos': return Math.cos(trig)
-      case 'tan': return Math.tan(trig)
-      case 'sinh': return Math.sinh(x)
-      case 'cosh': return Math.cosh(x)
-      case 'tanh': return Math.tanh(x)
-      case 'asin': return this.fromRadians(Math.asin(x))
-      case 'acos': return this.fromRadians(Math.acos(x))
-      case 'atan': return this.fromRadians(Math.atan(x))
-      case 'asinh': return Math.asinh(x)
-      case 'acosh': return Math.acosh(x)
-      case 'atanh': return Math.atanh(x)
-      case 'ln': return Math.log(x)
-      case 'log':
-      case 'log10': return Math.log10(x)
-      case 'log2': return Math.log2(x)
-      case 'exp': return Math.exp(x)
-      case 'exp2': return Math.pow(2, x)
-      case 'sqrt': return Math.sqrt(x)
-      case 'cbrt': return Math.cbrt(x)
-      case 'abs': return Math.abs(x)
-      case 'sign': return Math.sign(x)
-      case 'ceil': return Math.ceil(x)
-      case 'floor': return Math.floor(x)
-      case 'round': return Math.round(x)
-      case 'trunc': return Math.trunc(x)
-      case 'fact': return factorial(x)
-      case 'deg': return (x * 180) / Math.PI
-      case 'rad': return (x * Math.PI) / 180
-      default: throw new ExprError(`Unknown function "${name}"`, 0)
-    }
-  }
-
   private skipWhitespace() {
     while (this.pos < this.expr.length && /\s/.test(this.expr[this.pos] as string)) this.pos++
   }
@@ -306,24 +265,145 @@ export class Parser {
   }
 }
 
-function lower(s: string) {
-  return s.toLowerCase()
-}
+/* ── Evaluator: AST → number ─────────────────────────────────────────────── */
 
-export function gcd(a: number, b: number): number {
-  a = Math.abs(a)
-  b = Math.abs(b)
-  while (b) {
-    const t = b
-    b = a % b
-    a = t
+export function evaluateNode(
+  node: Node,
+  vars: Record<string, number> = {},
+  angleMode: AngleMode = 'rad',
+): number {
+  switch (node.t) {
+    case 'num':
+      return node.v
+    case 'var': {
+      const bound = vars[node.name.toLowerCase()]
+      if (bound !== undefined) return bound
+      const constant = CONSTANTS[node.name.toLowerCase()]
+      if (constant !== undefined) return constant
+      throw new ExprError(`Unknown name "${node.name}"`, node.pos)
+    }
+    case 'bin': {
+      const l = evaluateNode(node.l, vars, angleMode)
+      const r = evaluateNode(node.r, vars, angleMode)
+      switch (node.op) {
+        case '+': return l + r
+        case '-': return l - r
+        case '*': return l * r
+        case '/': return l / r
+        case '%': return l % r
+      }
+      return NaN
+    }
+    case 'neg':
+      return -evaluateNode(node.e, vars, angleMode)
+    case 'pos':
+      return evaluateNode(node.e, vars, angleMode)
+    case 'pow':
+      return Math.pow(
+        evaluateNode(node.b, vars, angleMode),
+        evaluateNode(node.e, vars, angleMode),
+      )
+    case 'fact':
+      return factorial(evaluateNode(node.e, vars, angleMode))
+    case 'call':
+      return callNode(node.name, node.args, vars, angleMode)
   }
-  return a
 }
 
-export function lcm(a: number, b: number): number {
-  if (!a || !b) return 0
-  return Math.abs(a * b) / gcd(a, b)
+function callNode(
+  name: string,
+  argNodes: Node[],
+  vars: Record<string, number>,
+  angleMode: AngleMode,
+): number {
+  const need = F1.has(name) ? 1 : 2
+  if (argNodes.length !== need) {
+    throw new ExprError(`${name}() expects ${need} argument${need > 1 ? 's' : ''}`, 0)
+  }
+  const x = evaluateNode(argNodes[0] as Node, vars, angleMode)
+  const y = need === 2 ? evaluateNode(argNodes[1] as Node, vars, angleMode) : 0
+
+  if (name === 'mod') return x % y
+  if (name === 'pow') return Math.pow(x, y)
+  if (name === 'min') return Math.min(x, y)
+  if (name === 'max') return Math.max(x, y)
+  if (name === 'atan2') return fromRadians(Math.atan2(x, y), angleMode)
+  if (name === 'hypot') return Math.hypot(x, y)
+  if (name === 'logb') return Math.log(x) / Math.log(y)
+  if (name === 'gcd') return gcd(x, y)
+  if (name === 'lcm') return lcm(x, y)
+
+  const trig = TRIG_DEG.has(name) ? toRadians(x, angleMode) : x
+
+  switch (name) {
+    case 'sin': return Math.sin(trig)
+    case 'cos': return Math.cos(trig)
+    case 'tan': return Math.tan(trig)
+    case 'sinh': return Math.sinh(x)
+    case 'cosh': return Math.cosh(x)
+    case 'tanh': return Math.tanh(x)
+    case 'asin': return fromRadians(Math.asin(x), angleMode)
+    case 'acos': return fromRadians(Math.acos(x), angleMode)
+    case 'atan': return fromRadians(Math.atan(x), angleMode)
+    case 'asinh': return Math.asinh(x)
+    case 'acosh': return Math.acosh(x)
+    case 'atanh': return Math.atanh(x)
+    case 'ln': return Math.log(x)
+    case 'log':
+    case 'log10': return Math.log10(x)
+    case 'log2': return Math.log2(x)
+    case 'exp': return Math.exp(x)
+    case 'exp2': return Math.pow(2, x)
+    case 'sqrt': return Math.sqrt(x)
+    case 'cbrt': return Math.cbrt(x)
+    case 'abs': return Math.abs(x)
+    case 'sign': return Math.sign(x)
+    case 'ceil': return Math.ceil(x)
+    case 'floor': return Math.floor(x)
+    case 'round': return Math.round(x)
+    case 'trunc': return Math.trunc(x)
+    case 'fact': return factorial(x)
+    case 'deg': return (x * 180) / Math.PI
+    case 'rad': return (x * Math.PI) / 180
+    default: throw new ExprError(`Unknown function "${name}"`, 0)
+  }
+}
+
+/* ── Public API ──────────────────────────────────────────────────────────── */
+
+const astCache = new Map<string, Node>()
+
+export function compileExpression(expression: string): Node {
+  const hit = astCache.get(expression)
+  if (hit) return hit
+  const node = new AstParser(expression).parse()
+  if (astCache.size > 500) astCache.clear()
+  astCache.set(expression, node)
+  return node
+}
+
+export class Parser {
+  private angleMode: AngleMode
+  private vars: Record<string, number>
+
+  constructor(angleMode: AngleMode = 'rad', vars: Record<string, number> = {}) {
+    this.angleMode = angleMode
+    this.vars = vars
+  }
+
+  setAngleMode(m: AngleMode) {
+    this.angleMode = m
+  }
+
+  setVars(vars: Record<string, number>) {
+    this.vars = vars
+  }
+
+  evaluate(expression: string): number {
+    const value = evaluateNode(compileExpression(expression), this.vars, this.angleMode)
+    if (!Number.isFinite(value)) throw new ExprError('Result is not finite', 0)
+    return value
+  }
 }
 
 const cache = new Map<string, number>()
@@ -336,8 +416,7 @@ export function evalExpression(
   const key = `${angleMode}|${JSON.stringify(vars)}|${expression}`
   const hit = cache.get(key)
   if (hit !== undefined) return hit
-  const parser = new Parser(angleMode, vars)
-  const result = parser.evaluate(expression)
+  const result = new Parser(angleMode, vars).evaluate(expression)
   if (cache.size > 500) cache.clear()
   cache.set(key, result)
   return result

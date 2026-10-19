@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "check": "esbuild scripts/selfcheck.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/selfcheck.mjs --log-level=warning --define:import.meta.env.DEV=false && node node_modules/.cache/selfcheck.mjs",
-    "verify": "tsx scripts/visual-check.ts"
+    "verify": "tsx scripts/visual-check.ts",
+    "bench": "tsx scripts/bench.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

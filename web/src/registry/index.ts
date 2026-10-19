@@ -43,7 +43,7 @@ export function validateTools(tools: Tool[]): string[] {
       for (const fn of tool.graph.functions) {
         if (!fn.key) problems.push(`${tool.id}: function with empty key`)
       }
-      const modes = new Set(['cartesian', 'polar', 'parametric', 'implicit'])
+      const modes = new Set(['cartesian', 'polar', 'parametric', 'implicit', 'surface'])
       if (!modes.has(tool.graph.mode)) problems.push(`${tool.id}: unknown graph mode`)
       continue
     }

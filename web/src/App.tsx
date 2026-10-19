@@ -6,6 +6,7 @@ import { CATEGORIES, CATEGORY_MAP } from './registry/categories'
 import { CategoryRail } from './components/CategoryRail'
 import { ToolView } from './components/ToolView'
 import { GraphView } from './components/GraphView'
+import { SurfaceView } from './components/SurfaceView'
 
 export default function App() {
   const route = useRoute()
@@ -81,7 +82,11 @@ export default function App() {
         <main className="main">
           {tool ? (
             tool.kind === 'chart' ? (
-              <GraphView tool={tool} params={route.params} />
+              tool.graph.mode === 'surface' ? (
+                <SurfaceView tool={tool} params={route.params} />
+              ) : (
+                <GraphView tool={tool} params={route.params} />
+              )
             ) : (
               <ToolView tool={tool} params={route.params} />
             )

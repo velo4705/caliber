@@ -76,6 +76,26 @@ export const graphTools: ChartTool[] = [
     ],
   },
   {
+    id: 'graph-3d-surface',
+    kind: 'chart',
+    category: 'graphing',
+    name: '3D Surface',
+    tagline: 'Plot z = f(x, y) and rotate it',
+    keywords: ['3d', 'surface', 'plot', 'z=f(x,y)', 'rotat', 'mesh', 'saddle', 'volcano', 'graph'],
+    graph: {
+      mode: 'surface',
+      viewport: { x0: -5, x1: 5, y0: -5, y1: 5 },
+      functions: [{ key: 'z', label: 'z(x, y)', default: 'sin(x)*cos(y) + 0.25*(x^2 - y^2)' }],
+      reference: ['z = f(x, y)', 'Height is scaled to fit the box; colour follows the viridis ramp'],
+    },
+    examples: [
+      { label: 'Saddle', inputs: { z: 'sin(x)*cos(y) + 0.25*(x^2 - y^2)' } },
+      { label: 'Volcano', inputs: { z: 'exp(-0.1*(x^2 + y^2))' } },
+      { label: 'Cone', inputs: { z: 'sqrt(x^2 + y^2)' } },
+      { label: 'Ripples', inputs: { z: 'sin(sqrt(x^2 + y^2)) * 2' } },
+    ],
+  },
+  {
     id: 'graph-implicit',
     kind: 'chart',
     category: 'graphing',

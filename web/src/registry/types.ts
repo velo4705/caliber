@@ -41,7 +41,7 @@ export interface GraphFunction {
   color?: string
 }
 
-export type GraphMode = 'cartesian' | 'polar' | 'parametric' | 'implicit'
+export type GraphMode = 'cartesian' | 'polar' | 'parametric' | 'implicit' | 'surface'
 
 export interface GraphSpec {
   mode: GraphMode

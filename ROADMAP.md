@@ -38,11 +38,15 @@ scoped to the web app in `web/`.
 
 ## Next — graphing depth
 
-- [ ] 3D surfaces — decide if `three.js` is acceptable as the first real
-      runtime dependency beyond React
-- [ ] AST-compiled evaluator, if the re-parsing cost ever becomes visible
+- [x] 3D surfaces, hand-rolled on canvas — no three.js, keeping "React only"
+      as a dependency rule. Rotate, zoom, wireframe and solid modes, viridis
+      height ramp, painter's algorithm sorted by view depth
+- [x] AST-compiled expression evaluator — parse once, evaluate many.
+      2.76× faster than re-parsing on every call
 - [ ] Tangent-root detection — a double root away from a sample point is
       currently missed, since only sign changes and exact zeros are found
+- [ ] Perspective projection and a real lighting model for the 3D surface
+- [ ] Axis labels on the 3D surface, and a height legend
 
 ---
 

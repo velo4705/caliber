@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChartTool, GraphMode } from '../registry/types'
-import { Parser } from '../lib/expr'
+import { compileExpression, evaluateNode } from '../lib/expr'
 import { CATEGORY_MAP } from '../registry/categories'
 import { navigate } from '../lib/router'
 import { formatNumber } from '../lib/format'
@@ -45,6 +45,7 @@ const MODE_LABEL: Record<GraphMode, string> = {
   polar: 'r = f(θ)',
   parametric: 'x = x(t), y = y(t)',
   implicit: 'g(x, y) = 0',
+  surface: 'z = f(x, y)',
 }
 
 export function GraphView({ tool, params }: Props) {
@@ -131,7 +132,7 @@ export function GraphView({ tool, params }: Props) {
     for (const fn of graph.functions) {
       const src = (exprs[fn.key] ?? '').trim()
       if (!src || slots.defs[fn.key]) continue
-      const probe = new Parser('rad')
+      const probe = compileExpression(src)
       const vars: Record<string, number> = { x: 1, y: 1, t: 1 }
       for (const name of slots.names) {
         if (!usesParam(src, name)) continue
@@ -139,8 +140,7 @@ export function GraphView({ tool, params }: Props) {
         if (combo) vars[name] = combo[name] as number
       }
       try {
-        probe.setVars(vars)
-        probe.evaluate(src)
+        evaluateNode(probe, vars, 'rad')
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Invalid expression'
         out[fn.key] = msg.includes('Unknown name')
@@ -184,11 +184,10 @@ export function GraphView({ tool, params }: Props) {
 
 const evaluators = useMemo(() => {
     return plots.map(({ key, fn, src, vars }, i) => {
-      const parser = new Parser('rad')
+      const node = compileExpression(src)
       const call = (extra: Record<string, number>) => {
         try {
-          parser.setVars({ ...vars, ...extra })
-          return parser.evaluate(src)
+          return evaluateNode(node, { ...vars, ...extra }, 'rad')
         } catch {
           return NaN
         }

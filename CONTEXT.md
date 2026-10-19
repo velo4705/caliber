@@ -111,7 +111,7 @@ returns `undefined`, which renders as "—".
 
 ---
 
-## Current Inventory: 50 solvers
+## Current Inventory: 51 solvers
 
 | Category | Count | Tools |
 |---|---|---|
@@ -125,7 +125,7 @@ returns `undefined`, which renders as "—".
 | `computing` | 3 | number-base, bitwise, expression-eval |
 | `finance` | 3 | compound-interest, loan-payment, break-even |
 | `units` | 12 | length, mass, volume, time, speed, energy, pressure, area, force, angle, data, temperature |
-| `graphing` | 4 | graph-2d, graph-3d-projection (parametric), graph-polar, graph-implicit |
+| `graphing` | 5 | graph-2d, graph-3d-surface, graph-3d-projection (parametric), graph-polar, graph-implicit |
 
 ---
 
@@ -243,9 +243,35 @@ overlapping the axis labels, and a stale hardcoded tool count.
 
 ---
 
-## Expression Engine
+### 3D surfaces
 
-`src/lib/expr.ts` — recursive descent, ported from the C++ `ExpressionParser`.
+`src/lib/graph3d.ts` implements the 3D renderer by hand — **no three.js**. The
+"React only" dependency rule is a stated architectural value, and the bundle is
+small enough that a 150 KB WebGL library would have dominated it. The Qt app
+used Q3DSurface, so nothing was lost conceptually.
+
+- `buildSurface()` samples a grid, computes per-quad normals from the edge
+  cross product, and scales height to fit the box.
+- Quads are sorted **by view-space depth** at draw time, not by world z.
+  Sorting by world z looks correct until the camera rotates, then the painter
+  algorithm falls apart. `sortByViewDepth()` is the testable version.
+- Shading is Lambertian against a fixed light; colour follows a viridis ramp
+  over the height range.
+- `SurfaceQuad.corners` is an object (`{a,b,c,d}`), not a tuple. A tuple
+  `[a, b, d, c]` was destructured as `[ia, ib, ic, id]`, which silently bound
+  `ic` to *d* and `id` to *c* — every quad was drawn as a bowtie and the
+  surface rendered as a lattice of holes. The object form makes that
+  impossible, and the self-check now asserts no projected quad self-intersects.
+
+### Expression engine
+
+`src/lib/expr.ts` compiles an expression **to an AST once**, then evaluates
+the tree many times. `compileExpression()` returns a cached `Node`;
+`evaluateNode(node, vars, angleMode)` runs it. The old parser re-parsed the
+string on every `evaluate()` call, which was the dominant cost when plotting
+1400 samples.
+
+Measured with `npm run bench`: **2.76× faster** on a typical expression.
 
 - `+ - * / % ^`, unary minus, parentheses, factorial `!`
 - **implicit multiplication**: `2(3+4)`, `3sin(x)`
@@ -255,8 +281,11 @@ overlapping the axis labels, and a stale hardcoded tool count.
   `min/max/pow/hypot/gcd/lcm/mod/atan2`, `fact`
 - constants: `pi` `π` `e` `tau` `phi`
 - factorial: exact for integers, Lanczos gamma otherwise
-- results memoised in a 500-entry cache
 - throws `ExprError` with a character position
+
+**Variables resolve by lowercase name.** The original parser lowercased the
+identifier before looking it up; the AST refactor briefly used uppercase and
+silently broke every graph. `evaluateNode` now matches the original exactly.
 
 `expression-eval` is a live user-facing tool for this engine, plus a test
 surface. Self-check covers precedence, associativity and implicit multiply.
@@ -296,11 +325,8 @@ so the browser back button is not spammed.
 - **No charting library.** The grapher draws its own canvas primitives, which
   is fine for 2D curves but means there are no statistical charts (histogram,
   regression scatter) yet.
-- **No 3D surfaces.** The Qt version had Q3DSurface plots; the web version has
-  no equivalent. `three.js` would be the first runtime dependency beyond React.
-- **The parser re-parses on every call.** Adequate at current sample counts
-  (260–1400 points), but an AST-compiled evaluator would be the fix if the
-  grapher ever feels slow.
+- **3D is orthographic only** — no perspective, no lighting model beyond a
+  fixed Lambertian term, and no clipping against the near plane.
 - **Not yet a PWA** — no manifest, service worker, or offline caching.
 - **No unit-test framework.** `scripts/selfcheck.ts` is a bespoke harness;
   consider replacing with Vitest.

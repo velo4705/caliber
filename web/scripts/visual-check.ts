@@ -160,6 +160,44 @@ const integralHasValue = /∫ = -?[\d.]/.test(integral)
 integralHasValue ? ok(`integral reported "${integral.trim()}"`) : fail(`integral not reported, got "${integral}"`)
 await shot(page, '07-integral')
 
+console.log('\n3d surface')
+await page.goto(`${BASE}#/t/graph-3d-surface`, { waitUntil: 'networkidle' })
+await page.waitForSelector('.graph-canvas-wrap canvas')
+await page.waitForTimeout(900)
+const surfaceColours = await page.evaluate(() => {
+  const c = document.querySelector('.graph-canvas-wrap canvas') as HTMLCanvasElement
+  const ctx = c.getContext('2d')!
+  const d = ctx.getImageData(0, 0, c.width, c.height).data
+  const colours = new Set<string>()
+  for (let i = 0; i < d.length; i += 4) colours.add(`${d[i]},${d[i + 1]},${d[i + 2]}`)
+  return colours.size
+})
+surfaceColours > 100 ? ok(`3D surface painted with ${surfaceColours} colours`) : fail(`3D surface looks blank (${surfaceColours} colours)`)
+const quadText = await page.locator('.graph-count').textContent()
+quadText?.includes('quads') ? ok(`toolbar reports "${quadText}"`) : fail(`expected a quad count, got "${quadText}"`)
+await shot(page, '11-surface')
+
+console.log('\n3d rotation')
+const surface = page.locator('.graph-canvas-wrap canvas')
+const box = await surface.boundingBox()
+if (box) {
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2 + 40, { steps: 8 })
+  await page.mouse.up()
+  await page.waitForTimeout(500)
+}
+const rotatedColours = await page.evaluate(() => {
+  const c = document.querySelector('.graph-canvas-wrap canvas') as HTMLCanvasElement
+  const ctx = c.getContext('2d')!
+  const d = ctx.getImageData(0, 0, c.width, c.height).data
+  const colours = new Set<string>()
+  for (let i = 0; i < d.length; i += 4) colours.add(`${d[i]},${d[i + 1]},${d[i + 2]}`)
+  return colours.size
+})
+rotatedColours > 100 ? ok('surface still renders after rotation') : fail('rotation broke the render')
+await shot(page, '12-surface-rotated')
+
 console.log('\ntheme')
 await page.click('.theme-toggle')
 await page.waitForTimeout(400)

@@ -24,6 +24,17 @@ import {
   zoomAt,
   type ParamDef,
 } from '../src/lib/graph'
+import {
+  buildSurface,
+  clampPitch,  DEFAULT_CAMERA,
+  heightColor,
+  normalise,
+  project,
+  quadDepth,
+  rotate,
+  shade,
+  sortByViewDepth,
+} from '../src/lib/graph3d'
 
 const problems = validateTools(TOOLS)
 console.log(`tools registered: ${TOOLS.length}`)
@@ -187,6 +198,15 @@ const runChart = (tool: (typeof chartTools)[number], values: Record<string, stri
         }
       }
     }
+  } else if (graph.mode === 'surface') {
+    for (const fn of graph.functions) {
+      if (swept.has(fn.key) || !src(fn.key)) continue
+      for (const vars of variants(fn.key)) {
+        const f = compileFor(src(fn.key))
+        const mesh = buildSurface((x, y) => f({ ...vars, x, y }), { ...vp, resolution: 20 })
+        total += mesh.quads.length
+      }
+    }
   } else {
     for (const fn of graph.functions) {
       if (swept.has(fn.key) || !src(fn.key)) continue
@@ -205,7 +225,7 @@ const runChart = (tool: (typeof chartTools)[number], values: Record<string, stri
   return total / 2
 }
 
-report(chartTools.length === 4, `${chartTools.length} chart tools registered`)
+report(chartTools.length === 5, `${chartTools.length} chart tools registered`)
 
 for (const tool of chartTools) {
   const n = runChart(tool, {})
@@ -373,15 +393,15 @@ areport(integrate((x) => Math.sqrt(x - 2), 0, 4) === undefined, 'integral over a
 const sineIntegral = Math.abs((integrate(Math.sin, 0, Math.PI) as number) - 2)
 areport(sineIntegral < 1e-9, `adaptive Simpson is accurate to ${sineIntegral.toExponential(1)}`)
 
-const shade = shadeArea((x) => x * x, 0, 1, 0, 50)
-areport(shade !== undefined && shade.length === 106, 'shadeArea returns 51 curve points plus 2 baseline corners')
-areport(shade !== undefined && shade[0] === 0 && closeTo(shade[1] as number, 0, 1e-9), 'shade starts on the curve at the lower bound')
+const shadePath = shadeArea((x) => x * x, 0, 1, 0, 50)
+areport(shadePath !== undefined && shadePath.length === 106, 'shadeArea returns 51 curve points plus 2 baseline corners')
+areport(shadePath !== undefined && shadePath[0] === 0 && closeTo(shadePath[1] as number, 0, 1e-9), 'shade starts on the curve at the lower bound')
 areport(
-  shade !== undefined &&
-    closeTo(shade[shade.length - 4] as number, 1, 1e-9) &&
-    (shade[shade.length - 3] as number) === 0 &&
-    (shade[shade.length - 2] as number) === 0 &&
-    (shade[shade.length - 1] as number) === 0,
+  shadePath !== undefined &&
+    closeTo(shadePath[shadePath.length - 4] as number, 1, 1e-9) &&
+    (shadePath[shadePath.length - 3] as number) === 0 &&
+    (shadePath[shadePath.length - 2] as number) === 0 &&
+    (shadePath[shadePath.length - 1] as number) === 0,
   'shade returns to the upper bound then runs back along the baseline',
 )
 areport(shadeArea((x) => 1 / (x - 0.5), 0, 1, 0, 50) === undefined, 'shading across a pole is rejected')
@@ -424,6 +444,104 @@ ireport(near(findYIntercept((x) => 3 * x + 2, -5, 5), 2), 'y-intercept of 3x + 2
 ireport(findYIntercept((x) => 3 * x + 2, 1, 5) === undefined, 'y-intercept is undefined when x = 0 is off screen')
 ireport(findYIntercept((x) => 1 / x, -5, 5) === undefined, 'y-intercept of 1/x is undefined')
 
+console.log('\n3d surface:')
+let tFail = 0
+const treport = (ok: boolean, msg: string) => {
+  if (!ok) tFail++
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${msg}`)
+}
+
+const rot = rotate({ x: 1, y: 0, z: 0 }, Math.PI / 2, 0)
+treport(Math.abs(rot.x) < 1e-12 && Math.abs(rot.z + 1) < 1e-12, 'a quarter turn about y maps +x onto −z')
+
+const flat = rotate({ x: 1, y: 2, z: 3 }, 0, 0)
+treport(flat.x === 1 && flat.y === 2 && flat.z === 3, 'a zero rotation is the identity')
+
+const pr = project({ x: 0, y: 0, z: 0 }, DEFAULT_CAMERA, 400, 300)
+treport(Math.abs(pr.x - 200) < 1e-9 && Math.abs(pr.y - 150) < 1e-9, 'the origin projects to the centre of the canvas')
+const right = project({ x: 1, y: 0, z: 0 }, { ...DEFAULT_CAMERA, yaw: 0, pitch: 0 }, 400, 300)
+treport(right.x > 200 && Math.abs(right.y - 150) < 1e-9, 'with no rotation +x is to the right of the origin')
+const zoomed = project({ x: 1, y: 0, z: 0 }, { ...DEFAULT_CAMERA, zoom: 2, yaw: 0, pitch: 0 }, 400, 300)
+treport(Math.abs(zoomed.x - right.x) > 1, 'doubling the zoom moves the point further out')
+
+treport(clampPitch(9) === 1.5 && clampPitch(-9) === -1.5, 'pitch is clamped so the surface cannot flip over')
+
+const plane = buildSurface((x, y) => 3, { x0: -1, x1: 1, y0: -1, y1: 1, resolution: 4 })
+treport(plane.quads.length === 16, `a 4x4 grid yields ${plane.quads.length} quads`)
+treport(plane.zMin === 3 && plane.zMax === 3, 'a constant surface reports a zero height range')
+treport(
+  plane.quads.every((q) => Math.abs(q.nz - 1) < 1e-6),
+  'the normal of a flat surface points straight up',
+)
+
+const bowl = buildSurface((x, y) => x * x + y * y, { x0: -2, x1: 2, y0: -2, y1: 2, resolution: 8 })
+treport(bowl.zMin === 0 && bowl.zMax === 8, 'the bowl spans z from 0 to 8')
+
+const cam = { ...DEFAULT_CAMERA }
+const proj = bowl.points.map((p) => project(p, cam, 400, 300))
+const sorted = sortByViewDepth(bowl.quads, proj)
+const depths = sorted.map((q) => quadDepth(q, proj))
+treport(
+  depths.every((d, i) => i === 0 || d >= (depths[i - 1] as number)),
+  'quads sort back to front by view depth for the painter algorithm',
+)
+const worldOrder = bowl.quads.map((q) => Object.values(q.corners).join(','))
+const viewOrder = sorted.map((q) => Object.values(q.corners).join(','))
+treport(
+  worldOrder.join('|') !== viewOrder.join('|'),
+  'view depth is not the same as world z, so sorting by world space would be wrong',
+)
+treport(bowl.maxRadius > 0, `the mesh reports a bounding radius of ${bowl.maxRadius.toFixed(2)}`)
+
+const segmentsCross = (p1: any, p2: any, p3: any, p4: any) => {
+  const den = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x)
+  if (Math.abs(den) < 1e-12) return false
+  const t = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / den
+  const u = ((p3.x - p1.x) * (p2.y - p1.y) - (p3.y - p1.y) * (p2.x - p1.x)) / den
+  return t > 0 && t < 1 && u > 0 && u < 1
+}
+let bowties = 0
+for (const quad of bowl.quads) {
+  const { a: ia, b: ib, c: ic, d: id } = quad.corners
+  const pa = proj[ia]!
+  const pb = proj[ib]!
+  const pc = proj[ic]!
+  const pd = proj[id]!
+  if (segmentsCross(pa, pb, pd, pc) || segmentsCross(pb, pd, pc, pa)) bowties++
+}
+treport(bowties === 0, `no projected quad is a self-intersecting bowtie (${bowties} found)`)
+
+const saddle = buildSurface((x, y) => Math.sin(x) * Math.cos(y) + 0.25 * (x * x - y * y), {
+  x0: -5, x1: 5, y0: -5, y1: 5, resolution: 40,
+})
+const saddleProj = saddle.points.map((p) => project(p, DEFAULT_CAMERA, 1114, 504))
+let saddleBowties = 0
+for (const quad of saddle.quads) {
+  const { a: ia, b: ib, c: ic, d: id } = quad.corners
+  const pa = saddleProj[ia]!
+  const pb = saddleProj[ib]!
+  const pc = saddleProj[ic]!
+  const pd = saddleProj[id]!
+  if (segmentsCross(pa, pb, pd, pc) || segmentsCross(pb, pd, pc, pa)) saddleBowties++
+}
+treport(saddleBowties === 0, `the saddle surface has no bowtie quads either (${saddleBowties} found)`)
+
+const holey = buildSurface((x, y) => (Math.abs(x) < 0.25 ? NaN : x), { x0: -1, x1: 1, y0: -1, y1: 1, resolution: 8 })
+treport(holey.quads.length < 64, `quads touching a NaN are dropped (${holey.quads.length} of 64)`)
+
+treport(normalise(5, 0, 10) === 0.5, 'normalise maps the midpoint to 0.5')
+treport(normalise(5, 5, 5) === 0.5, 'a zero range normalises to 0.5 rather than dividing by zero')
+
+const c0 = heightColor(0)
+const c1 = heightColor(1)
+treport(c0[0] !== c1[0] || c0[1] !== c1[1] || c0[2] !== c1[2], 'the colour ramp changes across the range')
+treport(
+  heightColor(-1)[0] === heightColor(0)[0] && heightColor(2)[0] === heightColor(1)[0],
+  'the colour ramp clamps out-of-range values',
+)
+treport(shade({ nx: 0, ny: 0, nz: 1 }) > 0.5, 'a surface facing the light is brighter than one facing away')
+treport(shade({ nx: 0, ny: 0, nz: -1 }) < shade({ nx: 0, ny: 0, nz: 1 }), 'the underside of the surface is darker')
+
 console.log('\nsearch:')
 for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
   const hits = searchTools(q)
@@ -431,4 +549,4 @@ for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
 }
 
 void CATEGORY_MAP
-process.exit(problems.length + exprFail + gFail + sFail + aFail + iFail ? 1 : 0)
+process.exit(problems.length + exprFail + gFail + sFail + aFail + iFail + tFail ? 1 : 0)

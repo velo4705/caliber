@@ -42,6 +42,7 @@ all *derived* from that registry. Adding a solver means adding one file.
 | Computing | 3 | Number bases, bitwise ops, expression evaluator |
 | Finance | 3 | Compound interest, loan repayment, break-even |
 | Units | 12 | Length, mass, volume, time, speed, energy, pressure, area, force, angle, data, temperature |
+| Graphing | 5 | Cartesian, parametric, polar, implicit, 3D surface |
 
 ## Solve for the unknown
 
@@ -71,6 +72,23 @@ gcd(12,18) →  6
 
 Try it live at `#/t/expression-eval`. Supports 40+ functions, constants
 (`pi`, `e`, `tau`, `phi`), factorial via Lanczos gamma, and DEG/RAD/GRAD modes.
+
+Expressions are compiled to an AST once and evaluated many times, so plotting
+1400 samples of a curve costs one parse, not 1400.
+
+## Graphing
+
+Five plot modes, all evaluated through the same expression engine:
+
+- **Cartesian** — `y = f(x)`, with automatic breaks at asymptotes
+- **Parametric** — `(x(t), y(t))`
+- **Polar** — `r = f(θ)`
+- **Implicit** — `g(x, y) = 0` via marching squares
+- **3D surface** — `z = f(x, y)`, hand-rolled on canvas with no chart library
+
+On top of the curves: parameter sweeps (`a = [1...5]`), derivative overlays,
+integral shading with the value reported, labelled axis intercepts, and
+hover tracing. Pan, scroll-zoom and pinch-zoom all work.
 
 ## Running it
 
