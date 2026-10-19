@@ -32,13 +32,17 @@ scoped to the web app in `web/`.
       with an explicit step; multi-parameter cartesian product capped at 240
 - [x] Derivative overlay (numeric central difference) and integral shading with
       the value reported, using adaptive Simpson integration
+- [x] Axis crossing detection with labelled intercepts — x-intercepts found by
+      bisection on sign changes, y-intercept evaluated directly, with label
+      collision avoidance
 
 ## Next — graphing depth
 
 - [ ] 3D surfaces — decide if `three.js` is acceptable as the first real
       runtime dependency beyond React
-- [ ] Axis crossing detection and labelled intercepts
 - [ ] AST-compiled evaluator, if the re-parsing cost ever becomes visible
+- [ ] Tangent-root detection — a double root away from a sample point is
+      currently missed, since only sign changes and exact zeros are found
 
 ---
 

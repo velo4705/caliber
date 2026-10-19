@@ -121,8 +121,36 @@ await page.locator('.graph-check input').first().check()
 await page.waitForTimeout(500)
 await shot(page, '06-derivative')
 
-console.log('\nintegral shading')
+console.log('\nintercepts')
+await page.goto(`${BASE}#/t/graph-2d`, { waitUntil: 'networkidle' })
+await page.waitForSelector('.graph-fn input')
+await page.locator('.graph-fn input').nth(0).fill('x^2 - 4')
+await page.locator('.graph-fn input').nth(1).fill('')
+await page.locator('.graph-fn input').nth(2).fill('')
+await page.waitForTimeout(400)
 await page.locator('.graph-check input').nth(1).check()
+await page.waitForTimeout(600)
+const interceptCanvas = await page.evaluate(() => {
+  const c = document.querySelector('.graph-canvas-wrap canvas') as HTMLCanvasElement
+  const ctx = c.getContext('2d')!
+  const d = ctx.getImageData(0, 0, c.width, c.height).data
+  const colours = new Set<string>()
+  for (let i = 0; i < d.length; i += 4) colours.add(`${d[i]},${d[i + 1]},${d[i + 2]}`)
+  return colours.size
+})
+interceptCanvas > 20 ? ok(`intercepts overlay painted (${interceptCanvas} colours)`) : fail('intercepts did not paint')
+await shot(page, '06b-intercepts')
+
+console.log('\nintegral shading')
+await page.goto(`${BASE}#/t/graph-2d`, { waitUntil: 'networkidle' })
+await page.waitForSelector('.graph-fn input')
+await page.locator('.graph-fn input').nth(0).fill('x^2')
+await page.locator('.graph-fn input').nth(1).fill('')
+await page.locator('.graph-fn input').nth(2).fill('')
+await page.waitForTimeout(300)
+await page.locator('.graph-check input').nth(1).check()
+await page.waitForTimeout(300)
+await page.locator('.graph-check input').nth(2).check()
 await page.waitForSelector('.graph-integral')
 await page.fill('.graph-integral input >> nth=0', '0')
 await page.fill('.graph-integral input >> nth=1', '2')

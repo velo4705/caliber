@@ -6,6 +6,8 @@ import {
   clampViewport,
   describeSweep,
   formatTick,
+  findXIntercepts,
+  findYIntercept,
   integrate,
   numericDerivative,
   paramProduct,
@@ -385,6 +387,43 @@ areport(
 areport(shadeArea((x) => 1 / (x - 0.5), 0, 1, 0, 50) === undefined, 'shading across a pole is rejected')
 areport(shadeArea((x) => x, 2, 2, 0, 50) === undefined, 'shading a zero-width region is rejected')
 
+console.log('\nintercepts:')
+let iFail = 0
+const ireport = (ok: boolean, msg: string) => {
+  if (!ok) iFail++
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${msg}`)
+}
+const near = (v: number | undefined, want: number, tol = 1e-6) =>
+  v !== undefined && Math.abs(v - want) <= tol
+const hasNear = (roots: number[], want: number, tol = 1e-4) => roots.some((r) => Math.abs(r - want) <= tol)
+
+const quadRoots = findXIntercepts((x) => x * x - 4, -5, 5, 2000)
+ireport(quadRoots.length === 2, `x² − 4 has ${quadRoots.length} roots`)
+ireport(hasNear(quadRoots, -2) && hasNear(quadRoots, 2), 'roots land on ±2')
+
+const cubicRoots = findXIntercepts((x) => x * x * x - x, -2, 2, 2000)
+ireport(cubicRoots.length === 3, `x³ − x has ${cubicRoots.length} roots`)
+ireport(
+  hasNear(cubicRoots, -1) && hasNear(cubicRoots, 0) && hasNear(cubicRoots, 1),
+  'roots land on −1, 0 and 1',
+)
+
+const sinRoots = findXIntercepts((x) => Math.sin(x), -0.5, 3.5, 2000)
+ireport(hasNear(sinRoots, 0) && hasNear(sinRoots, Math.PI), 'sin(x) roots land on 0 and π')
+
+ireport(findXIntercepts((x) => x * x, -1, 1, 2000).length === 1, 'x² still reports its root at 0, which is sampled exactly')
+ireport(
+  findXIntercepts((x) => (x - 0.37) * (x - 0.37), -1, 1, 2000).length === 0,
+  'a tangent root away from a sample point is missed — only sign changes and exact zeros are found',
+)
+ireport(findXIntercepts((x) => 1 / x, -2, 2, 2000).length === 0, 'a pole is not mistaken for a root')
+ireport(findXIntercepts((x) => x + 5, -1, 1, 2000).length === 0, 'a function with no root reports none')
+ireport(findXIntercepts((x) => x + 5, -1, 1, 2000).every((r) => r >= -1 && r <= 1), 'roots stay inside the scanned window')
+
+ireport(near(findYIntercept((x) => 3 * x + 2, -5, 5), 2), 'y-intercept of 3x + 2 is 2')
+ireport(findYIntercept((x) => 3 * x + 2, 1, 5) === undefined, 'y-intercept is undefined when x = 0 is off screen')
+ireport(findYIntercept((x) => 1 / x, -5, 5) === undefined, 'y-intercept of 1/x is undefined')
+
 console.log('\nsearch:')
 for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
   const hits = searchTools(q)
@@ -392,4 +431,4 @@ for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
 }
 
 void CATEGORY_MAP
-process.exit(problems.length + exprFail + gFail + sFail + aFail ? 1 : 0)
+process.exit(problems.length + exprFail + gFail + sFail + aFail + iFail ? 1 : 0)

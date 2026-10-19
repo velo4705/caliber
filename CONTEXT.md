@@ -183,6 +183,23 @@ Both the derivative and the integral need a finite region, so both refuse
 rather than producing nonsense. Keep that behaviour: a plausible-looking wrong
 number is worse than an em dash.
 
+### Intercepts
+
+`findXIntercepts()` scans the visible viewport for sign changes and refines
+each bracket by bisection, so the roots are exact to machine precision rather
+than snapped to a sample. `findYIntercept()` evaluates at x = 0 directly and
+returns `undefined` when the y-axis is off screen.
+
+**Known limitation:** only sign changes and exact zeros are detected. A tangent
+root that falls between two samples — `(x − 0.37)²` — is missed, because the
+function never changes sign. The self-check asserts this limitation explicitly
+so it is not mistaken for a bug later.
+
+Labels use `formatRoot()` (five significant figures), not `formatTick()` (which
+is tuned for axis marks). Labels are placed by trying a few candidate positions
+and skipping any that would overlap a label already drawn, so crowded sweeps
+stay readable.
+
 - `sampleCartesian` splits into multiple polylines at non-finite or
   out-of-window values, so asymptotes do not draw vertical artefacts.
 - `sampleImplicit` is marching squares over the viewport grid.

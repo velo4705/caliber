@@ -101,6 +101,14 @@ export function formatTick(v: number): string {
   return v.toFixed(decimals)
 }
 
+export function formatRoot(v: number): string {
+  if (!Number.isFinite(v)) return '—'
+  if (v === 0) return '0'
+  const abs = Math.abs(v)
+  if (abs >= 1e6 || abs < 1e-4) return v.toExponential(2)
+  return Number(v.toPrecision(5)).toString()
+}
+
 const Y_LIMIT = 1e9
 
 function pushPoint(current: number[], x: number, y: number) {
@@ -258,6 +266,73 @@ export function numericDerivative(
   }
   if (current.length >= 4) out.push(current)
   return out
+}
+
+function bisect(f: (x: number) => number, a: number, b: number): number | undefined {
+  let lo = a
+  let hi = b
+  const flo = f(lo)
+  if (!Number.isFinite(flo)) return undefined
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2
+    const fm = f(mid)
+    if (!Number.isFinite(fm)) return undefined
+    if (fm === 0) return mid
+    if (Math.sign(fm) === Math.sign(flo)) lo = mid
+    else hi = mid
+  }
+  return (lo + hi) / 2
+}
+
+export function findXIntercepts(
+  evaluate: (x: number) => number,
+  x0: number,
+  x1: number,
+  points = 1200,
+): number[] {
+  const roots: number[] = []
+  const span = x1 - x0
+  if (span === 0 || !Number.isFinite(span)) return roots
+  const step = span / points
+
+  let prevX = x0
+  let prevY = evaluate(x0)
+  if (Number.isFinite(prevY) && prevY === 0) roots.push(x0)
+
+  for (let i = 1; i <= points; i++) {
+    const x = x0 + step * i
+    const y = evaluate(x)
+    if (!Number.isFinite(y)) {
+      prevX = x
+      prevY = y
+      continue
+    }
+    if (y === 0) {
+      roots.push(x)
+    } else if (Number.isFinite(prevY) && prevY !== 0 && Math.sign(prevY) !== Math.sign(y)) {
+      const root = bisect(evaluate, prevX, x)
+      if (root !== undefined) roots.push(root)
+    }
+    prevX = x
+    prevY = y
+  }
+
+  const merged: number[] = []
+  for (const r of roots.sort((a, b) => a - b)) {
+    const last = merged[merged.length - 1]
+    if (last === undefined || Math.abs(r - last) > Math.abs(step) * 1.5) merged.push(r)
+  }
+  return merged
+}
+
+export function findYIntercept(
+  evaluate: (x: number) => number,
+  x0: number,
+  x1: number,
+): number | undefined {
+  if (x0 > 0 || x1 < 0) return undefined
+  const y = evaluate(0)
+  return Number.isFinite(y) ? y : undefined
 }
 
 export function integrate(

@@ -8,6 +8,9 @@ import {
   clampViewport,
   DEFAULT_VP,
   describeSweep,
+  findXIntercepts,
+  findYIntercept,
+  formatRoot,
   formatTick,
   integrate,
   numericDerivative,
@@ -63,6 +66,7 @@ export function GraphView({ tool, params }: Props) {
   const [hover, setHover] = useState<{ px: number; py: number } | null>(null)
   const [dragging, setDragging] = useState(false)
   const [showDeriv, setShowDeriv] = useState(false)
+  const [showIntercepts, setShowIntercepts] = useState(false)
   const [shadeOn, setShadeOn] = useState(false)
   const [shadeKey, setShadeKey] = useState('')
   const [shadeA, setShadeA] = useState('0')
@@ -199,6 +203,16 @@ const evaluators = useMemo(() => {
     for (const e of evaluators) if (!seen.has(e.key)) seen.set(e.key, e.src)
     return [...seen.entries()]
   }, [evaluators])
+
+  const intercepts = useMemo(() => {
+    if (!showIntercepts || graph.mode !== 'cartesian') return []
+    const resolution = dragging ? 300 : 1200
+    return evaluators.map((ev) => ({
+      color: ev.color,
+      roots: findXIntercepts((x) => ev.call({ x }), vp.x0, vp.x1, resolution),
+      yIntercept: findYIntercept((x) => ev.call({ x }), vp.x0, vp.x1),
+    }))
+  }, [showIntercepts, evaluators, graph.mode, vp, dragging])
 
   const series = useMemo(() => {
     const resolution = dragging ? 260 : 1400
@@ -382,6 +396,91 @@ const evaluators = useMemo(() => {
     ctx.setLineDash([])
     ctx.globalAlpha = 1
 
+    if (intercepts.length) {
+      const axisY = s.y(0)
+      const onAxis = vp.y0 <= 0 && vp.y1 >= 0
+      const placed: { x: number; y: number; w: number; h: number }[] = []
+
+      for (const { color, roots, yIntercept } of intercepts) {
+        for (const root of roots) {
+          const px = s.x(root)
+          if (px < -20 || px > w + 20) continue
+
+          if (onAxis) {
+            ctx.fillStyle = color
+            ctx.beginPath()
+            ctx.arc(px, axisY, 4, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.strokeStyle = bg
+            ctx.lineWidth = 2
+            ctx.stroke()
+          }
+
+          const label = formatRoot(root)
+          ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace'
+          const textWidth = ctx.measureText(label).width
+          const boxW = textWidth + 8
+          const boxH = 15
+
+          for (let attempt = 0; attempt < 4; attempt++) {
+            const above = attempt % 2 === 0
+            const ly = onAxis ? (above ? axisY - 20 : axisY + 9) : 14 + attempt * 17
+            const lx = Math.min(Math.max(px - boxW / 2, 2), w - boxW - 2)
+            const clash = placed.some(
+              (p) => lx < p.x + p.w && lx + boxW > p.x && ly - boxH / 2 < p.y + p.h / 2 && ly + boxH / 2 > p.y - p.h / 2,
+            )
+            if (!clash) {
+              placed.push({ x: lx, y: ly, w: boxW, h: boxH })
+              ctx.fillStyle = color
+              ctx.globalAlpha = 0.18
+              ctx.fillRect(lx, ly - boxH / 2, boxW, boxH)
+              ctx.globalAlpha = 1
+              ctx.fillStyle = color
+              ctx.textAlign = 'left'
+              ctx.textBaseline = 'middle'
+              ctx.fillText(label, lx + 4, ly)
+              break
+            }
+          }
+        }
+
+        if (yIntercept !== undefined) {
+          const py = s.y(yIntercept)
+          if (py > -20 && py < h + 20) {
+            ctx.fillStyle = color
+            ctx.beginPath()
+            ctx.arc(s.x(0), py, 4, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.strokeStyle = bg
+            ctx.lineWidth = 2
+            ctx.stroke()
+
+            const label = formatRoot(yIntercept)
+            ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace'
+            const textWidth = ctx.measureText(label).width
+            const boxW = textWidth + 8
+            const boxH = 15
+            const lx = Math.min(s.x(0) + 9, w - boxW - 2)
+            const ly = py
+            const clash = placed.some(
+              (p) => lx < p.x + p.w && lx + boxW > p.x && ly - boxH / 2 < p.y + p.h / 2 && ly + boxH / 2 > p.y - p.h / 2,
+            )
+            if (!clash) {
+              placed.push({ x: lx, y: ly, w: boxW, h: boxH })
+              ctx.fillStyle = color
+              ctx.globalAlpha = 0.18
+              ctx.fillRect(lx, ly - boxH / 2, boxW, boxH)
+              ctx.globalAlpha = 1
+              ctx.fillStyle = color
+              ctx.textAlign = 'left'
+              ctx.textBaseline = 'middle'
+              ctx.fillText(label, lx + 4, ly)
+            }
+          }
+        }
+      }
+    }
+
     ctx.restore()
 
     if (hover) {
@@ -408,7 +507,7 @@ const evaluators = useMemo(() => {
         ctx.stroke()
       }
     }
-  }, [series, derivatives, shaded, vp, size, theme, hover])
+  }, [series, derivatives, shaded, intercepts, vp, size, theme, hover])
 
   useEffect(() => {
     cancelAnimationFrame(rafRef.current)
@@ -577,6 +676,10 @@ const evaluators = useMemo(() => {
             <label className="graph-check">
               <input type="checkbox" checked={showDeriv} onChange={(e) => setShowDeriv(e.target.checked)} />
               d/dx overlay
+            </label>
+            <label className="graph-check">
+              <input type="checkbox" checked={showIntercepts} onChange={(e) => setShowIntercepts(e.target.checked)} />
+              intercepts
             </label>
             <label className="graph-check">
               <input type="checkbox" checked={shadeOn} onChange={(e) => setShadeOn(e.target.checked)} />
