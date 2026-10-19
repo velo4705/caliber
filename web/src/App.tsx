@@ -59,7 +59,7 @@ export default function App() {
           <input
             ref={searchRef}
             type="search"
-            placeholder="Search 40+ solvers — try “ohm”, “beam”, “pH”, “regression”"
+            placeholder={`Search ${TOOLS.length}+ solvers — try “ohm”, “beam”, “pH”, “regression”`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {

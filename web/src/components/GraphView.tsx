@@ -106,12 +106,6 @@ export function GraphView({ tool, params }: Props) {
     [graph.functions, tool.id],
   )
 
-  const colorSlots = useMemo(() => {
-    const seen: string[] = []
-    for (const fn of graph.functions) if (!seen.includes(fn.key)) seen.push(fn.key)
-    return seen
-  }, [graph.functions])
-
   const slots = useMemo(() => {
     const defs: Record<string, ParamDef> = {}
     for (const fn of graph.functions) {
@@ -133,15 +127,21 @@ export function GraphView({ tool, params }: Props) {
     for (const fn of graph.functions) {
       const src = (exprs[fn.key] ?? '').trim()
       if (!src || slots.defs[fn.key]) continue
-      const missing = slots.names.filter((n) => usesParam(src, n) && !slots.names.includes(n))
-      if (missing.length) continue
       const probe = new Parser('rad')
+      const vars: Record<string, number> = { x: 1, y: 1, t: 1 }
+      for (const name of slots.names) {
+        if (!usesParam(src, name)) continue
+        const combo = slots.combos.find((c) => name in c)
+        if (combo) vars[name] = combo[name] as number
+      }
       try {
-        probe.setVars({ x: 1, y: 1, t: 1 })
+        probe.setVars(vars)
         probe.evaluate(src)
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Invalid expression'
-        out[fn.key] = msg.includes('Unknown name') ? `${msg} — is it a parameter you have not defined?` : msg
+        out[fn.key] = msg.includes('Unknown name')
+          ? `${msg} — is it a parameter you have not defined?`
+          : msg
       }
     }
     return out
@@ -178,9 +178,8 @@ export function GraphView({ tool, params }: Props) {
     return out
   }, [exprs, hidden, graph.mode, graph.tRange, graph.functions, slots])
 
-  const evaluators = useMemo(() => {
-
-    return plots.map(({ key, fn, src, vars }) => {
+const evaluators = useMemo(() => {
+    return plots.map(({ key, fn, src, vars }, i) => {
       const parser = new Parser('rad')
       const call = (extra: Record<string, number>) => {
         try {
@@ -190,11 +189,16 @@ export function GraphView({ tool, params }: Props) {
           return NaN
         }
       }
-      const color = fn.color ?? (PALETTE[colorSlots.indexOf(key) % PALETTE.length] as string)
-      return { key, color, call, src, vars }
+      const color = fn.color ?? (PALETTE[i % PALETTE.length] as string)
+      return { key, uid: `${key}#${i}`, color, call, src, vars }
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plots])
+
+  const shadeOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const e of evaluators) if (!seen.has(e.key)) seen.set(e.key, e.src)
+    return [...seen.entries()]
+  }, [evaluators])
 
   const series = useMemo(() => {
     const resolution = dragging ? 260 : 1400
@@ -580,10 +584,13 @@ export function GraphView({ tool, params }: Props) {
             </label>
             {shadeOn && (
               <div className="graph-integral">
-                <select value={shadeKey || evaluators[0]?.key || ''} onChange={(e) => setShadeKey(e.target.value)}>
-                  {evaluators.map((e) => (
-                    <option key={e.key} value={e.key}>
-                      {e.src}
+                <select
+                  value={shadeKey || shadeOptions[0]?.[0] || ''}
+                  onChange={(e) => setShadeKey(e.target.value)}
+                >
+                  {shadeOptions.map(([k, src]) => (
+                    <option key={k} value={k}>
+                      {src}
                     </option>
                   ))}
                 </select>
@@ -623,7 +630,7 @@ export function GraphView({ tool, params }: Props) {
               </>
             ) : (
               <span className="hint">
-                drag to pan · scroll to zoom{graph.mode === 'implicit' ? ' · hover to trace' : ''}
+                drag to pan · scroll or pinch to zoom{graph.mode === 'implicit' ? ' · hover to trace' : ''}
               </span>
             )}
           </div>

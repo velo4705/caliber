@@ -71,13 +71,15 @@ Tier 1 is compute-only. Tier 2 adds the full treatment. Prioritise by usage.
 
 ## Quality
 
+- [x] Headless browser verification (`npm run verify`) — asserts pages render,
+      the canvas is painted, search and URL state work, and there are no
+      console errors; wired into CI as a gate
 - [ ] Replace `scripts/selfcheck.ts` with Vitest
 - [ ] Property-based tests for the expression parser
 - [ ] Accessibility audit — keyboard navigation, focus order, ARIA, contrast
-- [ ] Real-browser verification (no headless browser was available in the dev
-      environment, so the UI is currently unverified visually)
+- [ ] Visual regression baseline, so a layout regression fails the build
 - [ ] SEO: Open Graph tags, sitemap, per-tool meta descriptions
-- [ ] Bundle budget monitoring; currently 214 KB / 69 KB gzipped
+- [ ] Bundle budget monitoring; currently 236 KB / 77 KB gzipped
 
 ---
 

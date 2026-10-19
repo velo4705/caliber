@@ -212,7 +212,17 @@ npm run build        # → web/dist
 npm run preview      # serve production build
 npm run typecheck    # tsc --noEmit
 npm run check        # registry validation + expression tests ← run this
+npm run verify       # headless browser checks (needs the dev server running)
 ```
+
+`npm run check` is headless and runs in CI. `npm run verify` drives a real
+Chromium through Playwright: it asserts that pages render, that the canvas is
+actually painted (by counting distinct pixel colours), that search and URL
+state work, and that there are no console errors. It writes annotated
+screenshots to `web/screenshots/` — **look at them.** The first run of this
+caught five bugs the maths tests could not: duplicate React keys, every curve
+in a sweep sharing one colour, a false "unknown name" error, a control
+overlapping the axis labels, and a stale hardcoded tool count.
 
 ---
 
@@ -275,11 +285,10 @@ so the browser back button is not spammed.
   (260–1400 points), but an AST-compiled evaluator would be the fix if the
   grapher ever feels slow.
 - **Not yet a PWA** — no manifest, service worker, or offline caching.
-- **Untested in a real browser.** Verified via `npm run check`, typecheck and
-  production build only. No headless browser was available in the dev
-  environment, and Chrome could not be installed without root.
 - **No unit-test framework.** `scripts/selfcheck.ts` is a bespoke harness;
   consider replacing with Vitest.
+- **No visual regression baseline.** `npm run verify` catches breakage but
+  does not diff against a previous render.
 - SEO/meta is minimal — one description tag, no OG tags, no sitemap.
 - No accessibility audit; keyboard focus exists but has not been tested.
 - Tool descriptions/keywords are thin. Worth enriching for search quality.
