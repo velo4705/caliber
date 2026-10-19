@@ -692,6 +692,172 @@ button {
   font-weight: 600;
 }
 
+/* ── Graphing ───────────────────────────────────────────────────────────── */
+
+.tool-graph {
+  max-width: none;
+}
+
+.graph-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.graph-fn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 260px;
+  min-width: 220px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  transition: opacity 140ms ease;
+}
+
+.graph-fn.off {
+  opacity: 0.5;
+}
+
+.graph-swatch {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.graph-fn-label {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 550;
+  flex: none;
+}
+
+.graph-fn input {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.graph-fn input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.graph-stage {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.graph-canvas-wrap {
+  position: relative;
+  height: clamp(320px, 56vh, 620px);
+  touch-action: none;
+}
+
+.graph-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.graph-readout {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+
+.graph-readout .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.graph-readout .hint {
+  color: var(--muted);
+}
+
+.graph-tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.graph-mode {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.graph-axes {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-tool-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.graph-tool-buttons .btn-ghost {
+  margin-top: 0;
+  min-width: 34px;
+  min-height: 30px;
+  padding: 4px 10px;
+}
+
+.graph-ref {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 
 .footer {
@@ -769,6 +935,18 @@ button {
 
   .tool-body {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .graph-fn {
+    flex: 1 1 100%;
+  }
+
+  .graph-canvas-wrap {
+    height: clamp(280px, 48vh, 420px);
+  }
+
+  .graph-axes {
+    display: none;
   }
 
   .page-title {

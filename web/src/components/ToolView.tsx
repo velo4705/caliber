@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Tool, Values } from '../registry/types'
+import type { SolverTool, Values } from '../registry/types'
 import { defaultValues } from '../registry'
 import { CATEGORY_MAP } from '../registry/categories'
 import { navigate } from '../lib/router'
@@ -8,7 +8,7 @@ import { InputField } from './InputField'
 import { OutputGrid } from './OutputGrid'
 
 interface Props {
-  tool: Tool
+  tool: SolverTool
   params: URLSearchParams
 }
 

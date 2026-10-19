@@ -111,7 +111,7 @@ returns `undefined`, which renders as "—".
 
 ---
 
-## Current Inventory: 46 solvers
+## Current Inventory: 50 solvers
 
 | Category | Count | Tools |
 |---|---|---|
@@ -125,6 +125,47 @@ returns `undefined`, which renders as "—".
 | `computing` | 3 | number-base, bitwise, expression-eval |
 | `finance` | 3 | compound-interest, loan-payment, break-even |
 | `units` | 12 | length, mass, volume, time, speed, energy, pressure, area, force, angle, data, temperature |
+| `graphing` | 4 | graph-2d, graph-3d-projection (parametric), graph-polar, graph-implicit |
+
+---
+
+## Two Tool Kinds
+
+`Tool` is a **discriminated union**, not one loose interface:
+
+```ts
+export type Tool = SolverTool | ChartTool
+
+interface SolverTool { kind?: 'solver'; inputs; outputs; compute; steps? }
+interface ChartTool   { kind: 'chart';  graph: GraphSpec }
+```
+
+`App.tsx` branches on `tool.kind` to render `ToolView` or `GraphView`. This
+keeps graphing inside the registry — so it is searchable and deep-linkable —
+without pretending an interactive canvas is a form. **When adding a new kind,
+narrow before touching fields; do not add optional fields to both arms.**
+
+`validateTools()` skips the `compute()` probe for charts and instead checks the
+graph mode and function keys.
+
+---
+
+## Graphing
+
+Pure maths lives in `src/lib/graph.ts` and is **covered by the self-check** —
+deliberately, because the rendering itself cannot be tested without a browser.
+`scripts/selfcheck.ts` asserts viewport transforms, tick generation, and that
+every chart descriptor *and every example* produces geometry.
+
+`GraphView.tsx` is the only stateful component: canvas rendering, pointer pan,
+wheel/pinch zoom, and hover tracing. Series are recomputed in a `useMemo` at
+reduced resolution while dragging (260 points) and full resolution (1400) when
+idle, because the parser re-parses the string on every `evaluate()` call.
+
+- `sampleCartesian` splits into multiple polylines at non-finite or
+  out-of-window values, so asymptotes do not draw vertical artefacts.
+- `sampleImplicit` is marching squares over the viewport grid.
+- `samplePolar` substitutes θ for `t`; `sampleParametric` pairs `x1`/`y1` keys.
 
 ---
 
@@ -192,15 +233,18 @@ so the browser back button is not spammed.
 
 ## Known Gaps
 
-- **No graphing.** The single biggest missing feature. The Qt implementation
-  (implicit plots, parameter sweeps, 3D, zoom/pan/trace) is in git history at
-  `b5c06dd`. Decide first whether graphing is a special tool type in the
-  registry or a separate route.
-- **No charts of any kind** — histogram, regression scatter, etc.
+- **No charting library.** The grapher draws its own canvas primitives, which
+  is fine for 2D curves but means there are no statistical charts (histogram,
+  regression scatter) yet.
+- **No 3D surfaces.** The Qt version had Q3DSurface plots; the web version has
+  no equivalent. `three.js` would be the first runtime dependency beyond React.
+- **The parser re-parses on every call.** Adequate at current sample counts
+  (260–1400 points), but an AST-compiled evaluator would be the fix if the
+  grapher ever feels slow.
 - **Not yet a PWA** — no manifest, service worker, or offline caching.
 - **Untested in a real browser.** Verified via `npm run check`, typecheck and
   production build only. No headless browser was available in the dev
-  environment.
+  environment, and Chrome could not be installed without root.
 - **No unit-test framework.** `scripts/selfcheck.ts` is a bespoke harness;
   consider replacing with Vitest.
 - SEO/meta is minimal — one description tag, no OG tags, no sitemap.

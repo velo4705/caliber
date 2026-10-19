@@ -5,6 +5,7 @@ import { TOOLS, searchTools, toolsInCategory } from './registry'
 import { CATEGORIES, CATEGORY_MAP } from './registry/categories'
 import { CategoryRail } from './components/CategoryRail'
 import { ToolView } from './components/ToolView'
+import { GraphView } from './components/GraphView'
 
 export default function App() {
   const route = useRoute()
@@ -79,7 +80,11 @@ export default function App() {
 
         <main className="main">
           {tool ? (
-            <ToolView tool={tool} params={route.params} />
+            tool.kind === 'chart' ? (
+              <GraphView tool={tool} params={route.params} />
+            ) : (
+              <ToolView tool={tool} params={route.params} />
+            )
           ) : results ? (
             <section className="listing">
               <h1 className="page-title">

@@ -71,6 +71,10 @@ export class Parser {
     this.angleMode = m
   }
 
+  setVars(vars: Record<string, number>) {
+    this.vars = vars
+  }
+
   evaluate(expression: string): number {
     this.expr = expression
     this.pos = 0

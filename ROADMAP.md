@@ -16,23 +16,27 @@ scoped to the web app in `web/`.
 
 ---
 
-## Next — graphing
+## Done — graphing
 
-The biggest missing capability. The Qt implementation (implicit plots,
-parameter sweeps, 3D, zoom/pan/trace) is preserved in git at `b5c06dd`.
+- [x] **Registry integration.** `kind: 'chart'` discriminator; `Tool` is a
+      discriminated union so charts stay searchable and deep-linkable without
+      `ToolView` pretending a canvas is a form.
+- [x] 2D cartesian plotting with adaptive sampling (260 pts dragging, 1400 idle)
+- [x] Implicit plots via marching squares
+- [x] Parametric curves and polar plots
+- [x] Pointer pan, wheel zoom, two-finger pinch zoom
+- [x] Hover tracing with a coordinate readout
+- [x] Per-series visibility toggles, reset, example presets
+- [x] Graph maths covered by the self-check, including every example
 
-- [ ] **Decide the shape** — special tool type in the registry, or a separate
-      route? Plotting is stateful and interactive, unlike every other tool.
-- [ ] 2D cartesian plotting over the existing `expr.ts` parser
-- [ ] Implicit plots (`LHS = RHS` contour chasing)
-- [ ] Parameter sweeps (`a = [1...5]` → N series)
-- [ ] Polar and parametric modes
-- [ ] Zoom, pan and point-tracing with a readout
-- [ ] Integral shading and derivative overlay
+## Next — graphing depth
+
 - [ ] 3D surfaces — decide if `three.js` is acceptable as the first real
       runtime dependency beyond React
-- [ ] Charting library choice: `uPlot` for fast numeric plots, Plotly for the
-      function grapher, or hand-rolled canvas
+- [ ] Integral shading and derivative overlay (the Qt app had both)
+- [ ] Axis crossing detection and labelled intercepts
+- [ ] Parameter sweeps (`a = [1...5]` → N series), ported from the Qt grapher
+- [ ] AST-compiled evaluator, if the re-parsing cost ever becomes visible
 
 ---
 

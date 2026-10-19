@@ -1,4 +1,4 @@
-import type { Tool } from './types'
+import type { SolverTool, Tool } from './types'
 import { CATEGORY_MAP } from './categories'
 import { mathTools } from '../tools/math'
 import { statisticsTools } from '../tools/statistics'
@@ -10,6 +10,7 @@ import { engineeringTools } from '../tools/engineering'
 import { computingTools } from '../tools/computing'
 import { financeTools } from '../tools/finance'
 import { unitTools } from '../tools/units'
+import { graphTools } from '../tools/graphs'
 
 export const TOOLS: Tool[] = [
   ...mathTools,
@@ -22,6 +23,7 @@ export const TOOLS: Tool[] = [
   ...computingTools,
   ...financeTools,
   ...unitTools,
+  ...graphTools,
 ]
 
 export const TOOL_MAP = new Map(TOOLS.map((t) => [t.id, t]))
@@ -35,6 +37,17 @@ export function validateTools(tools: Tool[]): string[] {
     if (!CATEGORY_MAP.has(tool.category)) {
       problems.push(`${tool.id}: unknown category "${tool.category}"`)
     }
+
+    if (tool.kind === 'chart') {
+      if (!tool.graph.functions.length) problems.push(`${tool.id}: chart has no functions`)
+      for (const fn of tool.graph.functions) {
+        if (!fn.key) problems.push(`${tool.id}: function with empty key`)
+      }
+      const modes = new Set(['cartesian', 'polar', 'parametric', 'implicit'])
+      if (!modes.has(tool.graph.mode)) problems.push(`${tool.id}: unknown graph mode`)
+      continue
+    }
+
     if (!tool.inputs.length) problems.push(`${tool.id}: no inputs`)
     if (!tool.outputs.length) problems.push(`${tool.id}: no outputs`)
     const inputKeys = new Set(tool.inputs.map((i) => i.key))
@@ -109,7 +122,7 @@ export function toolsInCategory(category: string): Tool[] {
   return TOOLS.filter((t) => t.category === category)
 }
 
-export function defaultValues(tool: Tool): Record<string, string> {
+export function defaultValues(tool: SolverTool): Record<string, string> {
   const out: Record<string, string> = {}
   for (const input of tool.inputs) out[input.key] = input.default ?? ''
   return out
