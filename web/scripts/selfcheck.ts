@@ -6,6 +6,8 @@ import {
   clampViewport,
   describeSweep,
   formatTick,
+  integrate,
+  numericDerivative,
   paramProduct,
   parseParamDef,
   pan,
@@ -14,6 +16,7 @@ import {
   sampleParametric,
   samplePolar,
   scale,
+  shadeArea,
   ticks,
   usesParam,
   zoomAt,
@@ -321,6 +324,67 @@ sreport(
   `describeSweep reads "${describeSweep([{ name: 'a', values: [1, 2, 3, 4, 5] }])}"`,
 )
 
+console.log('\nderivative and integral:')
+let aFail = 0
+const areport = (ok: boolean, msg: string) => {
+  if (!ok) aFail++
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${msg}`)
+}
+const closeTo = (got: number | undefined, want: number, tol = 1e-6) =>
+  got !== undefined && Math.abs(got - want) <= tol
+
+const d = numericDerivative((x) => Math.sin(x), 0, Math.PI * 2, 400)
+const dMid = d.length === 1 ? d[0]! : []
+areport(d.length === 1 && dMid.length > 400, 'derivative of sin(x) is one continuous curve')
+let maxDev = 0
+for (let i = 0; i + 1 < dMid.length; i += 2) {
+  const x = dMid[i] as number
+  const got = dMid[i + 1] as number
+  maxDev = Math.max(maxDev, Math.abs(got - Math.cos(x)))
+}
+areport(maxDev < 1e-5, `numeric d/dx sin(x) tracks cos(x) to ${maxDev.toExponential(1)}`)
+
+const quad = numericDerivative((x) => x * x, 0, 5, 200)
+const quadMid = quad[0] ?? []
+const quadOk =
+  quadMid.length > 100 &&
+  Array.from({ length: Math.floor(quadMid.length / 2) }, (_, i) => {
+    const x = quadMid[i * 2] as number
+    const v = quadMid[i * 2 + 1] as number
+    return Math.abs(v - 2 * x) < 1e-6
+  }).every(Boolean)
+areport(quadOk, 'numeric d/dx x² returns 2x at every sample')
+
+const poleDeriv = numericDerivative((x) => 1 / x, -2, 2, 300)
+areport(poleDeriv.length >= 2, `d/dx (1/x) splits at the pole into ${poleDeriv.length} segments`)
+
+areport(closeTo(integrate((x) => x * x, 0, 3), 9), '∫₀³ x² dx = 9')
+areport(closeTo(integrate(Math.sin, 0, Math.PI), 2), '∫₀^π sin(x) dx = 2')
+areport(closeTo(integrate((x) => 1, -5, 5), 10), '∫₋₅⁵ 1 dx = 10')
+areport(closeTo(integrate((x) => Math.exp(x), 0, 1), Math.E - 1), '∫₀¹ eˣ dx = e − 1')
+areport(closeTo(integrate((x) => 1 / (1 + x * x), 0, 1), Math.PI / 4), '∫₀¹ 1/(1+x²) dx = π/4')
+areport(closeTo(integrate((x) => x * x, 3, 0), -9), 'reversed bounds flip the sign')
+areport(integrate((x) => x, 1, 1) === undefined, 'zero-width interval is rejected')
+areport(integrate((x) => 1 / (x - 0.5), 0, 1) === undefined, 'integral across a pole is rejected')
+areport(integrate((x) => Math.sqrt(x - 2), 0, 4) === undefined, 'integral over a negative square root is rejected')
+
+const sineIntegral = Math.abs((integrate(Math.sin, 0, Math.PI) as number) - 2)
+areport(sineIntegral < 1e-9, `adaptive Simpson is accurate to ${sineIntegral.toExponential(1)}`)
+
+const shade = shadeArea((x) => x * x, 0, 1, 0, 50)
+areport(shade !== undefined && shade.length === 106, 'shadeArea returns 51 curve points plus 2 baseline corners')
+areport(shade !== undefined && shade[0] === 0 && closeTo(shade[1] as number, 0, 1e-9), 'shade starts on the curve at the lower bound')
+areport(
+  shade !== undefined &&
+    closeTo(shade[shade.length - 4] as number, 1, 1e-9) &&
+    (shade[shade.length - 3] as number) === 0 &&
+    (shade[shade.length - 2] as number) === 0 &&
+    (shade[shade.length - 1] as number) === 0,
+  'shade returns to the upper bound then runs back along the baseline',
+)
+areport(shadeArea((x) => 1 / (x - 0.5), 0, 1, 0, 50) === undefined, 'shading across a pole is rejected')
+areport(shadeArea((x) => x, 2, 2, 0, 50) === undefined, 'shading a zero-width region is rejected')
+
 console.log('\nsearch:')
 for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
   const hits = searchTools(q)
@@ -328,4 +392,4 @@ for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
 }
 
 void CATEGORY_MAP
-process.exit(problems.length + exprFail + gFail + sFail ? 1 : 0)
+process.exit(problems.length + exprFail + gFail + sFail + aFail ? 1 : 0)

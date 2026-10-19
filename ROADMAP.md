@@ -30,12 +30,13 @@ scoped to the web app in `web/`.
 - [x] Graph maths covered by the self-check, including every example
 - [x] Parameter sweeps — `a = [1...5]`, explicit lists, and `a = [0...1...0.1]`
       with an explicit step; multi-parameter cartesian product capped at 240
+- [x] Derivative overlay (numeric central difference) and integral shading with
+      the value reported, using adaptive Simpson integration
 
 ## Next — graphing depth
 
 - [ ] 3D surfaces — decide if `three.js` is acceptable as the first real
       runtime dependency beyond React
-- [ ] Integral shading and derivative overlay (the Qt app had both)
 - [ ] Axis crossing detection and labelled intercepts
 - [ ] AST-compiled evaluator, if the re-parsing cost ever becomes visible
 

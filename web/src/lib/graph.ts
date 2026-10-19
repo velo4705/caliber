@@ -236,6 +236,90 @@ export function sampleImplicit(
   return out
 }
 
+export function numericDerivative(
+  evaluate: (x: number) => number,
+  x0: number,
+  x1: number,
+  points = 1200,
+): Series {
+  const out: Series = []
+  let current: number[] = []
+  const span = x1 - x0
+  for (let i = 0; i <= points; i++) {
+    const x = x0 + (span * i) / points
+    const h = Math.max(Math.abs(x), 1) * 1e-5
+    const d = (evaluate(x + h) - evaluate(x - h)) / (2 * h)
+    if (!Number.isFinite(d) || d > Y_LIMIT || d < -Y_LIMIT) {
+      if (current.length >= 4) out.push(current)
+      current = []
+      continue
+    }
+    current.push(x, d)
+  }
+  if (current.length >= 4) out.push(current)
+  return out
+}
+
+export function integrate(
+  evaluate: (x: number) => number,
+  a: number,
+  b: number,
+  tolerance = 1e-9,
+): number | undefined {
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return undefined
+  const lo = Math.min(a, b)
+  const hi = Math.max(a, b)
+  const sign = a <= b ? 1 : -1
+
+  for (let i = 0; i <= 24; i++) {
+    if (!Number.isFinite(evaluate(lo + ((hi - lo) * i) / 24))) return undefined
+  }
+
+  const simpson = (l: number, h: number): number => {
+    const m = (l + h) / 2
+    return ((h - l) / 6) * (evaluate(l) + 4 * evaluate(m) + evaluate(h))
+  }
+
+  const refine = (l: number, h: number, whole: number, tol: number, depth: number): number => {
+    const m = (l + h) / 2
+    const left = simpson(l, m)
+    const right = simpson(m, h)
+    const delta = left + right - whole
+    if (depth <= 0 || Math.abs(delta) <= 15 * tol) return left + right + delta / 15
+    return refine(l, m, left, tol / 2, depth - 1) + refine(m, h, right, tol / 2, depth - 1)
+  }
+
+  const result = refine(lo, hi, simpson(lo, hi), tolerance, 20)
+  if (!Number.isFinite(result)) return undefined
+  return result * sign
+}
+
+export function shadeArea(
+  evaluate: (x: number) => number,
+  a: number,
+  b: number,
+  baseline = 0,
+  points = 400,
+): number[] | undefined {
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return undefined
+  const lo = Math.min(a, b)
+  const hi = Math.max(a, b)
+  const path: number[] = []
+  const span = hi - lo
+  for (let i = 0; i <= points; i++) {
+    const x = lo + (span * i) / points
+    const y = evaluate(x)
+    if (!Number.isFinite(y) || y > Y_LIMIT || y < -Y_LIMIT) return undefined
+    path.push(x, y)
+  }
+  path.push(hi, baseline, lo, baseline)
+  return path
+}
+
+export function escapeRegExp(s: string): string {
+  return escapeRe(s)
+}
+
 export interface TraceHit {
   index: number
   x: number

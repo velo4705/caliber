@@ -162,14 +162,33 @@ wheel/pinch zoom, and hover tracing. Series are recomputed in a `useMemo` at
 reduced resolution while dragging (260 points) and full resolution (1400) when
 idle, because the parser re-parses the string on every `evaluate()` call.
 
+The component builds an `evaluators` memo (one compiled closure per plotted
+expression) that `series`, `derivatives` and `shaded` all read from. Do not
+recompile per feature — a second `compile` pass would double the parse cost on
+every drag frame.
+
+### Derivatives and integrals
+
+`numericDerivative()` is a central difference with `h = max(|x|, 1) × 10⁻⁵`.
+Symbolic differentiation is deliberately *not* attempted: the parser is
+recursive descent returning values, so there is no AST to differentiate. A
+symbolic layer would require reworking `expr.ts`.
+
+`integrate()` is **adaptive Simpson** (Richardson correction, depth 20). It
+probes 25 points across the interval first and returns `undefined` if any are
+non-finite, so an integral across a pole is refused rather than silently
+returning a wrong number. Verified to 3.2e-14 on ∫₀^π sin x dx.
+
+Both the derivative and the integral need a finite region, so both refuse
+rather than producing nonsense. Keep that behaviour: a plausible-looking wrong
+number is worse than an em dash.
+
 - `sampleCartesian` splits into multiple polylines at non-finite or
   out-of-window values, so asymptotes do not draw vertical artefacts.
 - `sampleImplicit` is marching squares over the viewport grid.
 - `samplePolar` substitutes θ for `t`; `sampleParametric` pairs `x1`/`y1` keys.
 
-### Parameter sweeps
-
-Any slot holding a range — `a = [1...5]`, `a = [1, 2, 4]` or
+### Parameter sweeps — `a = [1...5]`, `a = [1, 2, 4]` or
 `a = [0...1...0.1]` — becomes a parameter definition rather than a curve. Other
 slots referencing that name are expanded over `paramProduct()` (the cartesian
 product across all parameters, capped at 240 combinations).

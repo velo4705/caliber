@@ -9,6 +9,8 @@ import {
   DEFAULT_VP,
   describeSweep,
   formatTick,
+  integrate,
+  numericDerivative,
   paramProduct,
   parseParamDef,
   pan,
@@ -17,6 +19,7 @@ import {
   sampleParametric,
   samplePolar,
   scale,
+  shadeArea,
   ticks,
   traceAt,
   usesParam,
@@ -59,6 +62,11 @@ export function GraphView({ tool, params }: Props) {
   const [vp, setVp] = useState<Viewport>(graph.viewport ?? DEFAULT_VP)
   const [hover, setHover] = useState<{ px: number; py: number } | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [showDeriv, setShowDeriv] = useState(false)
+  const [shadeOn, setShadeOn] = useState(false)
+  const [shadeKey, setShadeKey] = useState('')
+  const [shadeA, setShadeA] = useState('0')
+  const [shadeB, setShadeB] = useState('1')
   const [size, setSize] = useState({ w: 800, h: 500 })
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? 'light')
 
@@ -98,6 +106,12 @@ export function GraphView({ tool, params }: Props) {
     [graph.functions, tool.id],
   )
 
+  const colorSlots = useMemo(() => {
+    const seen: string[] = []
+    for (const fn of graph.functions) if (!seen.includes(fn.key)) seen.push(fn.key)
+    return seen
+  }, [graph.functions])
+
   const slots = useMemo(() => {
     const defs: Record<string, ParamDef> = {}
     for (const fn of graph.functions) {
@@ -133,73 +147,107 @@ export function GraphView({ tool, params }: Props) {
     return out
   }, [exprs, graph.functions, slots])
 
-  const series = useMemo(() => {
-    const resolution = dragging ? 260 : 1400
+  const plots = useMemo(() => {
     const visible = (key: string) => (exprs[key] ?? '').trim() !== '' && !hidden.has(key) && !slots.sweptKeys.has(key)
-    const [t0, t1] = graph.tRange ?? [0, Math.PI * 2]
-    const out: { color: string; data: Series }[] = []
-    let colorIndex = 0
 
-    const compile = (src: string) => {
-      const parser = new Parser('rad')
-      return (vars: Record<string, number>) => {
-        try {
-          parser.setVars(vars)
-          return parser.evaluate(src)
-        } catch {
-          return NaN
-        }
-      }
-    }
-    const colorFor = (fn: { color?: string }) => fn.color ?? (PALETTE[colorIndex++ % PALETTE.length] as string)
-
-    const plots: { fn: (typeof graph.functions)[number]; src: string; vars: Record<string, number> }[] = []
+    const out: { key: string; fn: (typeof graph.functions)[number]; src: string; vars: Record<string, number> }[] = []
 
     if (graph.mode === 'parametric') {
       for (const fn of graph.functions) {
         if (!fn.key.startsWith('x') || !visible(fn.key)) continue
         const partner = graph.functions.find((f) => f.key === `y${fn.key.slice(1)}`)
         if (!partner || !visible(partner.key)) continue
-        plots.push({ fn, src: exprs[fn.key] as string, vars: {} })
+        out.push({ key: fn.key, fn, src: exprs[fn.key] as string, vars: {} })
       }
-    } else {
-      for (const fn of graph.functions) {
-        if (!visible(fn.key)) continue
-        const src = exprs[fn.key] as string
-        const referenced = slots.names.filter((n) => usesParam(src, n))
-        if (referenced.length === 0) {
-          plots.push({ fn, src, vars: {} })
-        } else {
-          for (const combo of slots.combos) {
-            if (!referenced.every((n) => n in combo)) continue
-            plots.push({ fn, src, vars: combo })
-          }
+      return out
+    }
+
+    for (const fn of graph.functions) {
+      if (!visible(fn.key)) continue
+      const src = exprs[fn.key] as string
+      const referenced = slots.names.filter((n) => usesParam(src, n))
+      if (referenced.length === 0) {
+        out.push({ key: fn.key, fn, src, vars: {} })
+      } else {
+        for (const combo of slots.combos) {
+          if (!referenced.every((n) => n in combo)) continue
+          out.push({ key: fn.key, fn, src, vars: combo })
         }
       }
     }
+    return out
+  }, [exprs, hidden, graph.mode, graph.tRange, graph.functions, slots])
 
-    for (const { fn, src, vars } of plots) {
-      const color = colorFor(fn)
-      const f = compile(src)
+  const evaluators = useMemo(() => {
+
+    return plots.map(({ key, fn, src, vars }) => {
+      const parser = new Parser('rad')
+      const call = (extra: Record<string, number>) => {
+        try {
+          parser.setVars({ ...vars, ...extra })
+          return parser.evaluate(src)
+        } catch {
+          return NaN
+        }
+      }
+      const color = fn.color ?? (PALETTE[colorSlots.indexOf(key) % PALETTE.length] as string)
+      return { key, color, call, src, vars }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plots])
+
+  const series = useMemo(() => {
+    const resolution = dragging ? 260 : 1400
+    const [t0, t1] = graph.tRange ?? [0, Math.PI * 2]
+    return evaluators.map((ev) => {
+      const color = ev.color
       if (graph.mode === 'cartesian') {
         const pad = (vp.y1 - vp.y0) * 12
-        out.push({
+        return {
           color,
-          data: sampleCartesian((x) => f({ ...vars, x }), vp.x0, vp.x1, resolution, { lo: vp.y0 - pad, hi: vp.y1 + pad }),
-        })
-      } else if (graph.mode === 'polar') {
-        out.push({ color, data: samplePolar((t) => f({ ...vars, t }), 1, resolution) })
-      } else if (graph.mode === 'parametric') {
-        const partner = graph.functions.find((g) => g.key === `y${fn.key.slice(1)}`)
-        if (!partner) continue
-        const fy = compile(exprs[partner.key] as string)
-        out.push({ color, data: sampleParametric((t) => f({ ...vars, t }), (t) => fy({ ...vars, t }), t0, t1, resolution) })
-      } else {
-        out.push({ color, data: sampleImplicit((x, y) => f({ ...vars, x, y }), vp, dragging ? 40 : 110) })
+          data: sampleCartesian((x) => ev.call({ x }), vp.x0, vp.x1, resolution, { lo: vp.y0 - pad, hi: vp.y1 + pad }),
+        }
       }
+      if (graph.mode === 'polar') {
+        return { color, data: samplePolar((t) => ev.call({ t }), 1, resolution) }
+      }
+      if (graph.mode === 'parametric') {
+        const partnerKey = `y${ev.key.slice(1)}`
+        const partner = evaluators.find((e) => e.key === partnerKey)
+        if (!partner) return { color, data: [] as Series }
+        return {
+          color,
+          data: sampleParametric((t) => ev.call({ t }), (t) => partner.call({ t }), t0, t1, resolution),
+        }
+      }
+      return { color, data: sampleImplicit((x, y) => ev.call({ x, y }), vp, dragging ? 40 : 110) }
+    })
+  }, [evaluators, graph.mode, graph.tRange, vp, dragging])
+
+  const derivatives = useMemo(() => {
+    if (!showDeriv || graph.mode !== 'cartesian') return []
+    const resolution = dragging ? 260 : 1400
+    return evaluators.map((ev) => ({
+      color: ev.color,
+      data: numericDerivative((x) => ev.call({ x }), vp.x0, vp.x1, resolution),
+    }))
+  }, [showDeriv, evaluators, graph.mode, vp, dragging])
+
+  const shaded = useMemo(() => {
+    if (!shadeOn || graph.mode !== 'cartesian') return undefined
+    const target = evaluators.find((e) => e.key === shadeKey) ?? evaluators[0]
+    if (!target) return undefined
+    const a = Number(shadeA)
+    const b = Number(shadeB)
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return undefined
+    const path = shadeArea((x) => target.call({ x }), a, b, 0)
+    if (!path) return undefined
+    return {
+      color: target.color,
+      path,
+      value: integrate((x) => target.call({ x }), a, b),
     }
-    return out
-  }, [exprs, hidden, vp, graph.mode, graph.tRange, graph.functions, dragging, slots])
+  }, [shadeOn, shadeKey, shadeA, shadeB, evaluators, graph.mode])
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
@@ -277,6 +325,23 @@ export function GraphView({ tool, params }: Props) {
     ctx.beginPath()
     ctx.rect(0, 0, w, h)
     ctx.clip()
+
+    if (shaded) {
+      ctx.globalAlpha = 0.18
+      ctx.fillStyle = shaded.color
+      ctx.beginPath()
+      const p = shaded.path
+      for (let i = 0; i + 1 < p.length; i += 2) {
+        const px = s.x(p[i] as number)
+        const py = s.y(p[i + 1] as number)
+        if (i === 0) ctx.moveTo(px, py)
+        else ctx.lineTo(px, py)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
+
     ctx.lineWidth = 2
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
@@ -293,6 +358,26 @@ export function GraphView({ tool, params }: Props) {
       }
       ctx.stroke()
     }
+
+    ctx.setLineDash([5, 4])
+    ctx.lineWidth = 1.5
+    ctx.globalAlpha = 0.85
+    for (const { color, data } of derivatives) {
+      ctx.strokeStyle = color
+      ctx.beginPath()
+      for (const seg of data) {
+        for (let i = 0; i + 1 < seg.length; i += 2) {
+          const px = s.x(seg[i] as number)
+          const py = s.y(seg[i + 1] as number)
+          if (i === 0) ctx.moveTo(px, py)
+          else ctx.lineTo(px, py)
+        }
+      }
+      ctx.stroke()
+    }
+    ctx.setLineDash([])
+    ctx.globalAlpha = 1
+
     ctx.restore()
 
     if (hover) {
@@ -319,7 +404,7 @@ export function GraphView({ tool, params }: Props) {
         ctx.stroke()
       }
     }
-  }, [series, vp, size, theme, hover])
+  }, [series, derivatives, shaded, vp, size, theme, hover])
 
   useEffect(() => {
     cancelAnimationFrame(rafRef.current)
@@ -480,6 +565,40 @@ export function GraphView({ tool, params }: Props) {
             </div>
           )
         })}
+      </div>
+
+      <div className="graph-analysis">
+        {graph.mode === 'cartesian' ? (
+          <>
+            <label className="graph-check">
+              <input type="checkbox" checked={showDeriv} onChange={(e) => setShowDeriv(e.target.checked)} />
+              d/dx overlay
+            </label>
+            <label className="graph-check">
+              <input type="checkbox" checked={shadeOn} onChange={(e) => setShadeOn(e.target.checked)} />
+              shade ∫
+            </label>
+            {shadeOn && (
+              <div className="graph-integral">
+                <select value={shadeKey || evaluators[0]?.key || ''} onChange={(e) => setShadeKey(e.target.value)}>
+                  {evaluators.map((e) => (
+                    <option key={e.key} value={e.key}>
+                      {e.src}
+                    </option>
+                  ))}
+                </select>
+                <input type="number" step="any" value={shadeA} onChange={(e) => setShadeA(e.target.value)} aria-label="Lower bound" />
+                <span className="to">to</span>
+                <input type="number" step="any" value={shadeB} onChange={(e) => setShadeB(e.target.value)} aria-label="Upper bound" />
+                <span className={`graph-integral-value${shaded ? '' : ' missing'}`}>
+                  ∫ = {shaded ? formatNumber(shaded.value, 6) : '—'}
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
+          <span className="graph-check-hint">Derivative and integral shading apply to Cartesian plots.</span>
+        )}
       </div>
 
       <div className="graph-stage">
