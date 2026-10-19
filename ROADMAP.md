@@ -28,6 +28,8 @@ scoped to the web app in `web/`.
 - [x] Hover tracing with a coordinate readout
 - [x] Per-series visibility toggles, reset, example presets
 - [x] Graph maths covered by the self-check, including every example
+- [x] Parameter sweeps — `a = [1...5]`, explicit lists, and `a = [0...1...0.1]`
+      with an explicit step; multi-parameter cartesian product capped at 240
 
 ## Next — graphing depth
 
@@ -35,7 +37,6 @@ scoped to the web app in `web/`.
       runtime dependency beyond React
 - [ ] Integral shading and derivative overlay (the Qt app had both)
 - [ ] Axis crossing detection and labelled intercepts
-- [ ] Parameter sweeps (`a = [1...5]` → N series), ported from the Qt grapher
 - [ ] AST-compiled evaluator, if the re-parsing cost ever becomes visible
 
 ---

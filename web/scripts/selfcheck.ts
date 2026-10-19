@@ -4,7 +4,10 @@ import { searchTools } from '../src/registry'
 import { Parser } from '../src/lib/expr'
 import {
   clampViewport,
+  describeSweep,
   formatTick,
+  paramProduct,
+  parseParamDef,
   pan,
   sampleCartesian,
   sampleImplicit,
@@ -12,7 +15,9 @@ import {
   samplePolar,
   scale,
   ticks,
+  usesParam,
   zoomAt,
+  type ParamDef,
 } from '../src/lib/graph'
 
 const problems = validateTools(TOOLS)
@@ -147,29 +152,48 @@ const runChart = (tool: (typeof chartTools)[number], values: Record<string, stri
   const { graph } = tool
   const vp = graph.viewport ?? { x0: -10, x1: 10, y0: -6, y1: 6 }
   const [t0, t1] = graph.tRange ?? [0, Math.PI * 2]
-  const src = (k: string) => (values[k] ?? graph.functions.find((f) => f.key === k)?.default ?? '').trim()
+  const raw = (k: string) => (values[k] ?? graph.functions.find((f) => f.key === k)?.default ?? '').trim()
+  const src = (k: string) => raw(k)
+
+  const defs = graph.functions.map((f) => parseParamDef(raw(f.key))).filter((d): d is ParamDef => d !== undefined)
+  const names = defs.map((d) => d.name)
+  const combos = paramProduct(defs)
+  const swept = new Set(
+    graph.functions.filter((f) => parseParamDef(raw(f.key)) !== undefined).map((f) => f.key),
+  )
+  const variants = (k: string) => {
+    const s = src(k)
+    if (!names.some((n) => usesParam(s, n))) return [{}]
+    return combos.filter((c) => names.every((n) => n in c))
+  }
+
   let total = 0
 
   if (graph.mode === 'parametric') {
     for (const fn of graph.functions) {
       if (!fn.key.startsWith('x')) continue
       const partner = graph.functions.find((f) => f.key === `y${fn.key.slice(1)}`)
-      if (!partner || !src(fn.key) || !src(partner.key)) continue
-      const fx = compileFor(src(fn.key))
-      const fy = compileFor(src(partner.key))
-      for (const seg of sampleParametric((t) => fx({ t }), (t) => fy({ t }), t0, t1, 600)) total += seg.length
+      if (!partner || swept.has(fn.key) || !src(fn.key) || !src(partner.key)) continue
+      for (const vars of variants(fn.key)) {
+        const fx = compileFor(src(fn.key))
+        const fy = compileFor(src(partner.key))
+        for (const seg of sampleParametric((t) => fx({ ...vars, t }), (t) => fy({ ...vars, t }), t0, t1, 600)) {
+          total += seg.length
+        }
+      }
     }
   } else {
     for (const fn of graph.functions) {
-      const s = src(fn.key)
-      if (!s) continue
-      const f = compileFor(s)
-      if (graph.mode === 'cartesian') {
-        for (const seg of sampleCartesian((x) => f({ x }), vp.x0, vp.x1, 600)) total += seg.length
-      } else if (graph.mode === 'polar') {
-        for (const seg of samplePolar((t) => f({ t }), 1, 600)) total += seg.length
-      } else {
-        for (const seg of sampleImplicit((x, y) => f({ x, y }), vp, 60)) total += seg.length
+      if (swept.has(fn.key) || !src(fn.key)) continue
+      for (const vars of variants(fn.key)) {
+        const f = compileFor(src(fn.key))
+        if (graph.mode === 'cartesian') {
+          for (const seg of sampleCartesian((x) => f({ ...vars, x }), vp.x0, vp.x1, 600)) total += seg.length
+        } else if (graph.mode === 'polar') {
+          for (const seg of samplePolar((t) => f({ ...vars, t }), 1, 600)) total += seg.length
+        } else {
+          for (const seg of sampleImplicit((x, y) => f({ ...vars, x, y }), vp, 60)) total += seg.length
+        }
       }
     }
   }
@@ -192,6 +216,111 @@ report(
   'graph tools are reachable from search',
 )
 
+console.log('\nparameter sweeps:')
+let sFail = 0
+const sreport = (ok: boolean, msg: string) => {
+  if (!ok) sFail++
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${msg}`)
+}
+
+const range5 = parseParamDef('a = [1...5]')
+sreport(range5?.name === 'a', 'parses "a = [1...5]"')
+sreport(
+  JSON.stringify(range5?.values) === JSON.stringify([1, 2, 3, 4, 5]),
+  `integer range yields ${range5?.values.length} integer steps (${range5?.values.join(',')})`,
+)
+
+const list = parseParamDef('k = [0.5, 2, 10]')
+sreport(
+  JSON.stringify(list?.values) === JSON.stringify([0.5, 2, 10]),
+  `explicit list yields ${list?.values.join(',')}`,
+)
+
+const fractional = parseParamDef('b = [0...1...0.1]')
+sreport(
+  (fractional?.values.length ?? 0) === 11 && Math.abs((fractional?.values.at(-1) ?? 0) - 1) < 1e-9,
+  `explicit step "[0...1...0.1]" spans 0 to 1 in ${fractional?.values.length} steps`,
+)
+sreport(
+  JSON.stringify(parseParamDef('b = [0...1]')?.values) === JSON.stringify([0, 1]),
+  'integer endpoints default to a step of 1, so "[0...1]" is just the endpoints',
+)
+sreport(parseParamDef('b = [0...1...0]') === undefined, 'zero step is rejected')
+
+const backwards = parseParamDef('n = [5...1]')
+sreport(
+  JSON.stringify(backwards?.values) === JSON.stringify([5, 4, 3, 2, 1]),
+  'descending range counts down',
+)
+
+sreport(parseParamDef('sin(x)') === undefined, 'plain expression is not a parameter definition')
+sreport(parseParamDef('a = []') === undefined, 'empty list is rejected')
+sreport(parseParamDef('a = [1...1]') === undefined, 'zero-width range is rejected')
+sreport(parseParamDef('9a = [1]') === undefined, 'identifier must not start with a digit')
+
+sreport(usesParam('a*sin(x)', 'a'), 'detects parameter use')
+sreport(!usesParam('sin(x)', 'a'), 'does not match a bare letter inside a function name')
+sreport(!usesParam('max(x)', 'a'), 'does not match the "a" in max')
+sreport(usesParam('(a)^2', 'a'), 'matches a parenthesised parameter')
+sreport(!usesParam('factor(x)', 'a'), 'does not match a substring of a longer identifier')
+
+const combos = paramProduct([
+  { name: 'a', values: [1, 2] },
+  { name: 'b', values: [10, 20] },
+])
+sreport(combos.length === 4, `cartesian product gives ${combos.length} combinations`)
+sreport(
+  combos.every((c) => typeof c.a === 'number' && typeof c.b === 'number'),
+  'every combination binds both parameters',
+)
+sreport(paramProduct([]).length === 1, 'no parameters yields a single empty combination')
+sreport(
+  paramProduct([
+    { name: 'a', values: [1, 2, 3] },
+    { name: 'b', values: [1, 2, 3] },
+    { name: 'c', values: [1, 2, 3] },
+  ]).length === 27,
+  'three parameters of three values give 27 combinations',
+)
+sreport(
+  paramProduct([
+    { name: 'a', values: [1, 2, 3, 4, 5, 6, 7, 8] },
+    { name: 'b', values: [1, 2, 3, 4, 5, 6, 7, 8] },
+    { name: 'c', values: [1, 2, 3, 4, 5, 6, 7, 8] },
+  ]).length === 240,
+  'product is capped to 240 to stop runaway sweeps',
+)
+
+const paramParser = new Parser('rad')
+let paramOk = true
+for (const v of [1, 2, 3]) {
+  paramParser.setVars({ x: v, a: v })
+  if (Math.abs(paramParser.evaluate('a*x') - v * v) > 1e-9) paramOk = false
+}
+sreport(paramOk, 'a parameter bound as a variable evaluates correctly across a sweep')
+
+const shadowParser = new Parser('rad')
+shadowParser.setVars({ x: 2, a: 5 })
+const shadowOk = Math.abs(shadowParser.evaluate('atan(2)') - Math.atan(2)) < 1e-12
+sreport(
+  shadowOk,
+  'a parameter named "a" cannot corrupt "atan(2)" — the value of a is ignored inside a function name',
+)
+
+const swept = paramProduct(parseParamDef('a = [1...5]') ? [parseParamDef('a = [1...5]')!] : [])
+const sweepSeries = swept.map((combo) => {
+  const f = compileFor('a*x')
+  return sampleCartesian((x) => f({ ...combo, x }), 0, 2, 50)
+})
+sreport(
+  sweepSeries.length === 5 && sweepSeries.every((seg) => seg.length > 0),
+  `sweeping a=[1...5] yields ${sweepSeries.length} distinct non-empty curves`,
+)
+sreport(
+  describeSweep([{ name: 'a', values: [1, 2, 3, 4, 5] }]).includes('a = 1…5 (5)'),
+  `describeSweep reads "${describeSweep([{ name: 'a', values: [1, 2, 3, 4, 5] }])}"`,
+)
+
 console.log('\nsearch:')
 for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
   const hits = searchTools(q)
@@ -199,4 +328,4 @@ for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
 }
 
 void CATEGORY_MAP
-process.exit(problems.length + exprFail + gFail ? 1 : 0)
+process.exit(problems.length + exprFail + gFail + sFail ? 1 : 0)

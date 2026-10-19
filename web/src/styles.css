@@ -731,6 +731,34 @@ button {
   cursor: pointer;
 }
 
+.graph-swatch.param {
+  cursor: default;
+  border: 1.5px dashed var(--accent);
+  background: transparent;
+}
+
+.graph-fn.is-param {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.graph-error {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: #dc2626;
+}
+
+[data-theme='dark'] .graph-error {
+  color: #f87171;
+}
+
+.graph-count {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .graph-fn-label {
   font-size: 12.5px;
   color: var(--muted);

@@ -14,6 +14,10 @@ export interface Point {
 
 export const DEFAULT_VP: Viewport = { x0: -10, x1: 10, y0: -6, y1: 6 }
 
+export function isParamSlot(src: string): boolean {
+  return parseParamDef(src) !== undefined
+}
+
 export function clampViewport(vp: Viewport): Viewport {
   const minSpan = 1e-9
   let { x0, x1, y0, y1 } = vp
@@ -237,6 +241,87 @@ export interface TraceHit {
   x: number
   y: number
   distance: number
+}
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export interface ParamDef {
+  name: string
+  values: number[]
+}
+
+const PARAM_DEF = /^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*\[([^\]]*)\]\s*$/
+
+export function parseParamDef(src: string): ParamDef | undefined {
+  const m = PARAM_DEF.exec(src)
+  if (!m) return undefined
+  const name = m[1] as string
+  const body = (m[2] as string).trim()
+  if (!body) return undefined
+
+  if (body.includes('...')) {
+    const parts = body.split('...')
+    if (parts.length < 2 || parts.length > 3) return undefined
+    const lo = Number((parts[0] as string).trim())
+    const hi = Number((parts[1] as string).trim())
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi) return undefined
+    let step: number
+    if (parts.length === 3) {
+      step = Math.abs(Number((parts[2] as string).trim()))
+      if (!Number.isFinite(step) || step === 0) return undefined
+    } else {
+      const magnitude = Math.abs(hi - lo)
+      step = Number.isInteger(lo) && Number.isInteger(hi) ? 1 : magnitude / Math.min(magnitude, 24)
+    }
+    if (hi < lo) step = -step
+    const count = Math.min(Math.floor(Math.abs((hi - lo) / step)) + 1, 200)
+    const values: number[] = []
+    for (let i = 0; i < count; i++) values.push(Number((lo + i * step).toPrecision(12)))
+    return { name, values }
+  }
+
+  const values = body
+    .split(',')
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isFinite(n))
+  return values.length ? { name, values } : undefined
+}
+
+export function usesParam(src: string, name: string): boolean {
+  if (!name) return false
+  try {
+    return new RegExp(`(?<![a-zA-Z0-9_])${escapeRe(name)}(?![a-zA-Z0-9_])`).test(src)
+  } catch {
+    return false
+  }
+}
+
+export function paramProduct(defs: ParamDef[], limit = 240): Record<string, number>[] {
+  let combos: Record<string, number>[] = [{}]
+  for (const def of defs) {
+    const next: Record<string, number>[] = []
+    for (const combo of combos) {
+      for (const v of def.values) next.push({ ...combo, [def.name]: v })
+    }
+    combos = next
+    if (combos.length >= limit) return combos.slice(0, limit)
+  }
+  return combos
+}
+
+export function describeSweep(defs: ParamDef[]): string {
+  return defs
+    .map((d) => {
+      const first = d.values[0]
+      const last = d.values[d.values.length - 1]
+      const distinct = new Set(d.values.map((v) => String(v))).size > 1
+      return distinct && first !== undefined && last !== undefined
+        ? `${d.name} = ${first}…${last} (${d.values.length})`
+        : `${d.name} = ${first}`
+    })
+    .join(' · ')
 }
 
 export function traceAt(

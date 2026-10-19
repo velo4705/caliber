@@ -16,12 +16,18 @@ export const graphTools: ChartTool[] = [
         { key: 'f2', label: 'f₂(x)', default: 'x^2/4 - 3' },
         { key: 'f3', label: 'f₃(x)', default: '' },
       ],
-      reference: ['y = f(x)', 'Implicit: enter LHS − RHS = 0 (e.g. x² + y² = 4)'],
+      reference: [
+        'y = f(x)',
+        'Implicit: enter LHS − RHS = 0 (e.g. x² + y² = 4)',
+        'Sweep: put a range in a slot — a = [1...5], a = [1, 2, 4] or a = [0...1...0.1] — then reference it',
+      ],
     },
     examples: [
       { label: 'sin(x)', inputs: { f1: 'sin(x)', f2: '', f3: '' } },
       { label: 'Cubic + line', inputs: { f1: 'x^3 - 3x', f2: 'x', f3: '' } },
       { label: 'Circle', inputs: { f1: 'sqrt(4 - x^2)', f2: '-sqrt(4 - x^2)', f3: '' } },
+      { label: 'Sweep a = 1…5', inputs: { f1: 'a = [1...5]', f2: 'a*x^2 - 2*a', f3: '' } },
+      { label: 'Two parameters', inputs: { f1: 'a = [1, 2, 3]', f2: 'b = [1, 4]', f3: 'a*x^3 + b*x' } },
     ],
   },
   {

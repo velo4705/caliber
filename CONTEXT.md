@@ -167,6 +167,20 @@ idle, because the parser re-parses the string on every `evaluate()` call.
 - `sampleImplicit` is marching squares over the viewport grid.
 - `samplePolar` substitutes θ for `t`; `sampleParametric` pairs `x1`/`y1` keys.
 
+### Parameter sweeps
+
+Any slot holding a range — `a = [1...5]`, `a = [1, 2, 4]` or
+`a = [0...1...0.1]` — becomes a parameter definition rather than a curve. Other
+slots referencing that name are expanded over `paramProduct()` (the cartesian
+product across all parameters, capped at 240 combinations).
+
+**Parameters are bound as parser variables, not substituted into the string.**
+This is a deliberate improvement on the Qt implementation, which used a
+regex replace. With `a = [1...5]`, the expression `atan(2)` would have had its
+`a` clobbered into `5tan(2)` by naive substitution. `usesParam()` matches only
+whole identifiers, and the sampler passes `{ ...combo, x }` to `parser.setVars`.
+The self-check asserts exactly this.
+
 ---
 
 ## Commands

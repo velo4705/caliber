@@ -7,7 +7,10 @@ import { formatNumber } from '../lib/format'
 import {
   clampViewport,
   DEFAULT_VP,
+  describeSweep,
   formatTick,
+  paramProduct,
+  parseParamDef,
   pan,
   sampleCartesian,
   sampleImplicit,
@@ -16,7 +19,9 @@ import {
   scale,
   ticks,
   traceAt,
+  usesParam,
   zoomAt,
+  type ParamDef,
   type Series,
   type TraceHit,
   type Viewport,
@@ -93,9 +98,44 @@ export function GraphView({ tool, params }: Props) {
     [graph.functions, tool.id],
   )
 
+  const slots = useMemo(() => {
+    const defs: Record<string, ParamDef> = {}
+    for (const fn of graph.functions) {
+      const d = parseParamDef((exprs[fn.key] ?? '').trim())
+      if (d) defs[fn.key] = d
+    }
+    const params = Object.values(defs)
+    return {
+      defs,
+      params,
+      names: params.map((p) => p.name),
+      combos: paramProduct(params),
+      sweptKeys: new Set(Object.keys(defs)),
+    }
+  }, [exprs, graph.functions])
+
+  const errors = useMemo(() => {
+    const out: Record<string, string> = {}
+    for (const fn of graph.functions) {
+      const src = (exprs[fn.key] ?? '').trim()
+      if (!src || slots.defs[fn.key]) continue
+      const missing = slots.names.filter((n) => usesParam(src, n) && !slots.names.includes(n))
+      if (missing.length) continue
+      const probe = new Parser('rad')
+      try {
+        probe.setVars({ x: 1, y: 1, t: 1 })
+        probe.evaluate(src)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Invalid expression'
+        out[fn.key] = msg.includes('Unknown name') ? `${msg} — is it a parameter you have not defined?` : msg
+      }
+    }
+    return out
+  }, [exprs, graph.functions, slots])
+
   const series = useMemo(() => {
     const resolution = dragging ? 260 : 1400
-    const visible = (key: string) => (exprs[key] ?? '').trim() !== '' && !hidden.has(key)
+    const visible = (key: string) => (exprs[key] ?? '').trim() !== '' && !hidden.has(key) && !slots.sweptKeys.has(key)
     const [t0, t1] = graph.tRange ?? [0, Math.PI * 2]
     const out: { color: string; data: Series }[] = []
     let colorIndex = 0
@@ -113,40 +153,53 @@ export function GraphView({ tool, params }: Props) {
     }
     const colorFor = (fn: { color?: string }) => fn.color ?? (PALETTE[colorIndex++ % PALETTE.length] as string)
 
+    const plots: { fn: (typeof graph.functions)[number]; src: string; vars: Record<string, number> }[] = []
+
     if (graph.mode === 'parametric') {
       for (const fn of graph.functions) {
         if (!fn.key.startsWith('x') || !visible(fn.key)) continue
         const partner = graph.functions.find((f) => f.key === `y${fn.key.slice(1)}`)
         if (!partner || !visible(partner.key)) continue
-        const fx = compile(exprs[fn.key] as string)
-        const fy = compile(exprs[partner.key] as string)
-        out.push({
-          color: colorFor(fn),
-          data: sampleParametric((t) => fx({ t }), (t) => fy({ t }), t0, t1, resolution),
-        })
+        plots.push({ fn, src: exprs[fn.key] as string, vars: {} })
       }
-      return out
+    } else {
+      for (const fn of graph.functions) {
+        if (!visible(fn.key)) continue
+        const src = exprs[fn.key] as string
+        const referenced = slots.names.filter((n) => usesParam(src, n))
+        if (referenced.length === 0) {
+          plots.push({ fn, src, vars: {} })
+        } else {
+          for (const combo of slots.combos) {
+            if (!referenced.every((n) => n in combo)) continue
+            plots.push({ fn, src, vars: combo })
+          }
+        }
+      }
     }
 
-    for (const fn of graph.functions) {
-      if (!visible(fn.key)) continue
-      const src = exprs[fn.key] as string
+    for (const { fn, src, vars } of plots) {
       const color = colorFor(fn)
       const f = compile(src)
       if (graph.mode === 'cartesian') {
         const pad = (vp.y1 - vp.y0) * 12
         out.push({
           color,
-          data: sampleCartesian((x) => f({ x }), vp.x0, vp.x1, resolution, { lo: vp.y0 - pad, hi: vp.y1 + pad }),
+          data: sampleCartesian((x) => f({ ...vars, x }), vp.x0, vp.x1, resolution, { lo: vp.y0 - pad, hi: vp.y1 + pad }),
         })
       } else if (graph.mode === 'polar') {
-        out.push({ color, data: samplePolar((t) => f({ t }), 1, resolution) })
+        out.push({ color, data: samplePolar((t) => f({ ...vars, t }), 1, resolution) })
+      } else if (graph.mode === 'parametric') {
+        const partner = graph.functions.find((g) => g.key === `y${fn.key.slice(1)}`)
+        if (!partner) continue
+        const fy = compile(exprs[partner.key] as string)
+        out.push({ color, data: sampleParametric((t) => f({ ...vars, t }), (t) => fy({ ...vars, t }), t0, t1, resolution) })
       } else {
-        out.push({ color, data: sampleImplicit((x, y) => f({ x, y }), vp, dragging ? 40 : 110) })
+        out.push({ color, data: sampleImplicit((x, y) => f({ ...vars, x, y }), vp, dragging ? 40 : 110) })
       }
     }
     return out
-  }, [exprs, hidden, vp, graph.mode, graph.tRange, graph.functions, dragging])
+  }, [exprs, hidden, vp, graph.mode, graph.tRange, graph.functions, dragging, slots])
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
@@ -383,31 +436,47 @@ export function GraphView({ tool, params }: Props) {
       <div className="graph-bar">
         {graph.functions.map((fn, i) => {
           const off = hidden.has(fn.key)
+          const isParam = slots.defs[fn.key]
+          const error = errors[fn.key]
           return (
-            <div key={fn.key} className={`graph-fn${off ? ' off' : ''}`}>
-              <button
-                className="graph-swatch"
-                style={{ background: off ? 'var(--muted)' : (fn.color ?? PALETTE[i % PALETTE.length]) }}
-                onClick={() =>
-                  setHidden((prev) => {
-                    const next = new Set(prev)
-                    if (next.has(fn.key)) next.delete(fn.key)
-                    else next.add(fn.key)
-                    return next
-                  })
-                }
-                aria-label={off ? `Show ${fn.label}` : `Hide ${fn.label}`}
-              />
-              <span className="graph-fn-label">{fn.label}</span>
+            <div key={fn.key} className={`graph-fn${off ? ' off' : ''}${isParam ? ' is-param' : ''}`}>
+              {isParam ? (
+                <span className="graph-swatch param" aria-hidden />
+              ) : (
+                <button
+                  className="graph-swatch"
+                  style={{ background: off ? 'var(--muted)' : (fn.color ?? PALETTE[i % PALETTE.length]) }}
+                  onClick={() =>
+                    setHidden((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(fn.key)) next.delete(fn.key)
+                      else next.add(fn.key)
+                      return next
+                    })
+                  }
+                  aria-label={off ? `Show ${fn.label}` : `Hide ${fn.label}`}
+                />
+              )}
+              <span className="graph-fn-label">{isParam ? 'range' : fn.label}</span>
               <input
                 className="mono"
                 type="text"
                 spellCheck={false}
                 autoComplete="off"
-                placeholder={graph.mode === 'implicit' ? 'x² + y² − 4' : graph.mode === 'polar' ? 'r(θ)' : 'y = …'}
+                aria-invalid={error ? true : undefined}
+                placeholder={
+                  isParam
+                    ? 'name = [1...5]'
+                    : graph.mode === 'implicit'
+                      ? 'x² + y² − 4'
+                      : graph.mode === 'polar'
+                        ? 'r(θ)'
+                        : 'y = …'
+                }
                 value={exprs[fn.key] ?? ''}
                 onChange={(e) => setExpr(fn.key, e.target.value)}
               />
+              {error && <span className="graph-error">{error}</span>}
             </div>
           )
         })}
@@ -444,8 +513,11 @@ export function GraphView({ tool, params }: Props) {
         <div className="graph-tools">
           <span className="graph-mode">{MODE_LABEL[graph.mode]}</span>
           <span className="graph-axes mono">
-            x [{formatNumber(vp.x0, 4)}, {formatNumber(vp.x1, 4)}] · y [{formatNumber(vp.y0, 4)}, {formatNumber(vp.y1, 4)}]
+            {slots.params.length > 0
+              ? `sweep · ${describeSweep(slots.params)}`
+              : `x [${formatNumber(vp.x0, 4)}, ${formatNumber(vp.x1, 4)}] · y [${formatNumber(vp.y0, 4)}, ${formatNumber(vp.y1, 4)}]`}
           </span>
+          <span className="graph-count">{series.length} series</span>
           <div className="graph-tool-buttons">
             <button className="btn-ghost" onClick={zoomButtons(1 / 1.4)} aria-label="Zoom in">
               +
