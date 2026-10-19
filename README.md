@@ -6,6 +6,8 @@
 financial calculators that runs entirely in your browser — no account, no
 backend, no network calls.
 
+**[Open Caliber →](https://velo4705.github.io/caliber/)**
+
 > Caliber is a universal solver for STEM students, engineers and anyone who
 > needs an answer to a formula quickly and can trust the result.
 
@@ -111,11 +113,23 @@ returns, functions that throw) and runs the expression engine test suite.
 ## Deploying
 
 `base` is set to `'./'` in `vite.config.ts`, so `web/dist/` works on any static
-host without path rewriting.
+host at any subpath, without path rewriting.
 
 ```bash
 npm run build
 # copy web/dist/ to GitHub Pages, Netlify, Cloudflare Pages, S3, anything
+```
+
+**GitHub Pages** is wired up by `.github/workflows/deploy.yml`, which builds
+`web/` and publishes it on every push to `main`. The one-time setup is in
+**Settings → Pages → Source → GitHub Actions** — with the source left on
+"Deploy from a branch", the workflow is ignored.
+
+To check a subpath build locally before deploying:
+
+```bash
+npm run build
+npm run serve:subpath   # serves dist/ at http://127.0.0.1:4321/caliber/
 ```
 
 ## Architecture

@@ -257,6 +257,25 @@ break there. Keep it that way.
 
 ---
 
+## Deployment
+
+The public site is the app itself: `https://velo4705.github.io/caliber/`.
+`.github/workflows/deploy.yml` builds `web/` and publishes it on every push to
+`main`.
+
+**One-time setup, already done by the owner:** Settings → Pages → Source →
+*GitHub Actions*. If the source is left on "Deploy from a branch", GitHub
+serves `main/docs` and the workflow is ignored — that was the old setup, and
+it is why the Qt marketing page used to be live. The `docs/` folder is now
+deleted and must not come back.
+
+`base: './'` in `vite.config.ts` is what makes the subpath work. `npm run
+serve:subpath` serves `dist/` at `http://127.0.0.1:4321/caliber/` so the
+subpath build can be checked locally before deploying. The visual check runs
+against it unchanged.
+
+---
+
 ### 3D surfaces
 
 `src/lib/graph3d.ts` implements the 3D renderer by hand — **no three.js**. The
