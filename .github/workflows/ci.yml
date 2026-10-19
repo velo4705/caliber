@@ -45,7 +45,7 @@ jobs:
             if curl -sf http://127.0.0.1:5199/ >/dev/null; then break; fi
             sleep 1
           done
-          npm run verify
+          BASE_URL=http://127.0.0.1:5199 npm run verify
 
       - uses: actions/upload-artifact@v4
         with:

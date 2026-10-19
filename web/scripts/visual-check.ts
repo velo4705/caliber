@@ -2,7 +2,7 @@ import { chromium, type ConsoleMessage, type Page } from 'playwright'
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5199'
+const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173'
 const OUT = resolve(process.cwd(), 'screenshots')
 mkdirSync(OUT, { recursive: true })
 
