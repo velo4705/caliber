@@ -230,6 +230,7 @@ npm run preview      # serve production build
 npm run typecheck    # tsc --noEmit
 npm run check        # registry validation + expression tests ← run this
 npm run verify       # headless browser checks (needs the dev server running)
+npm run bench        # expression evaluator benchmark
 ```
 
 `npm run check` is headless and runs in CI. `npm run verify` drives a real
@@ -240,6 +241,19 @@ screenshots to `web/screenshots/` — **look at them.** The first run of this
 caught five bugs the maths tests could not: duplicate React keys, every curve
 in a sweep sharing one colour, a false "unknown name" error, a control
 overlapping the axis labels, and a stale hardcoded tool count.
+
+## Branding
+
+The logo lives at `web/public/caliber.svg` — the original Qt app icon,
+recovered from git history at `b5c06dd:resources/icons/caliber.svg`. It is
+referenced twice:
+
+- `<link rel="icon">` in `index.html` for the favicon
+- the header mark, via `${import.meta.env.BASE_URL}caliber.svg`
+
+Both are **relative** paths. The app is built with `base: './'` so it can be
+deployed to any static host at any subpath; an absolute `/caliber.svg` would
+break there. Keep it that way.
 
 ---
 

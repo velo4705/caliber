@@ -1,5 +1,7 @@
 # Caliber
 
+<img src="web/public/caliber.svg" alt="Caliber" width="96" align="right" />
+
 **The universal STEM solver.** A collection of scientific, engineering and
 financial calculators that runs entirely in your browser — no account, no
 backend, no network calls.

@@ -46,7 +46,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <button className="brand" onClick={() => navigate('#/')}>
-          <span className="brand-mark">C</span>
+          <img className="brand-mark" src={`${import.meta.env.BASE_URL}caliber.svg`} alt="" width={30} height={30} />
           <span className="brand-name">
             Caliber
             <small>universal STEM solver</small>

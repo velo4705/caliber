@@ -40,6 +40,28 @@ const railItems = await page.locator('.rail-item').count()
 railItems >= 11 ? ok(`${railItems} rail items render`) : fail(`only ${railItems} rail items`)
 await shot(page, '01-home')
 
+console.log('\nbrand and favicon')
+const iconHref = await page.getAttribute('link[rel="icon"]', 'href')
+const iconStatus = await page.evaluate(async (href) => {
+  const res = await fetch(new URL(href, document.baseURI))
+  return res.status
+}, iconHref ?? '')
+iconHref?.includes('caliber.svg') ? ok(`favicon points at ${iconHref}`) : fail(`favicon href is "${iconHref}"`)
+iconStatus === 200 ? ok('favicon loads') : fail(`favicon returned ${iconStatus}`)
+
+const iconIsRelative = !iconHref?.startsWith('/')
+iconIsRelative ? ok('favicon path is relative, so it survives subpath hosting') : fail('favicon path is absolute')
+
+const markSrc = await page.getAttribute('.brand-mark', 'src')
+markSrc?.includes('caliber.svg') ? ok(`brand mark uses ${markSrc}`) : fail(`brand mark src is "${markSrc}"`)
+const markBox = await page.locator('.brand-mark').boundingBox()
+markBox && markBox.width >= 24 ? ok(`brand mark renders at ${Math.round(markBox.width)}px`) : fail('brand mark has no size')
+const markLoaded = await page.evaluate(() => {
+  const img = document.querySelector('.brand-mark') as HTMLImageElement
+  return img.complete && img.naturalWidth > 0
+})
+markLoaded ? ok('brand mark image actually loaded') : fail('brand mark image failed to load')
+
 console.log('\nsearch')
 await page.fill('.searchbar input', 'ohm')
 await page.waitForSelector('.tool-card', { timeout: 3000 })
