@@ -579,9 +579,9 @@ void GraphingWidget::buildUI() {
     il->addWidget(ilDiv);
 
     m_plotModeCombo = new QComboBox(inputRow);
-    m_plotModeCombo->addItems({"Cartesian", "Polar", "Parametric"});
+    m_plotModeCombo->addItems({"Auto", "Cartesian", "Polar", "Parametric", "Implicit"});
     m_plotModeCombo->setFixedHeight(H);
-    m_plotModeCombo->setToolTip("Plot mode");
+    m_plotModeCombo->setToolTip("Plot mode (Auto detects from expression)");
     il->addWidget(m_plotModeCombo, 0, Qt::AlignVCenter);
 
     m_funcInput = new QLineEdit(inputRow);
@@ -657,7 +657,8 @@ void GraphingWidget::buildUI() {
 #endif
     connect(m_plotModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &GraphingWidget::onPlotModeChanged);
 #ifdef HAVE_DATAVISUALIZATION
-    connect(m_rotateBtn, &QToolButton::toggled, this, &GraphingWidget::toggleAutoRotate);
+    if (m_rotateBtn)
+        connect(m_rotateBtn, &QToolButton::toggled, this, &GraphingWidget::toggleAutoRotate);
 #endif
     connect(m_xMin, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
     connect(m_xMax, &QDoubleSpinBox::valueChanged, this, [this](double){ onRangeChanged(); });
@@ -764,7 +765,7 @@ void GraphingWidget::switchDimension(bool is3D) {
 #endif
 #ifdef HAVE_DATAVISUALIZATION
         if (m_rotateBtn) m_rotateBtn->hide();
-        if (m_autoRotate) { m_autoRotate = false; m_rotateBtn->setChecked(false); if(m_rotationTimer) m_rotationTimer->stop(); }
+        if (m_autoRotate) { m_autoRotate = false; if(m_rotateBtn) m_rotateBtn->setChecked(false); if(m_rotationTimer) m_rotationTimer->stop(); }
 #endif
         plotAll();
     }
@@ -845,7 +846,28 @@ void GraphingWidget::updateFunctionList() {
     auto* chipParent = qobject_cast<QWidget*>(m_3dChipRowLayout->parent());
     for (int i = 0; i < m_entries.size(); ++i) {
         auto& entry = m_entries[i];
-        auto* chip = makeChip(chipParent, entry.expression, entry.color);
+        QString chipText;
+        QColor chipColor = entry.color;
+
+        if (entry.isParamDef) {
+            // Show parameter definition with distinct style
+            for (auto it = m_params.constBegin(); it != m_params.constEnd(); ++it) {
+                if (entry.expression.contains(it.key() + " =")) {
+                    chipText = it.key() + " \xe2\x88\x88 [" +
+                               QString::number(it.value().first(), 'g', 6) + "... " +
+                               QString::number(it.value().last(), 'g', 6) + "]";
+                    break;
+                }
+            }
+            if (chipText.isEmpty()) chipText = entry.expression;
+            chipColor = QColor(100, 149, 237); // cornflower blue for params
+        } else {
+            chipText = entry.expression;
+            if (entry.plotMode == PlotMode::Implicit)
+                chipText = entry.expression + " = " + entry.implicitRHS;
+        }
+
+        auto* chip = makeChip(chipParent, chipText, chipColor);
         m_3dChipRowLayout->addWidget(chip);
 
         auto* dot = qobject_cast<QPushButton*>(chip->property("dotBtn").value<QObject*>());
@@ -871,17 +893,45 @@ void GraphingWidget::addFunction() {
     QString expr = m_funcInput->text().trimmed();
     if (expr.isEmpty()) return;
 
-    PlotMode mode = static_cast<PlotMode>(m_plotModeCombo->currentIndex());
+    // Check if this is a parameter definition (e.g. "a = [1...5]" or "a = 1,2,3")
+    if (parseParamDef(expr)) {
+        m_funcInput->clear();
+        updateFunctionList();
+        plotAll(); // replot with new parameter values
+        return;
+    }
+
+    int comboIdx = m_plotModeCombo->currentIndex();
+    PlotMode mode;
+    if (comboIdx == 0) {
+        mode = detectPlotMode(expr);
+    } else {
+        mode = static_cast<PlotMode>(comboIdx - 1);
+    }
+
     PlotEntry e;
-    e.expression = expr;
     e.color = nextColor();
     e.visible = true;
     e.plotMode = mode;
 
-    if (mode == PlotMode::Parametric) {
+    if (mode == PlotMode::Implicit) {
+        // Split on '=' to get LHS and RHS
+        int eqPos = expr.indexOf('=');
+        if (eqPos < 0) {
+            // No '=' found — treat as "expr = 0"
+            e.expression = expr;
+            e.implicitRHS = "0";
+        } else {
+            e.expression = expr.left(eqPos).trimmed();
+            e.implicitRHS = expr.mid(eqPos + 1).trimmed();
+        }
+    } else if (mode == PlotMode::Parametric) {
+        e.expression = expr;
         e.yExpression = m_funcInputY->text().trimmed();
         if (e.yExpression.isEmpty()) return;
         m_funcInputY->clear();
+    } else {
+        e.expression = expr;
     }
 
     m_entries.append(e);
@@ -889,7 +939,6 @@ void GraphingWidget::addFunction() {
     updateFunctionList();
 #ifdef HAVE_DATAVISUALIZATION
     if (m_is3D) {
-        // Show container on first function added in 3D mode
         if (m_surface3DContainer && !m_surface3DContainer->isVisible()) {
             int ph = PANEL_HEIGHT_3D;
             m_surface3DContainer->setGeometry(0, 0, width(), height() - ph);
@@ -916,6 +965,7 @@ void GraphingWidget::removeFunction(int index) {
         m_chart->removeSeries(m_entries[index].derivSeries);
         delete m_entries[index].derivSeries;
     }
+    for (auto* s : m_entries[index].implicitChains) { m_chart->removeSeries(s); delete s; }
     m_entries.removeAt(index);
     updateFunctionList();
 #ifdef HAVE_DATAVISUALIZATION
@@ -933,10 +983,21 @@ void GraphingWidget::removeFunction(int index) {
 }
 
 // ── 2D plotting ───────────────────────────────────────────────────────────────
+static QString substituteParams(const QString& expr, const QMap<QString, double>& vals) {
+    QString result = expr;
+    for (auto it = vals.constBegin(); it != vals.constEnd(); ++it) {
+        QRegularExpression re(QString(R"((?<![a-zA-Z0-9_])%1(?![a-zA-Z0-9_]))").arg(it.key()));
+        result.replace(re, QString::number(it.value(), 'g', 15));
+    }
+    return result;
+}
+
 void GraphingWidget::plotAll() {
     for (auto& e : m_entries) {
         if (e.series) { m_chart->removeSeries(e.series); delete e.series; e.series = nullptr; }
         if (e.derivSeries) { m_chart->removeSeries(e.derivSeries); delete e.derivSeries; e.derivSeries = nullptr; }
+        for (auto* s : e.implicitChains) { m_chart->removeSeries(s); delete s; }
+        e.implicitChains.clear();
     }
     // Clear intersection markers
     for (auto* s : m_intersectMarkers) { m_chart->removeSeries(s); delete s; }
@@ -946,10 +1007,77 @@ void GraphingWidget::plotAll() {
     m_shadeSeries.clear();
 
     for (auto& e : m_entries) {
-        switch (e.plotMode) {
-        case PlotMode::Cartesian:   plotEntry(e);      break;
-        case PlotMode::Polar:       plotPolar(e);      break;
-        case PlotMode::Parametric:  plotParametric(e); break;
+        if (e.isParamDef) continue;
+
+        // Check if this entry uses any parameters
+        QStringList params = findParamsIn(e.expression);
+        if (!e.yExpression.isEmpty()) params += findParamsIn(e.yExpression);
+        if (!e.implicitRHS.isEmpty()) params += findParamsIn(e.implicitRHS);
+        params.removeDuplicates();
+
+        if (params.isEmpty()) {
+            // No parameters — plot normally
+            switch (e.plotMode) {
+            case PlotMode::Cartesian:   plotEntry(e);      break;
+            case PlotMode::Polar:       plotPolar(e);      break;
+            case PlotMode::Parametric:  plotParametric(e); break;
+            case PlotMode::Implicit:    plotImplicit(e);   break;
+            }
+        } else {
+            // Has parameters — generate all combinations and plot each
+            // Build list of value vectors for each parameter
+            QList<QString> paramNames;
+            QList<QVector<double>> paramValues;
+            for (auto& p : params) {
+                paramNames.append(p);
+                paramValues.append(m_params.value(p));
+            }
+
+            // Iterate over all combinations (cartesian product)
+            QVector<int> indices(paramNames.size(), 0);
+            bool done = false;
+            while (!done) {
+                // Build substitution map
+                QMap<QString, double> subst;
+                for (int k = 0; k < paramNames.size(); ++k)
+                    subst[paramNames[k]] = paramValues[k][indices[k]];
+
+                // Create temporary entry with substituted expressions
+                PlotEntry tmp = e;
+                tmp.expression = substituteParams(e.expression, subst);
+                if (!e.yExpression.isEmpty())
+                    tmp.yExpression = substituteParams(e.yExpression, subst);
+                if (!e.implicitRHS.isEmpty())
+                    tmp.implicitRHS = substituteParams(e.implicitRHS, subst);
+
+                // Build label showing parameter values
+                QStringList parts;
+                for (int k = 0; k < paramNames.size(); ++k)
+                    parts.append(QString("%1=%2").arg(paramNames[k]).arg(paramValues[k][indices[k]], 0, 'g', 6));
+                tmp.expression = parts.join(", ") + ": " + tmp.expression;
+
+                // Plot the temporary entry
+                switch (tmp.plotMode) {
+                case PlotMode::Cartesian:   plotEntry(tmp);      break;
+                case PlotMode::Polar:       plotPolar(tmp);      break;
+                case PlotMode::Parametric:  plotParametric(tmp); break;
+                case PlotMode::Implicit:    plotImplicit(tmp);   break;
+                }
+
+                // Move plotted series to the real entry
+                if (tmp.series) { e.implicitChains.append(tmp.series); tmp.series = nullptr; }
+                for (auto* s : tmp.implicitChains) { e.implicitChains.append(s); }
+
+                // Advance to next combination
+                int k = 0;
+                while (k < paramNames.size()) {
+                    indices[k]++;
+                    if (indices[k] < paramValues[k].size()) break;
+                    indices[k] = 0;
+                    k++;
+                }
+                done = (k >= paramNames.size());
+            }
         }
     }
     m_axisX->setRange(m_xMin->value(), m_xMax->value());
@@ -963,20 +1091,19 @@ void GraphingWidget::plotEntry(PlotEntry& entry) {
     auto* series = new QLineSeries();
     series->setName(entry.expression);
     const auto& palette = m_chartDark ? COLORS_DARK : COLORS_LIGHT;
-    // Find index of this entry's color in the palette, or use as-is
     QPen pen(entry.color); pen.setWidth(2); series->setPen(pen);
 
-    static constexpr double PLOT_RANGE = 1e4;
-    double step = (PLOT_RANGE * 2.0) / (SAMPLE_POINTS * 10);
+    // Sample wide range so graph extends endlessly when panning
+    static constexpr double PLOT_BOUND = 1000.0;
+    static constexpr double STEP = 0.1;
     double prevY = std::numeric_limits<double>::quiet_NaN();
     bool hasError = false;
 
-    for (double x = -PLOT_RANGE; x <= PLOT_RANGE; x += step) {
+    for (double x = -PLOT_BOUND; x <= PLOT_BOUND; x += STEP) {
         try {
             double y = m_parser->evaluate(entry.expression, x);
             if (!std::isfinite(y)) { prevY = std::numeric_limits<double>::quiet_NaN(); continue; }
-            double yRange = m_axisY->max() - m_axisY->min();
-            if (!std::isnan(prevY) && std::abs(y - prevY) > yRange * 10)
+            if (!std::isnan(prevY) && std::abs(y - prevY) > 1e6)
                 series->append(x, std::numeric_limits<double>::quiet_NaN());
             series->append(x, y);
             prevY = y;
@@ -998,18 +1125,17 @@ void GraphingWidget::plotEntry(PlotEntry& entry) {
         dPen.setStyle(Qt::DashLine);
         dSeries->setPen(dPen);
         const double h = 1e-5;
-        double prevY = std::numeric_limits<double>::quiet_NaN();
-        for (double x = -PLOT_RANGE; x <= PLOT_RANGE; x += step) {
+        double prevDy = std::numeric_limits<double>::quiet_NaN();
+        for (double x = -PLOT_BOUND; x <= PLOT_BOUND; x += STEP) {
             try {
                 double dy = (m_parser->evaluate(entry.expression, x+h)
                            - m_parser->evaluate(entry.expression, x-h)) / (2*h);
-                if (!std::isfinite(dy)) { prevY = std::numeric_limits<double>::quiet_NaN(); continue; }
-                double yRange = m_axisY->max() - m_axisY->min();
-                if (!std::isnan(prevY) && std::abs(dy - prevY) > yRange * 10)
+                if (!std::isfinite(dy)) { prevDy = std::numeric_limits<double>::quiet_NaN(); continue; }
+                if (!std::isnan(prevDy) && std::abs(dy - prevDy) > 1e6)
                     dSeries->append(x, std::numeric_limits<double>::quiet_NaN());
                 dSeries->append(x, dy);
-                prevY = dy;
-            } catch (...) { prevY = std::numeric_limits<double>::quiet_NaN(); }
+                prevDy = dy;
+            } catch (...) { prevDy = std::numeric_limits<double>::quiet_NaN(); }
         }
         m_chart->addSeries(dSeries);
         dSeries->attachAxis(m_axisX); dSeries->attachAxis(m_axisY);
@@ -1130,21 +1256,28 @@ void GraphingWidget::shadeIntegrals() {
 
 // ── Plot mode change ───────────────────────────────────────────────────────────
 void GraphingWidget::onPlotModeChanged(int index) {
-    PlotMode mode = static_cast<PlotMode>(index);
-    bool isParametric = (mode == PlotMode::Parametric);
+    // index 0=Auto, 1=Cartesian, 2=Polar, 3=Parametric, 4=Implicit
+    bool isParametric = (index == 3);
+    bool isImplicit = (index == 4);
     m_paramLabel->setVisible(isParametric);
     m_funcInputY->setVisible(isParametric);
 
-    switch (mode) {
-    case PlotMode::Cartesian:
+    switch (index) {
+    case 0: // Auto
+        m_funcInput->setPlaceholderText("e.g.  sin(x),  r=sin(3*theta),  (cos(t),sin(t)),  x^2+y^2=1");
+        break;
+    case 1: // Cartesian
         m_funcInput->setPlaceholderText("e.g.  sin(x)  or  x^2 - 4");
         break;
-    case PlotMode::Polar:
+    case 2: // Polar
         m_funcInput->setPlaceholderText("e.g.  2*sin(3*theta)  or  1 + cos(theta)");
         break;
-    case PlotMode::Parametric:
+    case 3: // Parametric
         m_funcInput->setPlaceholderText("x(t) e.g.  cos(t)");
         m_funcInputY->setPlaceholderText("y(t) e.g.  sin(t)");
+        break;
+    case 4: // Implicit
+        m_funcInput->setPlaceholderText("e.g.  x^2 + y^2 = 1  or  (x^2+y^2-1)^3 = x^2*y^3");
         break;
     }
 }
@@ -1211,6 +1344,183 @@ void GraphingWidget::plotParametric(PlotEntry& entry) {
     series->attachAxis(m_axisX); series->attachAxis(m_axisY);
     series->setVisible(entry.visible);
     entry.series = series;
+}
+
+// ── Implicit plotting (marching squares with contour tracing) ─────────────────
+void GraphingWidget::plotImplicit(PlotEntry& entry) {
+    QString diffExpr = "(" + entry.expression + ")-(" + entry.implicitRHS + ")";
+
+    const double xLo = m_xMin->value();
+    const double xHi = m_xMax->value();
+    const double yLo = m_yMin->value();
+    const double yHi = m_yMax->value();
+
+    static constexpr int GRID = 500;
+    const double dx = (xHi - xLo) / GRID;
+    const double dy = (yHi - yLo) / GRID;
+
+    // Evaluate f(x,y) on the grid
+    QVector<QVector<double>> grid(GRID + 1, QVector<double>(GRID + 1));
+    for (int i = 0; i <= GRID; ++i) {
+        double x = xLo + i * dx;
+        for (int j = 0; j <= GRID; ++j) {
+            double y = yLo + j * dy;
+            try { grid[i][j] = m_parser->evaluate(diffExpr, x, y); }
+            catch (...) { grid[i][j] = std::numeric_limits<double>::quiet_NaN(); }
+        }
+    }
+
+    auto lerp = [](double v1, double v2, double a, double b) -> double {
+        if (std::abs(v1 - v2) < 1e-30) return (a + b) / 2.0;
+        double t = v1 / (v1 - v2);
+        return a + t * (b - a);
+    };
+
+    // Edge-based marching squares
+    // Horizontal edge hEdge[i][j]: bottom edge of cell (i,j), from (i,j) to (i+1,j)
+    //   exists for i in [0,GRID), j in [0,GRID]
+    // Vertical edge vEdge[i][j]: right edge of cell (i,j), from (i+1,j) to (i+1,j+1)
+    //   exists for i in [0,GRID], j in [0,GRID)
+    // An edge crossing is stored as an index into a point array (-1 = no crossing)
+
+    QVector<QVector<int>> hEdge(GRID, QVector<int>(GRID + 1, -1));
+    QVector<QVector<int>> vEdge(GRID + 1, QVector<int>(GRID, -1));
+    QVector<QPointF> pts; // crossing points, indexed by edge crossing index
+
+    auto addCrossing = [&](int i, int j, bool horizontal) -> int {
+        double x0, y0, v1, v2;
+        if (horizontal) {
+            // Bottom edge of cell (i,j): from (xLo+i*dx, yLo+j*dy) to (xLo+(i+1)*dx, yLo+j*dy)
+            x0 = xLo + i * dx; y0 = yLo + j * dy;
+            v1 = grid[i][j]; v2 = grid[i + 1][j];
+        } else {
+            // Vertical edge at x-position i: from (xLo+i*dx, yLo+j*dy) to (xLo+i*dx, yLo+(j+1)*dy)
+            x0 = xLo + i * dx; y0 = yLo + j * dy;
+            v1 = grid[i][j]; v2 = grid[i][j + 1];
+        }
+        if (!std::isfinite(v1) || !std::isfinite(v2) || v1 * v2 >= 0) return -1;
+        int idx = pts.size();
+        if (horizontal)
+            pts.append(QPointF(lerp(v1, v2, x0, x0 + dx), y0));
+        else
+            pts.append(QPointF(x0, lerp(v1, v2, y0, y0 + dy)));
+        return idx;
+    };
+
+    // Compute all edge crossings
+    for (int i = 0; i < GRID; ++i)
+        for (int j = 0; j <= GRID; ++j)
+            hEdge[i][j] = addCrossing(i, j, true);
+    for (int i = 0; i <= GRID; ++i)
+        for (int j = 0; j < GRID; ++j)
+            vEdge[i][j] = addCrossing(i, j, false);
+
+    // Build segments: each segment connects two edge crossing indices
+    struct Seg { int a, b; };
+    QList<Seg> segs;
+
+    for (int i = 0; i < GRID; ++i) {
+        for (int j = 0; j < GRID; ++j) {
+            double v00 = grid[i][j], v10 = grid[i+1][j];
+            double v11 = grid[i+1][j+1], v01 = grid[i][j+1];
+            if (!std::isfinite(v00) || !std::isfinite(v10) ||
+                !std::isfinite(v11) || !std::isfinite(v01)) continue;
+
+            int c = 0;
+            if (v00 > 0) c |= 1;  if (v10 > 0) c |= 2;
+            if (v11 > 0) c |= 4;  if (v01 > 0) c |= 8;
+            if (c == 0 || c == 15) continue;
+
+            // Edge indices: B=hEdge[i][j], R=vEdge[i+1][j], T=hEdge[i][j+1], L=vEdge[i][j]
+            int B = hEdge[i][j], R = vEdge[i+1][j], T = hEdge[i][j+1], L = vEdge[i][j];
+
+            switch (c) {
+            case 1: case 14: if (B >= 0 && L >= 0) segs.append({B, L}); break;
+            case 2: case 13: if (B >= 0 && R >= 0) segs.append({B, R}); break;
+            case 3: case 12: if (L >= 0 && R >= 0) segs.append({L, R}); break;
+            case 4: case 11: if (T >= 0 && R >= 0) segs.append({T, R}); break;
+            case 6: case 9:  if (B >= 0 && T >= 0) segs.append({B, T}); break;
+            case 7: case 8:  if (L >= 0 && T >= 0) segs.append({L, T}); break;
+            case 5: case 10: { // saddle
+                double ctr = (v00 + v10 + v11 + v01) / 4.0;
+                if ((c == 5) == (ctr > 0)) {
+                    if (B >= 0 && R >= 0) segs.append({B, R});
+                    if (L >= 0 && T >= 0) segs.append({L, T});
+                } else {
+                    if (B >= 0 && L >= 0) segs.append({B, L});
+                    if (R >= 0 && T >= 0) segs.append({R, T});
+                }
+                break;
+            }
+            default: break;
+            }
+        }
+    }
+
+    // Trace chains using edge-crossing indices as node IDs
+    // Build adjacency: for each crossing index, which other crossing indices is it connected to?
+    QMap<int, QList<int>> adj;
+    for (auto& s : segs) {
+        adj[s.a].append(s.b);
+        adj[s.b].append(s.a);
+    }
+
+    QSet<int> visited;
+    QList<QList<int>> chains;
+
+    for (auto it = adj.constBegin(); it != adj.constEnd(); ++it) {
+        if (visited.contains(it.key())) continue;
+
+        int start = it.key();
+        visited.insert(start);
+        QList<int> chain;
+        chain.append(start);
+
+        // Extend forward
+        bool ext = true;
+        while (ext) {
+            ext = false;
+            int back = chain.last();
+            for (int nb : adj.value(back)) {
+                if (visited.contains(nb)) continue;
+                visited.insert(nb);
+                chain.append(nb);
+                ext = true;
+                break;
+            }
+        }
+        // Extend backward
+        ext = true;
+        while (ext) {
+            ext = false;
+            int front = chain.first();
+            for (int nb : adj.value(front)) {
+                if (visited.contains(nb)) continue;
+                visited.insert(nb);
+                chain.prepend(nb);
+                ext = true;
+                break;
+            }
+        }
+
+        if (chain.size() >= 2)
+            chains.append(chain);
+    }
+
+    // Build one QLineSeries per chain (no NaN needed)
+    QPen pen(entry.color); pen.setWidth(2);
+
+    for (auto& chain : chains) {
+        auto* s = new QLineSeries();
+        s->setName(entry.expression + " = " + entry.implicitRHS);
+        s->setPen(pen);
+        for (int idx : chain)
+            s->append(pts[idx].x(), pts[idx].y());
+        m_chart->addSeries(s);
+        s->attachAxis(m_axisX); s->attachAxis(m_axisY);
+        s->setVisible(entry.visible);
+        entry.implicitChains.append(s);
+    }
 }
 
 // ── 3D plotting ───────────────────────────────────────────────────────────────
@@ -1362,6 +1672,93 @@ QColor GraphingWidget::nextColor() {
     return palette[m_colorIndex++ % NUM_COLORS];
 }
 
+PlotMode GraphingWidget::detectPlotMode(const QString& expr) const {
+    QString e = expr.trimmed().toLower();
+
+    // Implicit: contains 'y' and '=' (e.g. "x^2 + y^2 = 1")
+    if (e.contains('y') && e.contains('=')) return PlotMode::Implicit;
+
+    // Parametric: starts with '(' and has two comma-separated expressions with 't'
+    if (e.startsWith('(')) {
+        // Check for pattern (expr, expr)
+        int depth = 0;
+        for (int i = 0; i < e.size(); ++i) {
+            if (e[i] == '(') depth++;
+            else if (e[i] == ')') depth--;
+            else if (e[i] == ',' && depth == 1) {
+                // Found top-level comma — parametric
+                return PlotMode::Parametric;
+            }
+        }
+    }
+
+    // Polar: contains 'theta' or 'r' as standalone variable
+    if (e.contains("theta")) return PlotMode::Polar;
+
+    // Default: Cartesian
+    return PlotMode::Cartesian;
+}
+
+bool GraphingWidget::parseParamDef(const QString& expr) {
+    // Match: name = [min...max]  or  name = min,max,min,max,...
+    static QRegularExpression reRange(R"(^\s*([a-zA-Z_]\w*)\s*=\s*\[([^\]]+)\]\s*$)");
+    static QRegularExpression reList(R"(^\s*([a-zA-Z_]\w*)\s*=\s*([0-9eE.,+\- ]+)\s*$)");
+
+    auto match = reRange.match(expr);
+    if (match.hasMatch()) {
+        QString name = match.captured(1);
+        QString range = match.captured(2);
+        // Parse min...max or min...max...step
+        QStringList parts = range.split("...");
+        if (parts.size() >= 2) {
+            double lo = parts[0].trimmed().toDouble();
+            double hi = parts[1].trimmed().toDouble();
+            double step = (parts.size() >= 3) ? parts[2].trimmed().toDouble() : 0;
+            QVector<double> values;
+            if (step > 0) {
+                for (double v = lo; v <= hi + 1e-12; v += step)
+                    values.append(v);
+            } else {
+                // Auto-step: ~20 values
+                int n = qMax(2, qMin(50, static_cast<int>((hi - lo) / 0.1 + 1)));
+                for (int i = 0; i < n; ++i)
+                    values.append(lo + (hi - lo) * i / (n - 1));
+            }
+            m_params[name] = values;
+            return true;
+        }
+    }
+
+    match = reList.match(expr);
+    if (match.hasMatch()) {
+        QString name = match.captured(1);
+        QString list = match.captured(2);
+        QVector<double> values;
+        for (auto& s : list.split(',')) {
+            bool ok;
+            double v = s.trimmed().toDouble(&ok);
+            if (ok) values.append(v);
+        }
+        if (!values.isEmpty()) {
+            m_params[name] = values;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+QStringList GraphingWidget::findParamsIn(const QString& expr) const {
+    QStringList found;
+    for (auto it = m_params.constBegin(); it != m_params.constEnd(); ++it) {
+        // Check if parameter name appears as a standalone word
+        QRegularExpression re(QString(R"((?<![a-zA-Z0-9_])%1(?![a-zA-Z0-9_]))").arg(it.key()));
+        if (re.match(expr).hasMatch())
+            found.append(it.key());
+    }
+    return found;
+}
+
 // ── 3D theme sync ─────────────────────────────────────────────────────────────
 #ifdef HAVE_DATAVISUALIZATION
 void GraphingWidget::sync3DTheme() {
@@ -1384,6 +1781,7 @@ void GraphingWidget::sync3DTheme() {
 
 // ── 3D auto-rotation ──────────────────────────────────────────────────────────
 void GraphingWidget::toggleAutoRotate() {
+    if (!m_rotateBtn) return;
     m_autoRotate = m_rotateBtn->isChecked();
     if (m_autoRotate) {
         if (!m_rotationTimer) {

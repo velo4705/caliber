@@ -84,7 +84,6 @@ void ModeSidebar::buildLayout() {
         auto* title = new QLabel("Caliber", container);
         title->setObjectName("sidebarTitle");
         title->setAlignment(Qt::AlignCenter);
-        title->setStyleSheet("font-weight:bold; font-size:15px; margin-bottom:8px;");
         innerLayout->addWidget(title);
 
         for (int i = 0; i < m_buttons.size(); ++i) {

@@ -27,16 +27,19 @@ class QComboBox;
 class FunctionParser;
 class ZoomChartView;
 
-enum class PlotMode { Cartesian = 0, Polar, Parametric };
+enum class PlotMode { Cartesian = 0, Polar, Parametric, Implicit };
 
 struct PlotEntry {
     QString      expression;
     QString      yExpression; // for parametric mode: y(t)
+    QString      implicitRHS; // for implicit mode: RHS of "LHS = RHS"
     QColor       color;
     PlotMode     plotMode = PlotMode::Cartesian;
     bool         visible = true;
+    bool         isParamDef = false; // parameter definition (e.g. "a = [1...5]")
     QLineSeries* series      = nullptr;
     QLineSeries* derivSeries = nullptr; // f'(x) overlay
+    QList<QLineSeries*> implicitChains; // for implicit: one series per contour chain
 };
 
 class GraphingWidget : public QWidget {
@@ -65,6 +68,7 @@ private:
     void plotEntry(PlotEntry& entry);
     void plotPolar(PlotEntry& entry);
     void plotParametric(PlotEntry& entry);
+    void plotImplicit(PlotEntry& entry);
     void applyChartTheme();
     void findIntersections();
     void shadeIntegrals();
@@ -88,6 +92,9 @@ private:
     void repositionOverlays();
     void switchDimension(bool is3D);
     QColor nextColor();
+    PlotMode detectPlotMode(const QString& expr) const;
+    bool parseParamDef(const QString& expr); // returns true if expr is a param definition
+    QStringList findParamsIn(const QString& expr) const;
 
     int  panelY() const;
     void setPanelY(int y);
@@ -137,6 +144,7 @@ private:
     QList<QAreaSeries*> m_shadeSeries;
 
     QVector<PlotEntry> m_entries;
+    QMap<QString, QVector<double>> m_params; // parameter name → values
     FunctionParser*    m_parser;
 
     bool m_is3D = false;

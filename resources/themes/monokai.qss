@@ -8,7 +8,8 @@ QMainWindow, QWidget { background-color: #272822; color: #f8f8f2; }
     min-width: 148px; max-width: 148px;
 }
 #modeSidebar QLabel { color: #a6e22e; font-size: 15px; font-weight: bold; padding: 4px 0 12px 0; }
-#modeSidebar QPushButton { background: transparent; border: none; border-radius: 8px; padding: 10px 12px; text-align: left; color: #75715e; font-size: 13px; }
+#modeSidebar #sidebarTitle { color: #f8f8f2; font-size: 18px; font-weight: bold; letter-spacing: 2px; padding: 8px 0 16px 0; }
+#modeSidebar QPushButton { background: transparent; border: none; border-radius: 8px; padding: 10px 12px; text-align: left; color: #c0c0b8; font-size: 13px; }
 #modeSidebar QPushButton:hover { background: rgba(166,226,46,0.1); color: #f8f8f2; }
 #modeSidebar QPushButton:checked { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 rgba(166,226,46,0.2), stop:1 rgba(166,226,46,0.05)); color: #a6e22e; font-weight: bold; border-left: 3px solid #e6db74; }
 
@@ -80,7 +81,7 @@ QHeaderView::section { background: #272822; color: #a6e22e; border: 1px solid #4
 }
 #graphSidebar QDoubleSpinBox {
     background: #1e1e1a;
-    border: 1px solid #49483e;
+    border: 1px solid #1e1e1a;
     border-radius: 4px;
     color: #f8f8f2;
 }

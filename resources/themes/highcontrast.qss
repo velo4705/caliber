@@ -24,6 +24,7 @@ QMainWindow, QWidget {
     font-weight: bold;
     padding: 4px 0 12px 0;
 }
+#modeSidebar #sidebarTitle { color: #ffffff; font-size: 18px; font-weight: bold; letter-spacing: 2px; padding: 8px 0 16px 0; }
 
 #modeSidebar QPushButton {
     background: transparent;

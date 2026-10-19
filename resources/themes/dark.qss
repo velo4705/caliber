@@ -24,6 +24,7 @@ QMainWindow, QWidget {
     font-weight: bold;
     padding: 4px 0 12px 0;
 }
+#modeSidebar #sidebarTitle { color: #f0f0f0; font-size: 18px; font-weight: bold; letter-spacing: 2px; padding: 8px 0 16px 0; }
 
 #modeSidebar QPushButton {
     background: transparent;
@@ -327,7 +328,7 @@ QLabel { color: #cccccc; background: transparent; }
 }
 #graphSidebar QDoubleSpinBox {
     background: #1a1a1a;
-    border: 1px solid #333333;
+    border: 1px solid #1a1a1a;
     border-radius: 4px;
     color: #cccccc;
 }
