@@ -1,47 +1,38 @@
-# Build directories
-build/
-build_*/
-cmake-build-*/
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
 
-# CMake generated
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-*.cmake
-
-# Compiled binaries
-caliber
-*.o
-*.a
-*.so
-
-# Qt generated
-*_autogen/
-*.qm
-
-# Package output (upload to GitHub Releases, not committed to repo)
+# Build output
 dist/
+dist-ssr/
+build/
+*.local
 
-# Flatpak build artifacts
-.flatpak-builder/
-build_flatpak/
-build_flatpak_repo/
+# Caches
+.cache/
+.eslintcache
+.vite/
+*.tsbuildinfo
 
-# IDE files
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Editors
 .vscode/
 .idea/
-*.user
-*.pro.user
+*.swp
+*.swo
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
-
-ROADMAP.md
-
-CONTEXT.md
-
-notetoself.md
-
-screenshots/

@@ -1,144 +1,119 @@
 # Caliber
 
-A graphical calculator built with C++ and Qt6. Covers every calculation mode a STEM student needs — from basic arithmetic to university-level solvers across 22 modes.
+**The universal STEM solver.** A collection of scientific, engineering and
+financial calculators that runs entirely in your browser — no account, no
+backend, no network calls.
 
-**[Website](https://velo4705.github.io/caliber)** · [Releases](../../releases) · [Issues](../../issues)
+> Caliber is a universal solver for STEM students, engineers and anyone who
+> needs an answer to a formula quickly and can trust the result.
 
-![Caliber](resources/icons/caliber.svg)
+## Why it works the way it does
 
+Most calculator apps hardwire every tool into the UI. In Caliber, **a solver is
+data, not a component**. Each tool is a plain object:
 
+```ts
+export default {
+  id: 'ohm',
+  category: 'electrical',
+  name: "Ohm's Law",
+  keywords: ['ohm', 'resistance', 'voltage', 'current'],
+  inputs:  [{ key: 'V', label: 'Voltage', unit: 'V' }, /* … */],
+  outputs: [{ key: 'I', label: 'Current', unit: 'A', formula: 'I = V / R' }],
+  compute: (v) => ({ V: derive(v.V, v.I * v.R), I: derive(v.I, v.V / v.R) }),
+  reference: ['V = I × R', 'P = V × I = I²R = V²/R'],
+}
+```
 
----
+The sidebar, search, category grouping, shareable URLs and the copy action are
+all *derived* from that registry. Adding a solver means adding one file.
 
-## Modes
+## Solvers
 
-| Mode | Description |
-|---|---|
-| Basic | Arithmetic with live expression preview |
-| Scientific | Trig, logarithms, powers, constants (π, e), DEG/RAD/GRAD |
-| Programming | HEX/DEC/OCT/BIN, bitwise ops, 8–64 bit width, bit visualizer |
-| Date | Date difference, add/subtract durations, age calculator, day of week |
-| Conversion | 13 unit categories + live currency conversion via API |
-| Equations | Linear, quadratic, system solver (Gaussian), matrix operations |
-| Graphing | 2D/3D plotter, polar/parametric, zoom/pan/trace, integral shading, derivative overlay, intersections |
-| Statistics | Descriptive stats, distributions, hypothesis testing, regression, ANOVA, chi-square, histogram |
-| Calculus | Symbolic differentiation, integration (single/double/triple), limits, Taylor series, root finder |
-| Financial | Compound interest, loans, NPV/IRR, percentage calculations |
-| Number Theory | Primes, GCD/LCM, modular arithmetic, base conversion, sequences |
-| Electrical | Ohm's law, RLC circuits, voltage dividers, op-amps, dB, phasors, power factor |
-| Digital Logic | Truth tables, K-maps, number systems, flip-flops, adders, MUX/DEMUX, IEEE 754 |
-| Vectors | Arithmetic, dot/cross products, magnitude, angle, projection, line/plane equations |
-| Physics | Kinematics, Newton's laws, energy, projectile motion, waves, thermodynamics, electrostatics |
-| Chemistry | Molar mass, ideal gas law, pH, dilution, thermochemistry |
-| Civil/Mech | Beam analysis, stress/strain, fluid mechanics, heat transfer, gears |
-| Advanced Math | Complex numbers, linear algebra, series, triangle solver, polynomials, set theory |
-| Discrete Math | Graph theory (BFS/DFS/Dijkstra), combinatorics, relations, recurrence, Boolean algebra |
-| MCS | Asymptotic analysis, Master Theorem, floating point, formal logic, hashing |
-| Signal Processing | DFT, filter design, sampling/Nyquist, convolution, transfer functions |
-| Control Systems | Transfer functions, Routh-Hurwitz, PID tuning, steady-state error, state space |
-
----
-
-## Features
-
-### Solvers
-- Step-by-step breakdowns across multiple modes (equations, calculus, statistics, vectors, etc.)
-- Keyboard input — type directly using keyboard/numpad in Basic, Scientific, and Programming modes
-- Live expression preview — see results as you type
-
-### Graphing
-- 2D: Multiple functions, zoom/pan/trace, derivative overlay (f'), integral shading, intersection finder
-- 3D: Surface plotter (requires OpenGL), auto-rotation, multiple surfaces
-- Polar and parametric plotting modes
-- Export plots as PNG/JPEG
-
-### Themes
-- 9 built-in themes: Light, Dark, Midnight, Dracula, Nord, Monokai, Solarized, High Contrast, Follow System
-- **Custom Gradient Theme** — pick any two colors, auto-derives all UI colors with luminance-based contrast
-- Community themes — drop `.qss` files in `~/.config/Caliber/themes/`
-- Accent color override via View menu
-
-### Interface
-- Resizable sidebar — drag to resize, shows full mode names
-- History panel — search, filter, pin entries, export to TXT/CSV
-- Formula Book — searchable reference with ~80 formulas across all modes
-- Per-mode formula filtering — shows only formulas relevant to current mode
-- Global solver search bar — jump to any mode+tab instantly
-- Smooth mode transitions — cross-fade animation between modes
-- Font size control — 10–18pt, persisted in settings
-
----
-
-## Installation
-
-Download the package for your platform from the [Releases](../../releases) page.
-
-| Platform | Package | Install method |
+| Category | Count | Examples |
 |---|---|---|
-| Ubuntu / Debian | `caliber-2.0.0.deb` | `sudo dpkg -i caliber-2.0.0.deb` |
-| Fedora / RHEL | `caliber-2.0.0.rpm` | `sudo rpm -i caliber-2.0.0.rpm` |
-| Arch Linux | `PKGBUILD` | `makepkg -si` |
-| Any Linux | `caliber-2.0.0.tar.gz` | Extract and run |
-| Windows | `Caliber-2.0.0-Setup.exe` | Run installer |
-| Windows (portable) | `Caliber-2.0.0-Windows-x64.zip` | Extract and run `caliber.exe` |
-| macOS | `Caliber-2.0.0.dmg` | Open and drag to Applications |
+| Algebra | 5 | Quadratic roots, divisors, nCr/nPr, percent change, logarithms |
+| Statistics | 4 | Descriptive, z-score, linear regression, binomial |
+| Geometry & Vectors | 4 | Magnitude, dot & cross product, triangle solver |
+| Physics | 5 | SUVAT, projectile, energy & momentum, waves, Newton's laws |
+| Chemistry | 4 | Molar mass, pH, dilution, ideal gas law |
+| Electrical | 3 | Ohm's law, resistor networks, AC RLC impedance |
+| Engineering | 3 | Beam deflection, stress & strain, material properties |
+| Computing | 3 | Number bases, bitwise ops, expression evaluator |
+| Finance | 3 | Compound interest, loan repayment, break-even |
+| Units | 12 | Length, mass, volume, time, speed, energy, pressure, area, force, angle, data, temperature |
 
----
+## Solve for the unknown
 
-### Linux — build from source
+Many solvers implement the `derive()` pattern: supply any sufficient subset of
+terms and it returns the rest.
+
+```
+#t/ohm?V=12&R=470     →  I = 0.0255 A,  P = 0.306 W
+#t/ideal-gas?v=5&n=2&t=300   →  P = 9.84 atm
+```
+
+Values live in the URL, so every calculation is a shareable link.
+
+## Expression engine
+
+Caliber ships its own recursive-descent parser — a TypeScript port of the
+original C++ engine — so expressions evaluate instantly and offline:
+
+```
+2^3^2      →  512        (right associative)
+-2^2       →  -4         (unary binds looser than power)
+2(3+4)     →  14         (implicit multiplication)
+sin(30)    →  0.5        (in degrees)
+gcd(12,18) →  6
+10!        →  3628800
+```
+
+Try it live at `#/t/expression-eval`. Supports 40+ functions, constants
+(`pi`, `e`, `tau`, `phi`), factorial via Lanczos gamma, and DEG/RAD/GRAD modes.
+
+## Running it
 
 ```bash
-# Fedora / Ultramarine
-sudo dnf install qt6-qtbase-devel qt6-qtcharts-devel qt6-qtdatavis3d-devel
-
-# Ubuntu / Debian
-sudo apt install qt6-base-dev qt6-charts-dev
-
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
-cmake --build . --parallel $(nproc)
-sudo cmake --install .
+cd web
+npm install
+npm run dev        # dev server
+npm run build      # production build → web/dist
+npm run preview    # serve the production build locally
+npm run typecheck  # tsc --noEmit
+npm run check      # registry validation + expression engine tests
 ```
 
-### Windows — build from source
+`npm run check` is the important one — it validates every registered tool at
+build time (duplicate IDs, unknown categories, outputs that `compute()` never
+returns, functions that throw) and runs the expression engine test suite.
 
-```bat
-windows\build.bat C:\Qt\6.8.0\msvc2019_64
-```
+## Deploying
 
-### macOS — build from source
+`base` is set to `'./'` in `vite.config.ts`, so `web/dist/` works on any static
+host without path rewriting.
 
 ```bash
-brew install qt create-dmg librsvg
-bash package/build_macos.sh
+npm run build
+# copy web/dist/ to GitHub Pages, Netlify, Cloudflare Pages, S3, anything
 ```
 
----
+## Architecture
 
-## Keyboard Shortcuts
+```
+web/src/
+├── registry/      types, categories, loader + validator
+├── tools/         one file per category — every solver is data
+├── lib/           expression parser, hash router, hooks, formatting
+└── components/    ToolView, InputField, OutputGrid, CategoryRail
+```
 
-| Shortcut | Action |
-|---|---|
-| `Ctrl+1` – `Ctrl+7` | Switch to mode 1–7 |
-| `Ctrl+H` | Toggle history panel |
-| `Ctrl+F` | Toggle formula book |
-| `Ctrl+Shift+S` | Theme: Follow System |
-| `Ctrl+Shift+L` | Theme: Light |
-| `Ctrl+Shift+D` | Theme: Dark |
-| `Enter` | Calculate |
-| `Backspace` | Delete last character |
-| `Escape` | Clear |
-
----
-
-## Stack
-
-- C++17
-- Qt6 (Widgets · Charts · DataVisualization · Network)
-- CMake 3.16+
-
----
+- **No runtime dependencies beyond React.** Charts, graphing and any CAS are
+  intentionally not included yet.
+- **Hash routing** means the app is a single static bundle with no server
+  rewrite rules.
+- **Every calculation is client-side.** Nothing is transmitted anywhere.
 
 ## License
 
-See [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
