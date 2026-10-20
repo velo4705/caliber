@@ -36,4 +36,5 @@ const server = createServer(async (req, res) => {
   }
 })
 
-server.listen(4321, '127.0.0.1', () => console.log('serving dist/ at http://127.0.0.1:4321' + PREFIX + '/'))
+const port = Number(process.env.PORT ?? 4321)
+server.listen(port, '127.0.0.1', () => console.log(`serving ${DIST} at http://127.0.0.1:${port}${PREFIX}/`))
