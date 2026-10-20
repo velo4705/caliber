@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChartTool, GraphMode } from '../registry/types'
-import { compileExpression, evaluateNode } from '../lib/expr'
+import { compileExpression, evaluateNode, type Node } from '../lib/expr'
 import { CATEGORY_MAP } from '../registry/categories'
 import { navigate } from '../lib/router'
 import { formatNumber } from '../lib/format'
@@ -132,7 +132,6 @@ export function GraphView({ tool, params }: Props) {
     for (const fn of graph.functions) {
       const src = (exprs[fn.key] ?? '').trim()
       if (!src || slots.defs[fn.key]) continue
-      const probe = compileExpression(src)
       const vars: Record<string, number> = { x: 1, y: 1, t: 1 }
       for (const name of slots.names) {
         if (!usesParam(src, name)) continue
@@ -140,7 +139,7 @@ export function GraphView({ tool, params }: Props) {
         if (combo) vars[name] = combo[name] as number
       }
       try {
-        evaluateNode(probe, vars, 'rad')
+        evaluateNode(compileExpression(src), vars, 'rad')
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Invalid expression'
         out[fn.key] = msg.includes('Unknown name')
@@ -184,8 +183,14 @@ export function GraphView({ tool, params }: Props) {
 
 const evaluators = useMemo(() => {
     return plots.map(({ key, fn, src, vars }, i) => {
-      const node = compileExpression(src)
+      let node: Node | undefined
+      try {
+        node = compileExpression(src)
+      } catch {
+        node = undefined
+      }
       const call = (extra: Record<string, number>) => {
+        if (!node) return NaN
         try {
           return evaluateNode(node, { ...vars, ...extra }, 'rad')
         } catch {
@@ -193,7 +198,7 @@ const evaluators = useMemo(() => {
         }
       }
       const color = fn.color ?? (PALETTE[i % PALETTE.length] as string)
-      return { key, uid: `${key}#${i}`, color, call, src, vars }
+      return { key, uid: `${key}#${i}`, color, call, src, vars, valid: node !== undefined }
     })
   }, [plots])
 

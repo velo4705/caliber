@@ -9,6 +9,7 @@
   --accent: #4f46e5;
   --accent-soft: #eef0fe;
   --accent-text: #ffffff;
+  --danger: #dc2626;
   --shadow: 0 1px 2px rgba(16, 20, 35, 0.05), 0 8px 24px rgba(16, 20, 35, 0.06);
   --radius: 12px;
   --radius-sm: 8px;
@@ -26,6 +27,7 @@
   --accent: #8b8cf8;
   --accent-soft: #23243c;
   --accent-text: #0d0f15;
+  --danger: #f87171;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
@@ -828,11 +830,7 @@ button {
 .graph-error {
   flex-basis: 100%;
   font-size: 11.5px;
-  color: #dc2626;
-}
-
-[data-theme='dark'] .graph-error {
-  color: #f87171;
+  color: var(--danger);
 }
 
 .graph-count {
@@ -865,6 +863,16 @@ button {
   outline: none;
   border-color: var(--accent);
   background: var(--surface-2);
+}
+
+.graph-fn input[aria-invalid='true'] {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+}
+
+.graph-fn input[aria-invalid='true']:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
 }
 
 .graph-stage {

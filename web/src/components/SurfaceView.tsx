@@ -63,22 +63,26 @@ export function SurfaceView({ tool, params }: Props) {
     return () => mo.disconnect()
   }, [])
 
-  const mesh = useMemo(() => {
-    let evaluate: (x: number, y: number) => number
+  const compiled = useMemo(() => {
     try {
-      const node = compileExpression(expr)
-      evaluate = (x, y) => {
-        try {
-          return evaluateNode(node, { x, y }, 'rad')
-        } catch {
-          return NaN
-        }
+      return { node: compileExpression(expr), error: undefined as string | undefined }
+    } catch (e) {
+      return { node: undefined, error: e instanceof Error ? e.message : 'Invalid expression' }
+    }
+  }, [expr])
+
+  const mesh = useMemo(() => {
+    const node = compiled.node
+    const evaluate = (x: number, y: number) => {
+      if (!node) return NaN
+      try {
+        return evaluateNode(node, { x, y }, 'rad')
+      } catch {
+        return NaN
       }
-    } catch {
-      evaluate = () => NaN
     }
     return buildSurface(evaluate, { ...bounds, resolution: 40 })
-  }, [expr, bounds])
+  }, [compiled, bounds])
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
@@ -223,6 +227,7 @@ export function SurfaceView({ tool, params }: Props) {
             type="text"
             spellCheck={false}
             autoComplete="off"
+            aria-invalid={compiled.error ? true : undefined}
             placeholder="z = f(x, y)"
             value={expr}
             onChange={(e) => {
@@ -230,6 +235,7 @@ export function SurfaceView({ tool, params }: Props) {
               history.replaceState(null, '', `#/t/${tool.id}?${key}=${encodeURIComponent(e.target.value)}`)
             }}
           />
+          {compiled.error && <span className="graph-error">{compiled.error}</span>}
         </div>
       </div>
 

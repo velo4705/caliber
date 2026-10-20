@@ -22,6 +22,8 @@ export interface ToolOutput {
   precision?: number
   needs?: string
   emphasis?: 'primary' | 'secondary'
+  /** Hide the row entirely when the value is undefined. */
+  optional?: boolean
 }
 
 export type Values = Record<string, number | string | number[] | undefined>

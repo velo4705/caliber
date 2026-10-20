@@ -185,6 +185,10 @@ without a browser.
 - **No comments** unless they explain a non-obvious constraint. A comment
   that restates the code is noise.
 - **One file per category** in `web/src/tools/`, each exporting a `Tool[]`.
+- **Never let user input throw during render.** `compileExpression()` raises
+  on invalid syntax, and a half-typed expression is invalid. Compile inside a
+  `try`, treat a failure as "no data", and show the message next to the
+  field. A throw inside a `useMemo` unmounts the whole view.
 - **Plain CSS** in `web/src/styles.css`, using the custom properties already
   defined there. `[data-theme='dark']` overrides the tokens; a new component
   should work in both themes without extra rules.

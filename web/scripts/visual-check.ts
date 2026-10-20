@@ -220,6 +220,33 @@ const rotatedColours = await page.evaluate(() => {
 rotatedColours > 100 ? ok('surface still renders after rotation') : fail('rotation broke the render')
 await shot(page, '12-surface-rotated')
 
+console.log('\ngraph editing robustness')
+await page.goto(`${BASE}#/t/graph-2d`, { waitUntil: 'networkidle' })
+await page.waitForSelector('.graph-fn input')
+const graphInput = page.locator('.graph-fn input').nth(0)
+for (const partial of ['sin(', 'x^', '((', '1+', 'sin(x', 'a = [']) {
+  await graphInput.fill(partial)
+  await page.waitForTimeout(200)
+}
+const survived = await page.locator('.graph-canvas-wrap canvas').count()
+survived === 1 ? ok('partial expressions do not crash the grapher') : fail('the grapher crashed on a partial expression')
+const errorShown = await page.locator('.graph-error').count()
+errorShown > 0 ? ok('the syntax error is reported inline') : fail('no inline error for an invalid expression')
+await graphInput.fill('sin(x)')
+await page.waitForTimeout(300)
+const errorCleared = await page.locator('.graph-error').count()
+errorCleared === 0 ? ok('the error clears once the expression is valid') : fail('the error did not clear')
+
+await page.goto(`${BASE}#/t/graph-3d-surface`, { waitUntil: 'networkidle' })
+await page.waitForSelector('.graph-fn input')
+const surfaceInput = page.locator('.graph-fn input').nth(0)
+for (const partial of ['sin(', 'x^', '((']) {
+  await surfaceInput.fill(partial)
+  await page.waitForTimeout(200)
+}
+const surfaceAlive = await page.locator('.graph-canvas-wrap canvas').count()
+surfaceAlive === 1 ? ok('partial expressions do not crash the 3D surface') : fail('the 3D surface crashed on a partial expression')
+
 console.log('\ntheme')
 await page.click('.theme-toggle')
 await page.waitForTimeout(400)

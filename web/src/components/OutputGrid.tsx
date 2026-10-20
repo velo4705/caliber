@@ -13,6 +13,7 @@ export function OutputGrid({ outputs, computed }: Props) {
       {outputs.map((o) => {
         const raw = computed[o.key]
         const missing = raw === undefined || raw === '' || (typeof raw === 'number' && !Number.isFinite(raw))
+        if (o.optional && missing) return null
         return (
           <div key={o.key} className={`output${o.emphasis === 'primary' ? ' output-primary' : ''}`}>
             <div className="output-label">

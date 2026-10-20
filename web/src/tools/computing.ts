@@ -98,17 +98,19 @@ export const computingTools: Tool[] = [
     outputs: [
       { key: 'value', label: 'Result', formula: '—', emphasis: 'primary' },
       { key: 'radians', label: 'Result (radians)', formula: '—' },
+      { key: 'error', label: 'Error', formula: '—', optional: true },
     ],
     compute: (v) => {
       const src = typeof v.expr === 'string' ? v.expr.trim() : ''
-      if (!src) return {}
+      if (!src) return { value: undefined, radians: undefined, error: undefined }
       try {
         return {
           value: new Parser('rad').evaluate(src),
           radians: new Parser('deg').evaluate(src),
+          error: undefined,
         }
-      } catch {
-        return {}
+      } catch (e) {
+        return { value: undefined, radians: undefined, error: e instanceof Error ? e.message : 'Invalid expression' }
       }
     },
     reference: ['sin cos tan asin acos atan sinh cosh tanh', 'ln log log10 log2 sqrt cbrt exp abs sign', 'min max pow hypot gcd lcm mod atan2'],

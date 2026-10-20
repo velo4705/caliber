@@ -167,6 +167,13 @@ expression) that `series`, `derivatives` and `shaded` all read from. Do not
 recompile per feature — a second `compile` pass would double the parse cost on
 every drag frame.
 
+**User input must never throw during render.** `compileExpression()` raises
+`ExprError` on invalid syntax, and a half-typed expression like `sin(` is
+invalid. Calling it unguarded inside a `useMemo` took down the whole view
+mid-keystroke. Compile inside a `try`, treat a failure as "no data", and show
+the message in the slot. The same applies to the surface and the expression
+evaluator.
+
 ### Derivatives and integrals
 
 `numericDerivative()` is a central difference with `h = max(|x|, 1) × 10⁻⁵`.
