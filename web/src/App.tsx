@@ -7,12 +7,30 @@ import { CategoryRail } from './components/CategoryRail'
 import { ToolView } from './components/ToolView'
 import { GraphView } from './components/GraphView'
 import { SurfaceView } from './components/SurfaceView'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 export default function App() {
   const route = useRoute()
   const [theme, toggleTheme] = useTheme()
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+  const topbarRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const bar = topbarRef.current
+    if (!bar) return
+    const apply = () => {
+      document.documentElement.style.setProperty('--topbar-h', `${Math.round(bar.getBoundingClientRect().height)}px`)
+    }
+    apply()
+    const observer = new ResizeObserver(apply)
+    observer.observe(bar)
+    window.addEventListener('resize', apply)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', apply)
+    }
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -44,7 +62,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
+      <header className="topbar" ref={topbarRef}>
         <button className="brand" onClick={() => navigate('#/')}>
           <img className="brand-mark" src={`${import.meta.env.BASE_URL}caliber.svg`} alt="" width={30} height={30} />
           <span className="brand-name">
@@ -80,17 +98,18 @@ export default function App() {
         <CategoryRail active={route.type === 'category' ? route.category : undefined} />
 
         <main className="main">
-          {tool ? (
-            tool.kind === 'chart' ? (
-              tool.graph.mode === 'surface' ? (
-                <SurfaceView tool={tool} params={route.params} />
+          <ErrorBoundary label="This tool">
+            {tool ? (
+              tool.kind === 'chart' ? (
+                tool.graph.mode === 'surface' ? (
+                  <SurfaceView tool={tool} params={route.params} />
+                ) : (
+                  <GraphView tool={tool} params={route.params} />
+                )
               ) : (
-                <GraphView tool={tool} params={route.params} />
+                <ToolView tool={tool} params={route.params} />
               )
-            ) : (
-              <ToolView tool={tool} params={route.params} />
-            )
-          ) : results ? (
+            ) : results ? (
             <section className="listing">
               <h1 className="page-title">
                 {query.trim()
@@ -110,6 +129,7 @@ export default function App() {
           ) : (
             <Home />
           )}
+          </ErrorBoundary>
         </main>
       </div>
 

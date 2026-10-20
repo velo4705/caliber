@@ -174,6 +174,16 @@ mid-keystroke. Compile inside a `try`, treat a failure as "no data", and show
 the message in the slot. The same applies to the surface and the expression
 evaluator.
 
+**Anything that can still throw gets an `ErrorBoundary`.** The tool area is
+wrapped in one, so a render error shows a crash card with the message and
+component stack, plus Copy details / Reload / Go to home — never a blank
+page. A blank screen tells the user nothing and tells us nothing.
+
+The topbar height is measured into `--topbar-h` and used for the rail's
+sticky offset. It used to be hardcoded to `61px`, which is only right while
+the topbar is a single row; once it wraps on a narrow screen, the rail slid
+underneath it and disappeared.
+
 ### Derivatives and integrals
 
 `numericDerivative()` is a central difference with `h = max(|x|, 1) × 10⁻⁵`.

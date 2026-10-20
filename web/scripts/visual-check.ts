@@ -247,6 +247,28 @@ for (const partial of ['sin(', 'x^', '((']) {
 const surfaceAlive = await page.locator('.graph-canvas-wrap canvas').count()
 surfaceAlive === 1 ? ok('partial expressions do not crash the 3D surface') : fail('the 3D surface crashed on a partial expression')
 
+console.log('\ncrash handling')
+await page.goto(`${BASE}#/t/graph-2d`, { waitUntil: 'networkidle' })
+await page.waitForSelector('.graph-fn input')
+const crashResult = await page.evaluate(() => {
+  const el = document.querySelector('.graph-fn input')
+  if (!el) return 'no input'
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+  const event = new Event('input', { bubbles: true })
+  try {
+    setter?.call(el, 'sin(x)xcos(x)')
+    el.dispatchEvent(event)
+  } catch {
+    return 'threw'
+  }
+  return 'ok'
+})
+await page.waitForTimeout(400)
+const errorText = await page.locator('.graph-error').first().textContent().catch(() => null)
+errorText?.includes('Unknown function') ? ok(`a bad expression reports "${errorText}"`) : fail(`no inline error, got "${errorText}" (${crashResult})`)
+const stillAlive = await page.locator('.graph-canvas-wrap canvas').count()
+stillAlive === 1 ? ok('the view survives an invalid expression') : fail('the view died on an invalid expression')
+
 console.log('\ntheme')
 await page.click('.theme-toggle')
 await page.waitForTimeout(400)

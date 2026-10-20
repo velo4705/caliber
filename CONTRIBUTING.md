@@ -189,6 +189,9 @@ without a browser.
   on invalid syntax, and a half-typed expression is invalid. Compile inside a
   `try`, treat a failure as "no data", and show the message next to the
   field. A throw inside a `useMemo` unmounts the whole view.
+- **Wrap anything that can throw in an `ErrorBoundary`.** The tool area
+  already has one. A crash should show the message and the component stack,
+  not a blank page.
 - **Plain CSS** in `web/src/styles.css`, using the custom properties already
   defined there. `[data-theme='dark']` overrides the tokens; a new component
   should work in both themes without extra rules.
