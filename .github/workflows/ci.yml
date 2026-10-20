@@ -47,6 +47,9 @@ jobs:
           done
           BASE_URL=http://127.0.0.1:5199 npm run verify
 
+      - name: Audit every tool
+        run: npm run audit
+
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist

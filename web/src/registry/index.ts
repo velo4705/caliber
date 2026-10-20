@@ -74,11 +74,23 @@ export function validateTools(tools: Tool[]): string[] {
         problems.push(`${tool.id}: declared output "${key}" is never returned by compute()`)
       }
     }
+
+    const filled = tool.outputs.filter((o) => {
+      const v = result[o.key]
+      return v !== undefined && v !== '' && !(typeof v === 'number' && !Number.isFinite(v))
+    })
+    if (filled.length === 0) {
+      problems.push(
+        `${tool.id}: produces no result from its default inputs — give the inputs defaults so the tool shows a worked example on arrival`,
+      )
+    }
   }
   return problems
 }
 
-if (import.meta.env.DEV) {
+const DEV = (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV ?? false
+
+if (DEV) {
   const problems = validateTools(TOOLS)
   if (problems.length) {
     console.warn(`[registry] ${problems.length} problem(s):\n` + problems.map((p) => `  · ${p}`).join('\n'))

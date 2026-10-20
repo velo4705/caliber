@@ -15,8 +15,8 @@ export const physicsTools: Tool[] = [
     inputs: [
       { key: 'u', label: 'Initial velocity (u)', unit: 'm/s', default: '0' },
       { key: 'v', label: 'Final velocity (v)', unit: 'm/s' },
-      { key: 'a', label: 'Acceleration (a)', unit: 'm/s²' },
-      { key: 't', label: 'Time (t)', unit: 's' },
+      { key: 'a', label: 'Acceleration (a)', unit: 'm/s²', default: '9.81' },
+      { key: 't', label: 'Time (t)', unit: 's', default: '3' },
     ],
     outputs: [
       { key: 'v', label: 'Final velocity', formula: 'v = u + at', unit: 'm/s', emphasis: 'primary' },

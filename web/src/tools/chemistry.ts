@@ -103,7 +103,7 @@ export const chemistryTools: Tool[] = [
     tagline: 'Convert between pH, [H⁺] and [OH⁻]',
     keywords: ['ph', 'acid', 'base', 'hydrogen', 'hydroxide', 'alkaline', 'kw', 'h+'],
     inputs: [
-      { key: 'ph', label: 'pH' },
+      { key: 'ph', label: 'pH', default: '7' },
       { key: 'h', label: '[H⁺]', unit: 'mol/L' },
       { key: 'temp', label: 'Temperature', unit: 'K', default: '298.15', help: '25 °C uses Kw = 1.0×10⁻¹⁴' },
     ],
@@ -133,9 +133,9 @@ export const chemistryTools: Tool[] = [
     tagline: 'Solve any one term of the dilution equation',
     keywords: ['dilution', 'm1v1', 'concentration', 'volume', 'solution', 'serial dilution'],
     inputs: [
-      { key: 'c1', label: 'C₁ (stock)', unit: 'mol/L' },
-      { key: 'v1', label: 'V₁ (stock volume)', unit: 'L' },
-      { key: 'c2', label: 'C₂ (final)', unit: 'mol/L' },
+      { key: 'c1', label: 'C₁ (stock)', unit: 'mol/L', default: '1' },
+      { key: 'v1', label: 'V₁ (stock volume)', unit: 'L', default: '0.1' },
+      { key: 'c2', label: 'C₂ (final)', unit: 'mol/L', default: '0.1' },
       { key: 'v2', label: 'V₂ (final volume)', unit: 'L' },
     ],
     outputs: [
@@ -173,9 +173,9 @@ export const chemistryTools: Tool[] = [
     keywords: ['ideal gas', 'pv=nrt', 'moles', 'pressure', 'volume', 'temperature', 'gas law'],
     inputs: [
       { key: 'p', label: 'Pressure (P)', unit: 'atm' },
-      { key: 'v', label: 'Volume (V)', unit: 'L' },
-      { key: 'n', label: 'Moles (n)', unit: 'mol' },
-      { key: 't', label: 'Temperature (T)', unit: 'K' },
+      { key: 'v', label: 'Volume (V)', unit: 'L', default: '5' },
+      { key: 'n', label: 'Moles (n)', unit: 'mol', default: '2' },
+      { key: 't', label: 'Temperature (T)', unit: 'K', default: '300' },
     ],
     outputs: [
       { key: 'p', label: 'Pressure', unit: 'atm', formula: 'P = nRT / V', emphasis: 'primary' },

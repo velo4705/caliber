@@ -11,9 +11,9 @@ export const electricalTools: Tool[] = [
     tagline: 'Solve for V, I or R — plus power',
     keywords: ['ohm', 'voltage', 'current', 'resistance', "ohm's law", 'circuit', 'v=ir', 'power'],
     inputs: [
-      { key: 'V', label: 'Voltage (V)', unit: 'V' },
+      { key: 'V', label: 'Voltage (V)', unit: 'V', default: '12' },
       { key: 'I', label: 'Current (I)', unit: 'A' },
-      { key: 'R', label: 'Resistance (R)', unit: 'Ω' },
+      { key: 'R', label: 'Resistance (R)', unit: 'Ω', default: '470' },
     ],
     outputs: [
       { key: 'V', label: 'Voltage', unit: 'V', formula: 'V = I × R', emphasis: 'primary' },
