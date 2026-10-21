@@ -792,6 +792,7 @@ button {
 
 .graph-fn {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   flex: 1 1 260px;
@@ -828,7 +829,7 @@ button {
 }
 
 .graph-error {
-  flex-basis: 100%;
+  flex: 1 0 100%;
   font-size: 11.5px;
   color: var(--danger);
 }
@@ -848,8 +849,8 @@ button {
 }
 
 .graph-fn input {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 60px;
+  min-width: 60px;
   min-height: 32px;
   padding: 4px 8px;
   border: 1px solid transparent;

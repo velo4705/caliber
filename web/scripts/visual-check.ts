@@ -232,6 +232,15 @@ const survived = await page.locator('.graph-canvas-wrap canvas').count()
 survived === 1 ? ok('partial expressions do not crash the grapher') : fail('the grapher crashed on a partial expression')
 const errorShown = await page.locator('.graph-error').count()
 errorShown > 0 ? ok('the syntax error is reported inline') : fail('no inline error for an invalid expression')
+const fieldWidth = await page.evaluate(() => {
+  const i = document.querySelector('.graph-fn input') as HTMLInputElement
+  return Math.round(i.getBoundingClientRect().width)
+})
+fieldWidth >= 60
+  ? ok(`the field stays readable when the error shows (${fieldWidth}px)`)
+  : fail(`the field collapsed to ${fieldWidth}px when the error appeared — the text is invisible`)
+const fieldValue = await page.locator('.graph-fn input').first().inputValue()
+fieldValue.length > 0 ? ok(`the expression is still in the field ("${fieldValue}")`) : fail('the expression was lost')
 await graphInput.fill('sin(x)')
 await page.waitForTimeout(300)
 const errorCleared = await page.locator('.graph-error').count()
