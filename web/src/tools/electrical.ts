@@ -1,5 +1,6 @@
 import type { Tool } from '../registry/types'
 import { num, derive, list } from '../lib/values'
+import { formatNumber as fmt } from '../lib/format'
 
 const RAD = Math.PI / 180
 
@@ -39,7 +40,7 @@ export const electricalTools: Tool[] = [
       const out: string[] = []
       const which = ['V', 'I', 'R'].filter((k) => num(v, k) === undefined)
       out.push(`Given ${(['V', 'I', 'R'].filter((k) => num(v, k) !== undefined).join(' and ') || 'nothing yet')}, solving for ${which.join(', ') || 'nothing new'}`)
-      if (r.P !== undefined) out.push(`P = VI = ${r.P} W`)
+      if (r.P !== undefined) out.push(`P = V × I = ${fmt(r.P, 5)} W`)
       return out
     },
     reference: ['V = I × R', 'P = V × I = I²R = V²/R'],
@@ -110,8 +111,8 @@ export const electricalTools: Tool[] = [
       { key: 'v', label: 'Supply voltage', unit: 'V', default: '10' },
     ],
     outputs: [
-      { key: 'z', label: 'Impedance |Z|', unit: 'Ω', formula: '√(R² + (Xᴸ − Xᶜ)²)', emphasis: 'primary' },
-      { key: 'phase', label: 'Phase angle', unit: '°', formula: 'atan((Xᴸ − Xᶜ) / R)', emphasis: 'primary' },
+      { key: 'z', label: 'Impedance |Z|', unit: 'Ω', formula: '√(R² + (Xᴸ - Xᶜ)²)', emphasis: 'primary' },
+      { key: 'phase', label: 'Phase angle', unit: '°', formula: 'atan((Xᴸ - Xᶜ) / R)', emphasis: 'primary' },
       { key: 'xl', label: 'Inductive reactance', unit: 'Ω', formula: '2πfL' },
       { key: 'xc', label: 'Capacitive reactance', unit: 'Ω', formula: '1 / (2πfC)' },
       { key: 'current', label: 'Current', unit: 'A', formula: 'V / |Z|', emphasis: 'primary' },
@@ -138,7 +139,7 @@ export const electricalTools: Tool[] = [
         resonance: l !== undefined && c !== undefined && l > 0 && c > 0 ? 1 / (2 * Math.PI * Math.sqrt(l * c)) : undefined,
       }
     },
-    reference: ['|Z| = √(R² + (Xᴸ − Xᶜ)²)', 'Xᴸ = 2πfL', 'Xᶜ = 1/(2πfC)', 'f₀ = 1/(2π√(LC))'],
+    reference: ['|Z| = √(R² + (Xᴸ - Xᶜ)²)', 'Xᴸ = 2πfL', 'Xᶜ = 1/(2πfC)', 'f₀ = 1/(2π√(LC))'],
     examples: [{ label: 'RLC at 1 kHz', inputs: { r: '100', l: '0.1', c: '1e-5', f: '1000', v: '10' } }],
   },
   {
@@ -175,6 +176,23 @@ export const electricalTools: Tool[] = [
         pR2: current * current * R2,
         voutLoaded: rParallel === undefined ? undefined : (Vs * rParallel) / (R1 + rParallel),
       }
+    },
+    steps: (v, r) => {
+      const Vs = num(v, 'Vs')
+      const R1 = num(v, 'R1')
+      const R2 = num(v, 'R2')
+      if (Vs === undefined || R1 === undefined || R2 === undefined) return []
+      const total = R1 + R2
+      const out = [
+        `Total series resistance: R1 + R2 = ${fmt(R1, 5)} + ${fmt(R2, 5)} = ${fmt(total, 5)} Ω`,
+        `Current: I = Vs / (R1 + R2) = ${fmt(Vs, 5)} / ${fmt(total, 5)} = ${fmt(r.current, 6)} A`,
+        `Output across R2: Vout = Vs · R2 / (R1 + R2) = ${fmt(Vs, 5)} × ${fmt(R2, 5)} / ${fmt(total, 5)} = ${fmt(r.vout, 5)} V`,
+        `Power dissipated: R1 = ${fmt(r.pR1, 6)} W, R2 = ${fmt(r.pR2, 6)} W`,
+      ]
+      if (r.voutLoaded !== undefined) {
+        out.push(`With the load attached, Vout falls to ${fmt(r.voutLoaded, 5)} V`)
+      }
+      return out
     },
     reference: ['Vout = Vs · R2 / (R1 + R2)', 'With a load: R2∥RL replaces R2'],
     examples: [

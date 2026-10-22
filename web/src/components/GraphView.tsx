@@ -660,7 +660,7 @@ const evaluators = useMemo(() => {
                   isParam
                     ? 'name = [1...5]'
                     : graph.mode === 'implicit'
-                      ? 'x² + y² − 4'
+                      ? 'x² + y² - 4'
                       : graph.mode === 'polar'
                         ? 'r(θ)'
                         : 'y = …'
@@ -756,7 +756,7 @@ const evaluators = useMemo(() => {
               +
             </button>
             <button className="btn-ghost" onClick={zoomButtons(1.4)} aria-label="Zoom out">
-              −
+              -
             </button>
             <button className="btn-ghost" onClick={reset}>
               Reset

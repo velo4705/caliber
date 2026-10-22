@@ -97,9 +97,9 @@ export const geometryTools: Tool[] = [
       { key: 'bz', label: 'b_z', default: '0' },
     ],
     outputs: [
-      { key: 'cx', label: 'x component', formula: 'aᵧb_z − a_zbᵧ', emphasis: 'primary' },
-      { key: 'cy', label: 'y component', formula: 'a_zbₓ − aₓb_z', emphasis: 'primary' },
-      { key: 'cz', label: 'z component', formula: 'aₓbᵧ − aᵧbₓ', emphasis: 'primary' },
+      { key: 'cx', label: 'x component', formula: 'aᵧb_z - a_zbᵧ', emphasis: 'primary' },
+      { key: 'cy', label: 'y component', formula: 'a_zbₓ - aₓb_z', emphasis: 'primary' },
+      { key: 'cz', label: 'z component', formula: 'aₓbᵧ - aᵧbₓ', emphasis: 'primary' },
       { key: 'mag', label: '|a × b|', formula: 'area of parallelogram', emphasis: 'primary' },
     ],
     compute: (v) => {
@@ -134,9 +134,9 @@ export const geometryTools: Tool[] = [
       { key: 'c', label: 'Side c', default: '5' },
     ],
     outputs: [
-      { key: 'A', label: 'Angle A', formula: 'acos((b²+c²−a²)/2bc)', unit: '°', emphasis: 'primary' },
-      { key: 'B', label: 'Angle B', formula: 'acos((a²+c²−b²)/2ac)', unit: '°', emphasis: 'primary' },
-      { key: 'C', label: 'Angle C', formula: 'acos((a²+b²−c²)/2ab)', unit: '°', emphasis: 'primary' },
+      { key: 'A', label: 'Angle A', formula: 'acos((b²+c²-a²)/2bc)', unit: '°', emphasis: 'primary' },
+      { key: 'B', label: 'Angle B', formula: 'acos((a²+c²-b²)/2ac)', unit: '°', emphasis: 'primary' },
+      { key: 'C', label: 'Angle C', formula: 'acos((a²+b²-c²)/2ab)', unit: '°', emphasis: 'primary' },
       { key: 'area', label: 'Area', formula: "Heron's", emphasis: 'primary' },
       { key: 'perimeter', label: 'Perimeter', formula: 'a + b + c' },
       { key: 'inradius', label: 'Inradius', formula: 'A / s' },
@@ -173,11 +173,11 @@ export const geometryTools: Tool[] = [
     steps: (v, r) => {
       const s: string[] = []
       s.push(`Sides: a = ${fmt(num(v, 'a'))}, b = ${fmt(num(v, 'b'))}, c = ${fmt(num(v, 'c'))}`)
-      if (r.area !== undefined) s.push(`s = (a+b+c)/2, then area = √[s(s−a)(s−b)(s−c)] = ${fmt(r.area)}`)
+      if (r.area !== undefined) s.push(`s = (a+b+c)/2, then area = √[s(s-a)(s-b)(s-c)] = ${fmt(r.area)}`)
       if (r.A !== undefined) s.push(`Angles sum to ${fmt(Number(r.A) + Number(r.B ?? 0) + Number(r.C ?? 0), 6)}° (should be 180°)`)
       return s
     },
-    reference: ["Heron: A = √[s(s−a)(s−b)(s−c)]", 'Law of cosines: cos C = (a²+b²−c²) / 2ab'],
+    reference: ["Heron: A = √[s(s-a)(s-b)(s-c)]", 'Law of cosines: cos C = (a²+b²-c²) / 2ab'],
     examples: [
       { label: '3-4-5 right triangle', inputs: { a: '3', b: '4', c: '5' } },
       { label: 'Equilateral', inputs: { a: '5', b: '5', c: '5' } },

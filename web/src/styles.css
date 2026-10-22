@@ -691,6 +691,11 @@ button {
   color: var(--muted);
 }
 
+.steps li {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .steps li::marker {
   color: var(--accent);
   font-weight: 600;

@@ -1,5 +1,6 @@
 import type { Tool } from '../registry/types'
 import { num, derive, str } from '../lib/values'
+import { formatNumber as fmt } from '../lib/format'
 
 const SHAPES = [
   { value: 'round', label: 'Solid round' },
@@ -223,6 +224,18 @@ export const engineeringTools: Tool[] = [
         centre: (mod * (z1 + z2)) / 2,
       }
     },
+    steps: (v, r) => {
+      const z1 = num(v, 'z1')
+      const z2 = num(v, 'z2')
+      if (z1 === undefined || z2 === undefined) return []
+      const eff = (num(v, 'efficiency') ?? 95) / 100
+      return [
+        `Ratio: z₂ / z₁ = ${fmt(z2, 5)} / ${fmt(z1, 5)} = ${fmt(r.ratio, 5)} : 1`,
+        `Output speed: n₂ = n₁ / ratio = ${fmt(num(v, 'rpm'), 5)} / ${fmt(r.ratio, 5)} = ${fmt(r.rpmOut, 5)} rpm`,
+        `Output torque: τ₂ = τ₁ × ratio × η = ${fmt(num(v, 'torque'), 5)} × ${fmt(r.ratio, 5)} × ${fmt(eff, 4)} = ${fmt(r.torqueOut, 5)} N·m`,
+        `Pitch diameters: d₁ = ${fmt(r.pitch1, 4)} mm, d₂ = ${fmt(r.pitch2, 4)} mm, centre distance ${fmt(r.centre, 4)} mm`,
+      ]
+    },
     reference: ['Ratio = z₂/z₁', 'Torque out = torque in × ratio × efficiency', 'Pitch diameter = module × teeth'],
     examples: [{ label: '20 → 50 teeth', inputs: { z1: '20', z2: '50', rpm: '1200', torque: '5', efficiency: '95', module: '2' } }],
   },
@@ -256,6 +269,20 @@ export const engineeringTools: Tool[] = [
         effortArm: load === undefined ? undefined : (load * l) / (F as number),
         reaction: F === undefined || load === undefined ? undefined : F + load,
       }
+    },
+    steps: (v, r) => {
+      const e = num(v, 'effortArm')
+      const l = num(v, 'loadArm')
+      const F = num(v, 'effort')
+      if (e === undefined || l === undefined) return []
+      const out = [
+        `Mechanical advantage: l / e = ${fmt(l, 5)} / ${fmt(e, 5)} = ${fmt(r.advantage, 5)}`,
+        `Load: W = F × advantage = ${fmt(F, 5)} × ${fmt(r.advantage, 5)} = ${fmt(r.load, 5)} N`,
+      ]
+      if (r.reaction !== undefined) {
+        out.push(`Pivot reaction: F + W = ${fmt(F, 5)} + ${fmt(r.load, 5)} = ${fmt(r.reaction, 5)} N`)
+      }
+      return out
     },
     reference: ['Principle of moments: F·e = W·l', 'Mechanical advantage = load arm / effort arm'],
     examples: [{ label: '0.4 m / 1.2 m, 30 N', inputs: { effortArm: '0.4', loadArm: '1.2', effort: '30' } }],

@@ -13,10 +13,55 @@ export function formatNumber(value: number | string | undefined, precision = 6):
   return rounded.toLocaleString('en-US', { maximumFractionDigits: precision })
 }
 
-export function formatWithUnit(value: number | undefined, unit: string | undefined, precision?: number): string {
+/**
+ * A number that will be multiplied or raised to a power.
+ * Negatives are parenthesised, so "-2" never reads as the base of "-2²".
+ */
+export function formatFactor(value: number | string | undefined, precision = 6): string {
+  const s = formatNumber(value, precision)
+  return s.startsWith('-') ? `(${s})` : s
+}
+
+/** A product of factors: "4 × 4 × 1". */
+export function formatProduct(values: (number | string | undefined)[], precision = 6): string {
+  const parts = values.map((v) => formatNumber(v, precision))
+  if (!parts.length) return '—'
+  return parts.join(' × ')
+}
+
+/** A signed coefficient for a sum: "+2" or "-2". */
+export function formatSigned(value: number | string | undefined, precision = 6): string {
+  if (value === undefined || typeof value === 'string') return formatNumber(value, precision)
+  if (!Number.isFinite(value)) return '—'
+  return `${value < 0 ? '-' : '+'}${formatNumber(Math.abs(value), precision)}`
+}
+
+/** An approximation: "≈ 3.84". */
+export function formatApprox(value: number | string | undefined, precision = 6): string {
+  if (value === undefined) return '—'
+  return `≈ ${formatNumber(value, precision)}`
+}
+
+/** A value with its unit: "3.84 V". */
+export function formatWithUnit(
+  value: number | string | undefined,
+  unit: string | undefined,
+  precision?: number,
+): string {
   const n = formatNumber(value, precision)
   if (unit && n !== '—') return `${n} ${unit}`
   return n
+}
+
+/** A quantity with a unit, for use inside a sentence. */
+export function formatQuantity(
+  value: number | string | undefined,
+  unit: string | undefined,
+  precision?: number,
+): string {
+  const n = formatNumber(value, precision)
+  if (n === '—') return '—'
+  return unit ? `${n} ${unit}` : n
 }
 
 export function formatList(values: number[]): string {

@@ -1,6 +1,7 @@
 import type { Tool } from '../registry/types'
 import { num } from '../lib/values'
 import { Parser } from '../lib/expr'
+import { formatNumber as fmt } from '../lib/format'
 
 export const computingTools: Tool[] = [
   {
@@ -38,7 +39,7 @@ export const computingTools: Tool[] = [
       const n = num(v, 'value')
       if (n === undefined) return []
       return [
-        `Decimal ${n}`,
+        `Decimal: ${fmt(n, 8)}`,
         r.bin !== undefined ? `Binary ${r.bin}` : '',
         r.hex !== undefined ? `Hex 0x${r.hex}` : '',
       ].filter(Boolean)
@@ -92,7 +93,7 @@ export const computingTools: Tool[] = [
         kind: 'expression',
         default: 'sin(45) * sqrt(2) + 2^10',
         placeholder: 'e.g. (3 + 4) * 2 / ln(e)',
-        help: 'Supports + − * / % ^, factorial, constants (pi, e, tau) and 40+ functions.',
+        help: 'Supports + - * / % ^, factorial, constants (pi, e, tau) and 40+ functions.',
       },
     ],
     outputs: [

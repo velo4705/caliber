@@ -18,7 +18,7 @@ export const graphTools: ChartTool[] = [
       ],
       reference: [
         'y = f(x)',
-        'Implicit: enter LHS − RHS = 0 (e.g. x² + y² = 4)',
+        'Implicit: enter LHS - RHS = 0 (e.g. x² + y² = 4)',
         'Sweep: put a range in a slot — a = [1...5], a = [1, 2, 4] or a = [0...1...0.1] — then reference it',
       ],
     },

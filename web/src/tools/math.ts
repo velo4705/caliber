@@ -32,12 +32,12 @@ export const mathTools: Tool[] = [
       { key: 'c', label: 'c', default: '2', step: 0.1 },
     ],
     outputs: [
-      { key: 'd', label: 'Discriminant', formula: 'b² − 4ac', needs: 'a, b and c', emphasis: 'primary' },
-      { key: 'x1', label: 'Root x₁', formula: '(−b + √d) / 2a', needs: 'a, b and c' },
-      { key: 'x2', label: 'Root x₂', formula: '(−b − √d) / 2a', needs: 'a, b and c' },
-      { key: 'realPart', label: 'Root (real)', formula: '−b / 2a', needs: 'a and b' },
+      { key: 'd', label: 'Discriminant', formula: 'b² - 4ac', needs: 'a, b and c', emphasis: 'primary' },
+      { key: 'x1', label: 'Root x₁', formula: '(-b + √d) / 2a', needs: 'a, b and c' },
+      { key: 'x2', label: 'Root x₂', formula: '(-b - √d) / 2a', needs: 'a, b and c' },
+      { key: 'realPart', label: 'Root (real)', formula: '-b / 2a', needs: 'a and b' },
       { key: 'imagPart', label: 'Root (imaginary)', formula: '√|d| / 2a', needs: 'a and b' },
-      { key: 'vertexY', label: 'Vertex y', formula: 'f(−b / 2a)', needs: 'a, b and c' },
+      { key: 'vertexY', label: 'Vertex y', formula: 'f(-b / 2a)', needs: 'a, b and c' },
     ],
     compute: (v) => {
       const a = num(v, 'a')
@@ -50,7 +50,7 @@ export const mathTools: Tool[] = [
       const hasRealRoots = d !== undefined && d >= 0
       return {
         d,
-        x1: hasRealRoots ? ((b as number) + Math.sqrt(d as number)) / (2 * a) : undefined,
+        x1: hasRealRoots ? (-(b as number) + Math.sqrt(d as number)) / (2 * a) : undefined,
         x2: hasRealRoots ? (-(b as number) - Math.sqrt(d as number)) / (2 * a) : undefined,
         realPart,
         imagPart,
@@ -61,20 +61,34 @@ export const mathTools: Tool[] = [
       }
     },
     steps: (v, r) => {
-      const a = num(v, 'a')
-      const b = num(v, 'b')
-      const c = num(v, 'c')
+      const a = num(v, 'a') ?? 0
+      const b = num(v, 'b') ?? 0
+      const c = num(v, 'c') ?? 0
       const s: string[] = []
-      s.push(`Equation: ${fmt(a)}x² ${num(v, 'b')! < 0 ? '−' : '+'} ${fmt(Math.abs(num(v, 'b') ?? 0))}x ${num(v, 'c')! < 0 ? '−' : '+'} ${fmt(Math.abs(num(v, 'c') ?? 0))} = 0`)
-      if (r.d !== undefined) s.push(`Discriminant d = b² − 4ac = ${fmt(b)}² − 4(${fmt(a)})(${fmt(c)}) = ${fmt(r.d)}`)
+      const aTerm = a === 1 ? '' : a === -1 ? '-' : `${fmt(a)}`
+      const bTerm = b === 0 ? '' : ` ${b < 0 ? '- ' : '+ '}${fmt(Math.abs(b))}x`
+      const cTerm = c === 0 ? '' : ` ${c < 0 ? '- ' : '+ '}${fmt(Math.abs(c))}`
+      s.push(`Equation: ${aTerm}x²${bTerm}${cTerm} = 0`)
+      if (r.d !== undefined) {
+        s.push(
+          `Discriminant d = b² - 4ac = (${fmt(b)})² - 4 × ${fmt(a)} × ${fmt(c)} = ${fmt(b * b)} - ${fmt(4 * a * c)} = ${fmt(r.d)}`,
+        )
+      }
       const dNum = Number(r.d)
       if (dNum > 0) s.push('d > 0, so two distinct real roots')
       if (dNum === 0) s.push('d = 0, so one repeated real root')
       if (dNum < 0) s.push('d < 0, so two complex conjugate roots')
-      if (r.x1 !== undefined) s.push(`x = (−b ± √d) / 2a = (${fmt(-(b ?? 0))} ± ${fmt(Math.sqrt(dNum))}) / ${fmt(2 * (a ?? 0))}`)
+      if (r.x1 !== undefined) {
+        const root = fmt(Math.sqrt(dNum))
+        s.push(`x₁ = (-b + √d) / 2a = (${fmt(-b)} + ${root}) / ${fmt(2 * a)} = ${fmt(r.x1)}`)
+        s.push(`x₂ = (-b - √d) / 2a = (${fmt(-b)} - ${root}) / ${fmt(2 * a)} = ${fmt(r.x2)}`)
+      }
+      if (dNum < 0 && r.realPart !== undefined) {
+        s.push(`Complex roots: x = ${fmt(r.realPart)} ± i·${fmt(r.imagPart)}`)
+      }
       return s
     },
-    reference: ['ax² + bx + c = 0', 'x = [−b ± √(b² − 4ac)] / 2a', 'd = b² − 4ac'],
+    reference: ['ax² + bx + c = 0', 'x = [-b ± √(b² - 4ac)] / 2a', 'd = b² - 4ac'],
     examples: [
       { label: 'Two roots', inputs: { a: '1', b: '-3', c: '2' } },
       { label: 'Repeated root', inputs: { a: '1', b: '-2', c: '1' } },
@@ -130,8 +144,8 @@ export const mathTools: Tool[] = [
       { key: 'r', label: 'r', default: '3', min: 0, step: 1 },
     ],
     outputs: [
-      { key: 'ncr', label: 'Combinations nCr', formula: 'n! / [r!(n−r)!]', emphasis: 'primary' },
-      { key: 'npr', label: 'Permutations nPr', formula: 'n! / (n−r)!', emphasis: 'primary' },
+      { key: 'ncr', label: 'Combinations nCr', formula: 'n! / [r!(n-r)!]', emphasis: 'primary' },
+      { key: 'npr', label: 'Permutations nPr', formula: 'n! / (n-r)!', emphasis: 'primary' },
       { key: 'factN', label: 'n!', formula: 'n!' },
       { key: 'factR', label: 'r!', formula: 'r!' },
     ],
@@ -149,7 +163,7 @@ export const mathTools: Tool[] = [
       const fp = fact(n - r)
       return { ncr: fn / (fr * fp), npr: fn / fp, factN: fn, factR: fr }
     },
-    reference: ['nCr = n! / [r!(n−r)!]', 'nPr = n! / (n−r)!'],
+    reference: ['nCr = n! / [r!(n-r)!]', 'nPr = n! / (n-r)!'],
     examples: [{ label: 'Lottery: 6 from 49', inputs: { n: '49', r: '6' } }],
   },
   {
@@ -163,9 +177,9 @@ export const mathTools: Tool[] = [
       { key: 'to', label: 'To', default: '100' },
     ],
     outputs: [
-      { key: 'pct', label: 'Percent change', formula: '(to − from) / from × 100', emphasis: 'primary' },
+      { key: 'pct', label: 'Percent change', formula: '(to - from) / from × 100', emphasis: 'primary' },
       { key: 'factor', label: 'Multiplier', formula: 'to / from' },
-      { key: 'delta', label: 'Difference', formula: 'to − from' },
+      { key: 'delta', label: 'Difference', formula: 'to - from' },
       { key: 'reverse', label: 'Original if target is 100%', formula: 'to / (1 + pct/100)' },
     ],
     compute: (v) => {
@@ -175,7 +189,7 @@ export const mathTools: Tool[] = [
       const pct = ((to - from) / from) * 100
       return { pct, factor: to / from, delta: to - from, reverse: to / (1 + pct / 100) }
     },
-    reference: ['% change = (new − old) / old × 100'],
+    reference: ['% change = (new - old) / old × 100'],
     examples: [{ label: '80 → 100', inputs: { from: '80', to: '100' } }],
   },
   {
@@ -244,6 +258,16 @@ export const mathTools: Tool[] = [
         rref: formatMatrix(solution.rref),
       }
     },
+    steps: (v) => {
+      const r = rows(v, 'matrix')
+      if (r.length < 2) return []
+      const n = r.length
+      const header = r.map((row) => row.join('  ')).join('\n')
+      return [
+        `Augmented matrix [A|b] (${n}×${n + 1}):\n${header}`,
+        'Solve by Gaussian elimination with partial pivoting, then back-substitute.',
+      ]
+    },
     reference: ['Ax = b', 'Solved by Gaussian elimination with partial pivoting'],
     examples: [
       { label: '2×2', inputs: { matrix: '2 1 3\n1 -1 1' } },
@@ -264,7 +288,7 @@ export const mathTools: Tool[] = [
       { key: 'gcd', label: 'GCD', formula: 'gcd(a, b)', emphasis: 'primary' },
       { key: 'lcm', label: 'LCM', formula: 'lcm(a, b)', emphasis: 'primary' },
       { key: 'coprime', label: 'Coprime', formula: 'gcd = 1' },
-      { key: 'steps', label: 'Euclid steps', formula: '—' },
+      { key: 'euclid', label: 'Euclid steps', formula: '—' },
     ],
     compute: (v) => {
       const a = num(v, 'a')
@@ -275,7 +299,7 @@ export const mathTools: Tool[] = [
         gcd: g,
         lcm: lcm(a, b),
         coprime: g === 1 ? 1 : 0,
-        steps: euclidSteps(a, b).join('\n'),
+        euclid: euclidSteps(a, b).join('\n'),
       }
     },
     reference: ['gcd via the Euclidean algorithm', 'lcm = |a·b| / gcd(a, b)'],
@@ -297,7 +321,7 @@ export const mathTools: Tool[] = [
     ],
     outputs: [
       { key: 'pow', label: 'aᵇ mod m', formula: 'powmod(a, b, m)', emphasis: 'primary' },
-      { key: 'aMod', label: 'a mod m', formula: 'a − m·⌊a/m⌋' },
+      { key: 'aMod', label: 'a mod m', formula: 'a - m·⌊a/m⌋' },
       { key: 'inverse', label: 'Modular inverse of a', formula: 'a⁻¹ mod m' },
       { key: 'totient', label: 'Euler’s totient φ(m)', formula: 'φ(m)' },
       { key: 'gcd', label: 'gcd(a, m)', formula: '—' },
@@ -316,7 +340,23 @@ export const mathTools: Tool[] = [
         gcd: gcd(a, m),
       }
     },
-    reference: ['aᵇ mod m by repeated squaring', 'a⁻¹ mod m from the extended Euclidean algorithm', 'φ(m) = m·∏(1 − 1/p)'],
+    steps: (v) => {
+      const a = num(v, 'a')
+      const b = num(v, 'b')
+      const m = num(v, 'm')
+      if (a === undefined || b === undefined || m === undefined) return []
+      const out = [`Reduce the base: ${fmt(a)} mod ${fmt(m)} = ${fmt(((a % m) + m) % m)}`]
+      out.push(`Repeated squaring: ${fmt(a)}^${fmt(b)} mod ${fmt(m)} = ${fmt(powMod(a, b, m))}`)
+      const inv = modInverse(a, m)
+      out.push(
+        inv === undefined
+          ? `No modular inverse: gcd(${fmt(a)}, ${fmt(m)}) = ${fmt(gcd(a, m))}, not 1`
+          : `Modular inverse: ${fmt(a)}⁻¹ mod ${fmt(m)} = ${fmt(inv)}, since ${fmt(a)} × ${fmt(inv)} ≡ 1 (mod ${fmt(m)})`,
+      )
+      out.push(`Euler's totient: φ(${fmt(m)}) = ${fmt(totient(m))}`)
+      return out
+    },
+    reference: ['aᵇ mod m by repeated squaring', 'a⁻¹ mod m from the extended Euclidean algorithm', 'φ(m) = m·∏(1 - 1/p)'],
     examples: [
       { label: '3⁸ mod 13', inputs: { a: '3', b: '8', m: '13' } },
       { label: 'Inverse of 3 mod 11', inputs: { a: '3', b: '1', m: '11' } },
@@ -367,6 +407,31 @@ export const mathTools: Tool[] = [
         numerator: result.n,
         denominator: result.d,
       }
+    },
+    steps: (v) => {
+      const fx = parseFraction(str(v, 'x'))
+      const fy = parseFraction(str(v, 'y'))
+      const op = str(v, 'op') || '+'
+      if (!fx || !fy) return []
+      const out = [`First: ${formatFraction(fx)} = ${fmt(fractionToDecimal(fx), 8)}`]
+      out.push(`Second: ${formatFraction(fy)} = ${fmt(fractionToDecimal(fy), 8)}`)
+      if (op === '+') {
+        out.push(`Common denominator: ${fx.d} × ${fy.d} = ${fx.d * fy.d}`)
+        out.push(`Numerator: (${fx.n} × ${fy.d}) + (${fy.n} × ${fx.d}) = ${fx.n * fy.d + fy.n * fx.d}`)
+      } else if (op === '-') {
+        out.push(`Common denominator: ${fx.d} × ${fy.d} = ${fx.d * fy.d}`)
+        out.push(`Numerator: (${fx.n} × ${fy.d}) - (${fy.n} × ${fx.d}) = ${fx.n * fy.d - fy.n * fx.d}`)
+      } else if (op === '*') {
+        out.push(`Numerator: ${fx.n} × ${fy.n} = ${fx.n * fy.n}`)
+        out.push(`Denominator: ${fx.d} × ${fy.d} = ${fx.d * fy.d}`)
+      } else {
+        out.push(`Divide by flipping: ${fx.n}/${fx.d} × ${fy.d}/${fy.n}`)
+      }
+      const result = op === '+' ? addFraction(fx, fy) : op === '-' ? subtractFraction(fx, fy) : op === '*' ? multiplyFraction(fx, fy) : divideFraction(fx, fy)
+      if (result) {
+        out.push(`Reduced result: ${formatFraction(result)} = ${fmt(fractionToDecimal(result), 8)}`)
+      }
+      return out
     },
     reference: ['a/b + c/d = (ad + bc)/bd', 'a/b ÷ c/d = (a·d)/(b·c)'],
     examples: [

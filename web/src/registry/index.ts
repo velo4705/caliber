@@ -1,4 +1,4 @@
-import type { SolverTool, Tool } from './types'
+import type { Computed, SolverTool, Tool } from './types'
 import { CATEGORY_MAP } from './categories'
 import { mathTools } from '../tools/math'
 import { statisticsTools } from '../tools/statistics'
@@ -107,6 +107,28 @@ export function validateTools(tools: Tool[]): string[] {
       problems.push(
         `${tool.id}: produces no result from its default inputs — give the inputs defaults so the tool shows a worked example on arrival`,
       )
+    }
+
+    if (tool.steps) {
+      const lines = tool.steps(probe, result as Computed)
+      if (!Array.isArray(lines)) {
+        problems.push(`${tool.id}: steps() must return an array of strings`)
+      } else {
+        for (const line of lines) {
+          if (typeof line !== 'string') {
+            problems.push(`${tool.id}: steps() returned a non-string line`)
+            continue
+          }
+          if (/\b(NaN|Infinity|undefined|null)\b/.test(line)) {
+            problems.push(`${tool.id}: steps() produced "${line.trim()}" — format every value`)
+          }
+          if (new RegExp('(?<![\\p{L}\\p{N}_])[\\d]\\(', 'u').test(line)) {
+            problems.push(
+              `${tool.id}: steps() has an ambiguous product — write "4 × 4 × 1", not "4(4)(1)". In: "${line.trim()}"`,
+            )
+          }
+        }
+      }
     }
   }
 

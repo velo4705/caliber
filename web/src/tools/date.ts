@@ -1,5 +1,6 @@
 import type { Tool } from '../registry/types'
 import { str } from '../lib/values'
+import { formatNumber as fmt } from '../lib/format'
 
 const DAY_MS = 86_400_000
 
@@ -50,7 +51,7 @@ export const dateTools: Tool[] = [
       { key: 'to', label: 'To', kind: 'text', default: '2026-12-31', placeholder: 'YYYY-MM-DD' },
     ],
     outputs: [
-      { key: 'days', label: 'Days', formula: '|to − from|', emphasis: 'primary' },
+      { key: 'days', label: 'Days', formula: '|to - from|', emphasis: 'primary' },
       { key: 'weeks', label: 'Weeks', formula: 'days / 7', emphasis: 'primary' },
       { key: 'months', label: 'Months', formula: 'calendar months', emphasis: 'primary' },
       { key: 'years', label: 'Years', formula: 'calendar years' },
@@ -72,7 +73,13 @@ export const dateTools: Tool[] = [
         weekday: WEEKDAYS[to.getUTCDay()],
       }
     },
-    reference: ['Days = (to − from) / 86 400 000', 'Months are counted as whole calendar months'],
+    steps: (v, r) => [
+      `From ${str(v, 'from')} to ${str(v, 'to')}`,
+      `Elapsed: ${fmt(r.days, 6)} days = ${fmt(r.weeks, 4)} weeks = ${fmt(r.months, 4)} months`,
+      `${str(v, 'from')} plus ${fmt(r.days, 6)} days is ${r.plus}`,
+      `The second date falls on a ${r.weekday}`,
+    ],
+    reference: ['Days = (to - from) / 86 400 000', 'Months are counted as whole calendar months'],
     examples: [
       { label: '2026 in full', inputs: { from: '2026-01-01', to: '2026-12-31' } },
       { label: '90 days', inputs: { from: '2026-01-01', to: '2026-04-01' } },
@@ -129,6 +136,12 @@ export const dateTools: Tool[] = [
         weekday: WEEKDAYS[birth.getUTCDay()],
       }
     },
+    steps: (_v, r) => [
+      `Age: ${fmt(r.years, 6)} years, ${fmt(r.months, 6)} months and ${fmt(r.days, 6)} days`,
+      `Total days lived: ${fmt(r.totalDays, 6)}`,
+      `Next birthday in ${fmt(r.nextBirthday, 6)} days`,
+      `Date of birth fell on a ${r.weekday}`,
+    ],
     reference: ['Age counts whole calendar years, then whole months, then days'],
     examples: [{ label: 'Born 2000-06-15', inputs: { birth: '2000-06-15', today: '' } }],
   },

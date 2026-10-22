@@ -3,6 +3,13 @@ import { CATEGORIES, CATEGORY_MAP } from '../src/registry/categories'
 import { searchTools } from '../src/registry'
 import { Parser } from '../src/lib/expr'
 import {
+  formatApprox,
+  formatFactor,
+  formatNumber,
+  formatProduct,
+  formatSigned,
+} from '../src/lib/format'
+import {
   clampViewport,
   describeSweep,
   formatTick,
@@ -638,6 +645,103 @@ nreport(nnear(ag.months, 3), `age: 3 months`)
 nreport(nnear(ag.days, 16), `age: 16 days`)
 nreport(nnear(ag.totalDays, 9604), 'age: total days lived')
 
+console.log('\nstep formatting:')
+let fFail = 0
+const freport = (ok: boolean, msg: string) => {
+  if (!ok) fFail++
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${msg}`)
+}
+
+freport(formatFactor(-2) === '(-2)', `a negative factor is parenthesised: ${formatFactor(-2)}`)
+freport(formatFactor(4) === '4', `a positive factor is left alone: ${formatFactor(4)}`)
+freport(formatProduct([4, 4, 1]) === '4 × 4 × 1', `products use ×: ${formatProduct([4, 4, 1])}`)
+freport(formatSigned(-2) === '-2' && formatSigned(2) === '+2', 'signed coefficients carry their sign')
+freport(formatApprox(3.8412) === '≈ 3.8412', 'approximations are marked')
+freport(formatNumber(undefined) === '—', 'a missing value renders as an em dash')
+freport(formatNumber(1234567) === '1,234,567', 'large integers get thousands separators')
+freport(formatNumber(0.0255319) === '0.025532', 'non-integers are shown to six decimal places')
+freport(formatNumber(1234567.8912345) === '1,234,570', 'large values are shown to six significant figures')
+
+const stepTools = TOOLS.filter((t) => t.kind !== 'chart' && t.steps)
+freport(stepTools.length >= 14, `${stepTools.length} tools publish worked steps`)
+for (const t of stepTools) {
+  const probe: Record<string, unknown> = {}
+  for (const i of t.inputs) probe[i.key] = i.default ?? ''
+  const lines = t.steps(probe, t.compute(probe))
+  const bad = lines.find((l) => /\b(NaN|Infinity|undefined)\b/.test(l))
+  freport(!bad, `${t.id}: steps contain no unformatted values${bad ? ` — "${bad}"` : ''}`)
+  const ambiguous = lines.find((l) => /(?<![\p{L}\p{N}_])[\d]\(/.test(l))
+  freport(!ambiguous, `${t.id}: steps contain no ambiguous products${ambiguous ? ` — "${ambiguous}"` : ''}`)
+}
+
+const quadLines = (() => {
+  const t = toolById('quadratic')
+  const probe: Record<string, unknown> = {}
+  for (const i of t.inputs) probe[i.key] = i.default ?? ''
+  return t.steps?.(probe, t.compute(probe)) ?? []
+})()
+freport(
+  quadLines.some((l) => l.includes('(-3)²')),
+  `the quadratic shows a parenthesised negative: ${quadLines[1] ?? ''}`,
+)
+
+const quadRoot = runTool('quadratic', { a: '1', b: '-3', c: '2' })
+nnear(quadRoot.x1, 2, 1e-9) && nnear(quadRoot.x2, 1, 1e-9)
+  ? nreport(true, 'quadratic: x² - 3x + 2 has roots 2 and 1')
+  : nreport(false, `quadratic: x² - 3x + 2 gave ${quadRoot.x1} and ${quadRoot.x2}, expected 2 and 1`)
+
+const quadPos = runTool('quadratic', { a: '1', b: '3', c: '2' })
+nnear(quadPos.x1, -1, 1e-9) && nnear(quadPos.x2, -2, 1e-9)
+  ? nreport(true, 'quadratic: x² + 3x + 2 has roots -1 and -2')
+  : nreport(false, `quadratic: x² + 3x + 2 gave ${quadPos.x1} and ${quadPos.x2}`)
+
+const quadCheck = (a: string, b: string, c: string) => {
+  const r = runTool('quadratic', { a, b, c })
+  if (r.x1 === undefined || r.x2 === undefined) return false
+  const A = Number(a), B = Number(b), C = Number(c)
+  return Math.abs(A * r.x1 * r.x1 + B * r.x1 + C) < 1e-9 && Math.abs(A * r.x2 * r.x2 + B * r.x2 + C) < 1e-9
+}
+nreport(
+  quadCheck('1', '-3', '2') && quadCheck('2', '-7', '3') && quadCheck('1', '5', '6') && quadCheck('3', '-12', '4'),
+  'quadratic: every reported root satisfies the original equation',
+)
+
+console.log('\noperator glyphs:')
+let g2Fail = 0
+const greport = (ok: boolean, msg: string) => {
+  if (!ok) g2Fail++
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${msg}`)
+}
+const opParser = new Parser('rad')
+for (const [expr, want] of [
+  ['2 + 3', 5],
+  ['2 - 3', -1],
+  ['2 * 3', 6],
+  ['7 / 2', 3.5],
+  ['7 % 3', 1],
+  ['2 ^ 10', 1024],
+  ['5!', 120],
+] as [string, number][]) {
+  let got: number | undefined
+  try {
+    got = opParser.evaluate(expr)
+  } catch {
+    got = undefined
+  }
+  greport(got !== undefined && Math.abs(got - want) < 1e-9, `the parser accepts "${expr}"`)
+}
+greport(
+  (() => {
+    try {
+      opParser.evaluate('2 − 3')
+      return false
+    } catch {
+      return true
+    }
+  })(),
+  'the parser rejects the typographic minus, so the UI never advertises it',
+)
+
 console.log('\nsearch:')
 for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
   const hits = searchTools(q)
@@ -645,4 +749,4 @@ for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
 }
 
 void CATEGORY_MAP
-process.exit(problems.length + exprFail + gFail + sFail + aFail + iFail + tFail ? 1 : 0)
+process.exit(problems.length + exprFail + gFail + sFail + aFail + iFail + tFail + nFail + fFail + g2Fail ? 1 : 0)

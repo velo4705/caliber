@@ -44,10 +44,10 @@ export const statisticsTools: Tool[] = [
       { key: 'mode', label: 'Mode', formula: 'most frequent' },
       { key: 'min', label: 'Minimum', formula: '—' },
       { key: 'max', label: 'Maximum', formula: '—' },
-      { key: 'range', label: 'Range', formula: 'max − min' },
-      { key: 'variance', label: 'Variance (population)', formula: 'Σ(x−x̄)² / n' },
+      { key: 'range', label: 'Range', formula: 'max - min' },
+      { key: 'variance', label: 'Variance (population)', formula: 'Σ(x-x̄)² / n' },
       { key: 'stddev', label: 'Std deviation (population)', formula: '√variance' },
-      { key: 'stddevS', label: 'Std deviation (sample)', formula: '√[Σ(x−x̄)² / (n−1)]' },
+      { key: 'stddevS', label: 'Std deviation (sample)', formula: '√[Σ(x-x̄)² / (n-1)]' },
     ],
     compute: (v) => {
       const d = list(v, 'data')
@@ -83,7 +83,7 @@ export const statisticsTools: Tool[] = [
         stddevS: n > 1 ? Math.sqrt(ss / (n - 1)) : undefined,
       }
     },
-    reference: ['x̄ = Σx / n', 'σ = √[Σ(x−x̄)² / n]', 's = √[Σ(x−x̄)² / (n−1)]'],
+    reference: ['x̄ = Σx / n', 'σ = √[Σ(x-x̄)² / n]', 's = √[Σ(x-x̄)² / (n-1)]'],
     examples: [
       { label: 'Class marks', inputs: { data: '2, 4, 4, 4, 5, 5, 7, 9' } },
       { label: 'Sensor readings', inputs: { data: '12.4 13.1 12.9 13.8 12.2 13.5' } },
@@ -101,7 +101,7 @@ export const statisticsTools: Tool[] = [
       { key: 'sd', label: 'Std deviation (σ)', default: '8' },
     ],
     outputs: [
-      { key: 'z', label: 'Z-score', formula: '(x − μ) / σ', emphasis: 'primary' },
+      { key: 'z', label: 'Z-score', formula: '(x - μ) / σ', emphasis: 'primary' },
       { key: 'percentile', label: 'Percentile', formula: 'Φ(z) × 100', emphasis: 'primary' },
       { key: 'inverse', label: 'Value at that z', formula: 'μ + zσ' },
     ],
@@ -113,7 +113,7 @@ export const statisticsTools: Tool[] = [
       const z = (x - m) / sd
       return { z, percentile: normalCdf(z) * 100, inverse: m + z * sd }
     },
-    reference: ['z = (x − μ) / σ', 'percentile = Φ(z) × 100'],
+    reference: ['z = (x - μ) / σ', 'percentile = Φ(z) × 100'],
     examples: [{ label: 'Exam mark', inputs: { x: '85', mean: '75', sd: '8' } }],
   },
   {
@@ -128,7 +128,7 @@ export const statisticsTools: Tool[] = [
     ],
     outputs: [
       { key: 'slope', label: 'Slope (m)', formula: 'Cov(x,y) / Var(x)', emphasis: 'primary' },
-      { key: 'intercept', label: 'Intercept (c)', formula: 'ȳ − m·x̄', emphasis: 'primary' },
+      { key: 'intercept', label: 'Intercept (c)', formula: 'ȳ - m·x̄', emphasis: 'primary' },
       { key: 'r2', label: 'R²', formula: 'r²', emphasis: 'primary' },
       { key: 'r', label: 'Pearson r', formula: 'r' },
       { key: 'n', label: 'Pairs (n)', formula: '—' },
@@ -156,7 +156,7 @@ export const statisticsTools: Tool[] = [
       const r = syy === 0 ? undefined : sxy / Math.sqrt(sxx * syy)
       return { slope, intercept, r, r2: r === undefined ? undefined : r * r, n }
     },
-    reference: ['m = Σ(x−x̄)(y−ȳ) / Σ(x−x̄)²', 'c = ȳ − m·x̄'],
+    reference: ['m = Σ(x-x̄)(y-ȳ) / Σ(x-x̄)²', 'c = ȳ - m·x̄'],
     examples: [
       { label: 'Straight-line fit', inputs: { x: '1, 2, 3, 4, 5', y: '2.1, 4.2, 5.8, 8.1, 9.9' } },
     ],
@@ -173,11 +173,11 @@ export const statisticsTools: Tool[] = [
       { key: 'k', label: 'Successes (k)', default: '5', min: 0, step: 1 },
     ],
     outputs: [
-      { key: 'exact', label: 'P(X = k)', formula: 'nCk · p^k (1−p)^(n−k)', emphasis: 'primary' },
+      { key: 'exact', label: 'P(X = k)', formula: 'nCk · p^k (1-p)^(n-k)', emphasis: 'primary' },
       { key: 'atLeast', label: 'P(X ≥ k)', formula: 'Σ from k', emphasis: 'primary' },
       { key: 'atMost', label: 'P(X ≤ k)', formula: 'Σ up to k', emphasis: 'primary' },
       { key: 'mean', label: 'Expected value', formula: 'np' },
-      { key: 'variance', label: 'Variance', formula: 'np(1−p)' },
+      { key: 'variance', label: 'Variance', formula: 'np(1-p)' },
       { key: 'mode', label: 'Most likely', formula: 'floor((n+1)p)' },
     ],
     compute: (v) => {
@@ -204,7 +204,7 @@ export const statisticsTools: Tool[] = [
         mode: Math.floor((n + 1) * p),
       }
     },
-    reference: ['P(X = k) = nCk · p^k · (1−p)^(n−k)'],
+    reference: ['P(X = k) = nCk · p^k · (1-p)^(n-k)'],
     examples: [{ label: 'Fair coin, 10 flips', inputs: { n: '10', p: '0.5', k: '5' } }],
   },
 ]

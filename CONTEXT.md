@@ -201,7 +201,35 @@ Both the derivative and the integral need a finite region, so both refuse
 rather than producing nonsense. Keep that behaviour: a plausible-looking wrong
 number is worse than an em dash.
 
+### Steps and formatting
+
+Every tool may publish `steps`, a function returning an array of readable
+strings. They are the difference between a calculator and a teaching tool, so
+they are worth doing properly.
+
+**All values in steps go through `lib/format.ts`.** Never interpolate a raw
+number. The helpers exist for specific grammatical roles:
+
+| Helper | Use |
+|---|---|
+| `formatNumber` | a plain value: "3.8367" |
+| `formatFactor` | a number that will be multiplied or raised to a power — negatives are parenthesised, so "-2" never reads as the base of "-2²" |
+| `formatProduct` | a product of factors: "4 × 4 × 1", never "4(4)(1)" |
+| `formatSigned` | a coefficient in a sum: "+2" or "-2" |
+| `formatApprox` | an approximation: "≈ 3.84" |
+
+**One minus sign, everywhere: the ASCII hyphen.** The typographic minus (U+2212)
+looks better in isolation but the parser only accepts ASCII, and mixing the two
+in one panel reads as a bug. The expression help text therefore advertises
+`+ - * / % ^`, and there is a test asserting the parser accepts every glyph it
+advertises.
+
+`validateTools()` checks every tool's steps and fails on a line containing
+"NaN", "Infinity" or "undefined", or an ambiguous product like "4(4)(1)".
+
 ### Intercepts
+
+
 
 `findXIntercepts()` scans the visible viewport for sign changes and refines
 each bracket by bisection, so the roots are exact to machine precision rather

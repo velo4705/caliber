@@ -18,8 +18,8 @@ export const financeTools: Tool[] = [
     ],
     outputs: [
       { key: 'A', label: 'Future value', formula: 'A = P(1 + r/n)^(nt)', emphasis: 'primary' },
-      { key: 'interest', label: 'Interest earned', formula: 'A − P', emphasis: 'primary' },
-      { key: 'apy', label: 'Effective rate (APY)', formula: '(1 + r/n)^n − 1', unit: '%', emphasis: 'primary' },
+      { key: 'interest', label: 'Interest earned', formula: 'A - P', emphasis: 'primary' },
+      { key: 'apy', label: 'Effective rate (APY)', formula: '(1 + r/n)^n - 1', unit: '%', emphasis: 'primary' },
       { key: 'doubling', label: 'Doubling time', formula: 'ln2 / ln(1+r)', unit: 'years' },
       { key: 'annuity', label: 'With regular additions', formula: 'future value of series', emphasis: 'primary' },
     ],
@@ -50,7 +50,7 @@ export const financeTools: Tool[] = [
       if (r.interest !== undefined) out.push(`Interest earned = ${fmt(r.interest)}`)
       return out
     },
-    reference: ['A = P(1 + r/n)^(nt)', 'APY = (1 + r/n)^n − 1'],
+    reference: ['A = P(1 + r/n)^(nt)', 'APY = (1 + r/n)^n - 1'],
     examples: [
       { label: '£10k at 5% for 10 years', inputs: { P: '10000', r: '5', n: '12', t: '10', add: '0' } },
       { label: 'With £200/month', inputs: { P: '0', r: '5', n: '12', t: '10', add: '200' } },
@@ -68,8 +68,8 @@ export const financeTools: Tool[] = [
       { key: 't', label: 'Term (years)', default: '25', step: 1 },
     ],
     outputs: [
-      { key: 'monthly', label: 'Monthly payment', formula: 'M = P·i(1+i)ⁿ / ((1+i)ⁿ−1)', emphasis: 'primary' },
-      { key: 'totalInterest', label: 'Total interest', formula: 'M·n − P', emphasis: 'primary' },
+      { key: 'monthly', label: 'Monthly payment', formula: 'M = P·i(1+i)ⁿ / ((1+i)ⁿ-1)', emphasis: 'primary' },
+      { key: 'totalInterest', label: 'Total interest', formula: 'M·n - P', emphasis: 'primary' },
       { key: 'totalPaid', label: 'Total repaid', formula: 'M·n', emphasis: 'primary' },
       { key: 'n', label: 'Number of payments', formula: 'years × 12' },
       { key: 'interestShare', label: 'Interest as share', formula: 'interest / total', unit: '%' },
@@ -92,7 +92,7 @@ export const financeTools: Tool[] = [
         interestShare: totalPaid === 0 ? undefined : (totalInterest / totalPaid) * 100,
       }
     },
-    reference: ['M = P·i(1+i)ⁿ / ((1+i)ⁿ − 1)', 'i = annual rate / 12'],
+    reference: ['M = P·i(1+i)ⁿ / ((1+i)ⁿ - 1)', 'i = annual rate / 12'],
     examples: [{ label: '£200k at 4.5% over 25y', inputs: { P: '200000', r: '4.5', t: '25' } }],
   },
   {
@@ -107,10 +107,10 @@ export const financeTools: Tool[] = [
       { key: 'price', label: 'Selling price / unit', unit: 'currency', default: '30' },
     ],
     outputs: [
-      { key: 'units', label: 'Break-even units', formula: 'F / (P − V)', emphasis: 'primary' },
+      { key: 'units', label: 'Break-even units', formula: 'F / (P - V)', emphasis: 'primary' },
       { key: 'revenue', label: 'Break-even revenue', formula: 'units × P', emphasis: 'primary' },
-      { key: 'margin', label: 'Contribution margin', unit: 'currency', formula: 'P − V', emphasis: 'primary' },
-      { key: 'marginPct', label: 'Margin ratio', formula: '(P − V) / P', unit: '%' },
+      { key: 'margin', label: 'Contribution margin', unit: 'currency', formula: 'P - V', emphasis: 'primary' },
+      { key: 'marginPct', label: 'Margin ratio', formula: '(P - V) / P', unit: '%' },
     ],
     compute: (v) => {
       const F = num(v, 'fixed')
@@ -125,7 +125,7 @@ export const financeTools: Tool[] = [
         marginPct: P !== 0 ? (cm / P) * 100 : undefined,
       }
     },
-    reference: ['Break-even units = Fixed costs / (Price − Variable cost)'],
+    reference: ['Break-even units = Fixed costs / (Price - Variable cost)'],
     examples: [{ label: '£50k fixed, £30 price', inputs: { fixed: '50000', variable: '12', price: '30' } }],
   },
   {
@@ -193,10 +193,25 @@ export const financeTools: Tool[] = [
         profitability: c0 === 0 ? undefined : inflowPv / c0,
       }
     },
+    steps: (v, r) => {
+      const flows = list(v, 'flows')
+      const ratePct = num(v, 'rate') ?? 10
+      if (flows.length < 2) return []
+      const rate = ratePct / 100
+      const out = [`Discount rate: r = ${fmt(ratePct, 4)} %`]
+      flows.slice(0, 6).forEach((c, t) => {
+        out.push(`t = ${t}: ${fmt(c, 4)} / (1 + r)^${t} = ${fmt(c / Math.pow(1 + rate, t), 4)}`)
+      })
+      if (flows.length > 6) out.push('…')
+      out.push(`NPV = ${fmt(r.npv, 4)}`)
+      if (r.irr !== undefined) out.push(`IRR: the rate where NPV = 0 is ${fmt(r.irr, 4)} %`)
+      if (r.payback !== undefined) out.push(`Payback: ${fmt(r.payback, 4)} periods`)
+      return out
+    },
     reference: ['NPV = Σ Cₜ/(1+r)ᵗ', 'IRR is the rate where NPV = 0', 'Payback: cumulative cash flow crosses zero'],
     examples: [
-      { label: '−1000 then 300–600', inputs: { flows: '-1000, 300, 400, 500, 600', rate: '10' } },
-      { label: '−5000, 2000, 3000, 3000', inputs: { flows: '-5000, 2000, 3000, 3000', rate: '12' } },
+      { label: '-1000 then 300–600', inputs: { flows: '-1000, 300, 400, 500, 600', rate: '10' } },
+      { label: '-5000, 2000, 3000, 3000', inputs: { flows: '-5000, 2000, 3000, 3000', rate: '12' } },
     ],
   },
 ]

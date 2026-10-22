@@ -1,5 +1,6 @@
 import type { Tool } from '../registry/types'
 import { num, derive, str } from '../lib/values'
+import { formatNumber as fmt } from '../lib/format'
 
 const ELEMENTS: Record<string, number> = {
   H: 1.008, He: 4.003, Li: 6.94, Be: 9.012, B: 10.81, C: 12.011, N: 14.007, O: 15.999,
@@ -87,7 +88,10 @@ export const chemistryTools: Tool[] = [
     },
     steps: (_v, r) => {
       if (r.molar === undefined) return []
-      return [`Summed atomic masses × counts = ${r.molar} g/mol`, `One mole therefore weighs ${r.molar} g`]
+      return [
+        `Molar mass M = Σ (atomic mass × count) = ${fmt(r.molar, 4)} g/mol`,
+        `One mole of this compound therefore weighs ${fmt(r.molar, 4)} g`,
+      ]
     },
     reference: ['M = Σ (atomic mass × count) for each element'],
     examples: [
@@ -108,10 +112,10 @@ export const chemistryTools: Tool[] = [
       { key: 'temp', label: 'Temperature', unit: 'K', default: '298.15', help: '25 °C uses Kw = 1.0×10⁻¹⁴' },
     ],
     outputs: [
-      { key: 'ph', label: 'pH', formula: '−log₁₀[H⁺]', emphasis: 'primary' },
+      { key: 'ph', label: 'pH', formula: '-log₁₀[H⁺]', emphasis: 'primary' },
       { key: 'h', label: '[H⁺]', unit: 'mol/L', formula: '10⁻ᵖᴴ', emphasis: 'primary' },
       { key: 'oh', label: '[OH⁻]', unit: 'mol/L', formula: 'Kw / [H⁺]', emphasis: 'primary' },
-      { key: 'poh', label: 'pOH', formula: '−log₁₀[OH⁻]' },
+      { key: 'poh', label: 'pOH', formula: '-log₁₀[OH⁻]' },
     ],
     compute: (v) => {
       const phIn = num(v, 'ph')
@@ -123,7 +127,7 @@ export const chemistryTools: Tool[] = [
       const oh = hOut !== undefined && hOut > 0 ? kw / hOut : undefined
       return { ph: phOut, h: hOut, oh, poh: oh !== undefined && oh > 0 ? -Math.log10(oh) : undefined }
     },
-    reference: ['pH = −log₁₀[H⁺]', 'Kw = [H⁺][OH⁻] = 1.0×10⁻¹⁴ at 25 °C'],
+    reference: ['pH = -log₁₀[H⁺]', 'Kw = [H⁺][OH⁻] = 1.0×10⁻¹⁴ at 25 °C'],
     examples: [{ label: 'pH 3', inputs: { ph: '3' } }],
   },
   {
@@ -157,7 +161,15 @@ export const chemistryTools: Tool[] = [
     },
     steps: (v, r) => {
       if (r.c2 === undefined && r.v2 === undefined) return []
-      return [`Moles conserved: C₁V₁ = ${num(v, 'c1') ?? '?'} × ${num(v, 'v1') ?? '?'}`, `C₂V₂ = ${r.c2 ?? '?'} × ${r.v2 ?? '?'}`]
+      const c1 = num(v, 'c1')
+      const v1 = num(v, 'v1')
+      const c2 = num(v, 'c2')
+      const v2 = num(v, 'v2')
+      const moles = c1 !== undefined && v1 !== undefined ? c1 * v1 : undefined
+      return [
+        `Moles conserved: C₁V₁ = ${fmt(c1, 4)} × ${fmt(v1, 4)} = ${fmt(moles, 4)} mol`,
+        `C₂V₂ = ${fmt(c2, 4)} × ${fmt(v2, 4)} = ${fmt(c2 !== undefined && v2 !== undefined ? c2 * v2 : undefined, 4)} mol`,
+      ]
     },
     reference: ['C₁V₁ = C₂V₂'],
     examples: [
@@ -182,7 +194,7 @@ export const chemistryTools: Tool[] = [
       { key: 'v', label: 'Volume', unit: 'L', formula: 'V = nRT / P', emphasis: 'primary' },
       { key: 'n', label: 'Moles', unit: 'mol', formula: 'n = PV / RT', emphasis: 'primary' },
       { key: 't', label: 'Temperature', unit: 'K', formula: 'T = PV / nR', emphasis: 'primary' },
-      { key: 'tC', label: 'Temperature', unit: '°C', formula: 'T − 273.15' },
+      { key: 'tC', label: 'Temperature', unit: '°C', formula: 'T - 273.15' },
     ],
     compute: (v) => {
       const R = 0.082057
