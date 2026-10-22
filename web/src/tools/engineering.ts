@@ -183,4 +183,81 @@ export const engineeringTools: Tool[] = [
     },
     examples: [{ label: 'Steel', inputs: { material: 'steel' } }],
   },
+  {
+    id: 'gear-ratio',
+    category: 'engineering',
+    name: 'Gear Ratio',
+    tagline: 'Speed, torque and pitch geometry of a gear pair',
+    keywords: ['gear', 'gearbox', 'ratio', 'teeth', 'pitch', 'module', 'transmission', 'reduction'],
+    inputs: [
+      { key: 'z1', label: 'Driver teeth (z₁)', default: '20', step: 1 },
+      { key: 'z2', label: 'Driven teeth (z₂)', default: '50', step: 1 },
+      { key: 'rpm', label: 'Input speed', unit: 'rpm', default: '1200' },
+      { key: 'torque', label: 'Input torque', unit: 'N·m', default: '5' },
+      { key: 'efficiency', label: 'Efficiency', unit: '%', default: '95' },
+      { key: 'module', label: 'Module (m)', unit: 'mm', default: '2' },
+    ],
+    outputs: [
+      { key: 'ratio', label: 'Gear ratio', formula: 'z₂/z₁', emphasis: 'primary' },
+      { key: 'rpmOut', label: 'Output speed', formula: 'rpm/ratio', unit: 'rpm', emphasis: 'primary' },
+      { key: 'torqueOut', label: 'Output torque', formula: 'τ·ratio·η', unit: 'N·m', emphasis: 'primary' },
+      { key: 'pitch1', label: 'Pitch diameter (z₁)', formula: 'm·z₁', unit: 'mm' },
+      { key: 'pitch2', label: 'Pitch diameter (z₂)', formula: 'm·z₂', unit: 'mm' },
+      { key: 'centre', label: 'Centre distance', formula: 'm(z₁+z₂)/2', unit: 'mm' },
+    ],
+    compute: (v) => {
+      const z1 = num(v, 'z1')
+      const z2 = num(v, 'z2')
+      const rpm = num(v, 'rpm')
+      const torque = num(v, 'torque')
+      const eff = (num(v, 'efficiency') ?? 95) / 100
+      const mod = num(v, 'module') ?? 2
+      if (z1 === undefined || z2 === undefined || z1 === 0) return {}
+      const ratio = z2 / z1
+      return {
+        ratio,
+        rpmOut: rpm === undefined ? undefined : rpm / ratio,
+        torqueOut: torque === undefined ? undefined : torque * ratio * eff,
+        pitch1: mod * z1,
+        pitch2: mod * z2,
+        centre: (mod * (z1 + z2)) / 2,
+      }
+    },
+    reference: ['Ratio = z₂/z₁', 'Torque out = torque in × ratio × efficiency', 'Pitch diameter = module × teeth'],
+    examples: [{ label: '20 → 50 teeth', inputs: { z1: '20', z2: '50', rpm: '1200', torque: '5', efficiency: '95', module: '2' } }],
+  },
+  {
+    id: 'lever',
+    category: 'engineering',
+    name: 'Lever & Moments',
+    tagline: 'Force balance about a pivot',
+    keywords: ['lever', 'moment', 'torque', 'pivot', 'fulcrum', 'mechanical advantage', 'principle of moments'],
+    inputs: [
+      { key: 'effortArm', label: 'Effort arm', unit: 'm', default: '0.4' },
+      { key: 'loadArm', label: 'Load arm', unit: 'm', default: '1.2' },
+      { key: 'effort', label: 'Effort', unit: 'N', default: '30' },
+    ],
+    outputs: [
+      { key: 'load', label: 'Load', formula: 'F·e = W·l', unit: 'N', emphasis: 'primary' },
+      { key: 'advantage', label: 'Mechanical advantage', formula: 'l/e', emphasis: 'primary' },
+      { key: 'effortArm', label: 'Effort arm for a given load', formula: 'W·l/F', unit: 'm' },
+      { key: 'reaction', label: 'Pivot reaction', formula: 'F + W', unit: 'N' },
+    ],
+    compute: (v) => {
+      const e = num(v, 'effortArm')
+      const l = num(v, 'loadArm')
+      const F = num(v, 'effort')
+      if (e === undefined || l === undefined || e === 0) return {}
+      const advantage = l / e
+      const load = F === undefined ? undefined : F * advantage
+      return {
+        load,
+        advantage,
+        effortArm: load === undefined ? undefined : (load * l) / (F as number),
+        reaction: F === undefined || load === undefined ? undefined : F + load,
+      }
+    },
+    reference: ['Principle of moments: F·e = W·l', 'Mechanical advantage = load arm / effort arm'],
+    examples: [{ label: '0.4 m / 1.2 m, 30 N', inputs: { effortArm: '0.4', loadArm: '1.2', effort: '30' } }],
+  },
 ]

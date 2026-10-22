@@ -65,21 +65,9 @@ const F2 = new Set(['atan2', 'pow', 'min', 'max', 'mod', 'hypot', 'gcd', 'lcm', 
 
 const TRIG_DEG = new Set(['sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh'])
 
-export function gcd(a: number, b: number): number {
-  a = Math.abs(a)
-  b = Math.abs(b)
-  while (b) {
-    const t = b
-    b = a % b
-    a = t
-  }
-  return a
-}
+import { gcd, lcm } from './num'
 
-export function lcm(a: number, b: number): number {
-  if (!a || !b) return 0
-  return Math.abs(a * b) / gcd(a, b)
-}
+export { gcd, lcm }
 
 function toRadians(v: number, mode: AngleMode): number {
   if (mode === 'deg') return (v * Math.PI) / 180

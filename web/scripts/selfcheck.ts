@@ -1,4 +1,4 @@
-import { validateTools, TOOLS } from '../src/registry'
+import { validateTools, validateWarnings, TOOLS } from '../src/registry'
 import { CATEGORIES, CATEGORY_MAP } from '../src/registry/categories'
 import { searchTools } from '../src/registry'
 import { Parser } from '../src/lib/expr'
@@ -39,6 +39,16 @@ import {
 const problems = validateTools(TOOLS)
 console.log(`tools registered: ${TOOLS.length}`)
 console.log(`categories used: ${new Set(TOOLS.map((t) => t.category)).size} / ${CATEGORIES.length}`)
+
+const dupProblems = validateTools(TOOLS)
+const dupWarnings = validateWarnings(TOOLS)
+console.log(`duplicate checks: ${dupProblems.length} problem(s), ${dupWarnings.length} warning(s)`)
+for (const p of dupProblems) console.log(`  ! ${p}`)
+for (const w of dupWarnings) console.log(`  ~ ${w}`)
+if (dupProblems.length > 0) {
+  console.log('\nDUPLICATE CHECK FAILED')
+  process.exit(1)
+}
 for (const c of CATEGORIES) {
   const n = TOOLS.filter((t) => t.category === c.id).length
   console.log(`  ${c.id.padEnd(12)} ${n}`)
@@ -541,6 +551,92 @@ treport(
 )
 treport(shade({ nx: 0, ny: 0, nz: 1 }) > 0.5, 'a surface facing the light is brighter than one facing away')
 treport(shade({ nx: 0, ny: 0, nz: -1 }) < shade({ nx: 0, ny: 0, nz: 1 }), 'the underside of the surface is darker')
+
+console.log('\nnew solvers:')
+let nFail = 0
+const nreport = (ok: boolean, msg: string) => {
+  if (!ok) nFail++
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${msg}`)
+}
+const toolById = (id: string) => {
+  const t = TOOLS.find((x) => x.id === id)
+  if (!t) throw new Error(`no tool ${id}`)
+  return t
+}
+const runTool = (id: string, values: Record<string, string>) => {
+  const t = toolById(id)
+  const typed: Record<string, unknown> = {}
+  for (const i of t.inputs) typed[i.key] = values[i.key] ?? i.default ?? ''
+  return t.compute(typed)
+}
+const nnear = (got: unknown, want: number, tol = 1e-6) =>
+  typeof got === 'number' && Math.abs(got - want) <= tol
+
+const vs = runTool('voltage-divider', { Vs: '12', R1: '10000', R2: '4700' })
+nreport(nnear(vs.vout, (12 * 4700) / 14700), 'voltage divider: Vout = 3.84 V')
+nreport(nnear(vs.current, 12 / 14700), 'voltage divider: series current')
+const vsLoaded = runTool('voltage-divider', { Vs: '12', R1: '10000', R2: '4700', RL: '1000' })
+nreport(nnear(vsLoaded.voutLoaded, (12 * (4700 * 1000) / 5700) / (10000 + (4700 * 1000) / 5700)), 'voltage divider: output under load is lower')
+
+const ls = runTool('linear-system', { matrix: '2 1 3\n1 -1 1' })
+nreport(String(ls.solution).includes('1.33333'), `linear system: solution is ${ls.solution}`)
+nreport(nnear(ls.determinant, -3), 'linear system: determinant is -3')
+const ls3 = runTool('linear-system', { matrix: '1 1 1 6\n2 3 4 15\n1 0 1 3' })
+nreport(String(ls3.solution).includes('3'), `linear system 3x3: solution is ${ls3.solution}`)
+const lsSingular = runTool('linear-system', { matrix: '1 2 3\n2 4 6' })
+nreport(String(lsSingular.solution).includes('no unique'), 'linear system: singular system is reported')
+
+const gl = runTool('gcd-lcm', { a: '12', b: '18' })
+nreport(nnear(gl.gcd, 6) && nnear(gl.lcm, 36), 'gcd/lcm: gcd 6, lcm 36')
+
+const md = runTool('modular-arithmetic', { a: '3', b: '8', m: '13' })
+nreport(nnear(md.pow, 3 ** 8 % 13), `modular: 3^8 mod 13 = ${md.pow}`)
+nreport(nnear(md.inverse, 9), 'modular: inverse of 3 mod 13 is 9')
+nreport(nnear(md.totient, 12), 'modular: totient(13) = 12')
+
+const fr = runTool('fraction-arithmetic', { x: '3/4', y: '5/6', op: '+' })
+nreport(fr.result === '19/12', `fractions: 3/4 + 5/6 = ${fr.result}`)
+nreport(nnear(fr.decimal, 19 / 12, 1e-6), 'fractions: decimal result')
+const frMixed = runTool('fraction-arithmetic', { x: '2 1/2', y: '4/5', op: '*' })
+nreport(frMixed.result === '2', `fractions: 2 1/2 × 4/5 = ${frMixed.result}`)
+
+const cm = runTool('circular-motion', { v: '10', r: '5', m: '2', g: '9.80665' })
+nreport(nnear(cm.ac, 20), 'circular motion: a = v²/r = 20')
+nreport(nnear(cm.fc, 40), 'circular motion: F = mv²/r = 40')
+nreport(nnear(cm.period, Math.PI, 1e-6), 'circular motion: period = 2πr/v')
+
+const rd = runTool('rotational-dynamics', { F: '10', r: '0.5', theta: '90', mass: '2', radius: '0.3', offset: '0', shape: 'disk' })
+nreport(nnear(rd.torque, 5), 'rotational: torque = F r sinθ = 5')
+nreport(nnear(rd.inertia, 0.09), 'rotational: disc inertia = ½mr² = 0.09')
+nreport(nnear(rd.alpha, 5 / 0.09, 1e-6), 'rotational: α = τ/I')
+
+const hs = runTool('hooke-spring', { k: '200', x: '0.1', m: '2' })
+nreport(nnear(hs.F, 20), 'spring: F = kx = 20')
+nreport(nnear(hs.energy, 1), 'spring: energy = ½kx² = 1')
+nreport(nnear(hs.period, 2 * Math.PI * Math.sqrt(2 / 200), 1e-6), 'spring: oscillation period')
+
+const gr = runTool('gear-ratio', { z1: '20', z2: '50', rpm: '1200', torque: '5', efficiency: '95', module: '2' })
+nreport(nnear(gr.ratio, 2.5), 'gears: ratio 2.5')
+nreport(nnear(gr.rpmOut, 480), 'gears: output speed 480 rpm')
+nreport(nnear(gr.pitch2, 100), 'gears: pitch diameter 100 mm')
+
+const lv = runTool('lever', { effortArm: '0.4', loadArm: '1.2', effort: '30' })
+nreport(nnear(lv.load, 90), 'lever: load = 90 N')
+nreport(nnear(lv.advantage, 3), 'lever: mechanical advantage 3')
+
+const npv = runTool('npv-irr', { flows: '-1000, 300, 400, 500, 600', rate: '10' })
+nreport(nnear(npv.npv, -1000 + 300 / 1.1 + 400 / 1.21 + 500 / 1.331 + 600 / 1.4641, 1e-6), 'npv: discounted sum')
+nreport(typeof npv.irr === 'number' && (npv.irr as number) > 24 && (npv.irr as number) < 26, `irr: ${npv.irr}%`)
+
+const dd = runTool('date-difference', { from: '2026-01-01', to: '2026-12-31' })
+nreport(nnear(dd.days, 364), 'date difference: 364 days')
+nreport(dd.weekday === 'Thursday', `date difference: weekday is ${dd.weekday}`)
+
+const ag = runTool('age-calculator', { birth: '2000-06-15', today: '2026-10-01' })
+nreport(nnear(ag.years, 26), `age: 26 years`)
+nreport(nnear(ag.months, 3), `age: 3 months`)
+nreport(nnear(ag.days, 16), `age: 16 days`)
+nreport(nnear(ag.totalDays, 9604), 'age: total days lived')
 
 console.log('\nsearch:')
 for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {

@@ -1,5 +1,5 @@
 import type { Tool } from '../registry/types'
-import { num } from '../lib/values'
+import { list, num } from '../lib/values'
 import { formatNumber as fmt } from '../lib/format'
 
 export const financeTools: Tool[] = [
@@ -127,5 +127,76 @@ export const financeTools: Tool[] = [
     },
     reference: ['Break-even units = Fixed costs / (Price − Variable cost)'],
     examples: [{ label: '£50k fixed, £30 price', inputs: { fixed: '50000', variable: '12', price: '30' } }],
+  },
+  {
+    id: 'npv-irr',
+    category: 'finance',
+    name: 'NPV & IRR',
+    tagline: 'Net present value and internal rate of return',
+    keywords: ['npv', 'irr', 'discount', 'present value', 'payback', 'cash flow', 'rate of return'],
+    inputs: [
+      {
+        key: 'flows',
+        label: 'Cash flows',
+        kind: 'number-list',
+        default: '-1000, 300, 400, 500, 600',
+        help: 'First value is the cash flow at t = 0, then one per period. Negative means an outflow.',
+      },
+      { key: 'rate', label: 'Discount rate (%)', unit: '%', default: '10', step: 0.5 },
+    ],
+    outputs: [
+      { key: 'npv', label: 'Net present value', formula: 'Σ Cₜ/(1+r)ᵗ', emphasis: 'primary' },
+      { key: 'irr', label: 'Internal rate of return', formula: 'r where NPV = 0', unit: '%', emphasis: 'primary' },
+      { key: 'payback', label: 'Payback period', formula: 'last negative to first positive', unit: 'periods' },
+      { key: 'net', label: 'Net cash flow', formula: 'Σ Cₜ' },
+      { key: 'profitability', label: 'Profitability index', formula: 'PV of inflows / |C₀|' },
+    ],
+    compute: (v) => {
+      const flows = list(v, 'flows')
+      const ratePct = num(v, 'rate') ?? 10
+      if (flows.length < 2) return {}
+      const r = ratePct / 100
+      const npv = flows.reduce((acc, c, t) => acc + c / Math.pow(1 + r, t), 0)
+      const net = flows.reduce((acc, c) => acc + c, 0)
+      const inflowPv = flows.slice(1).reduce((acc, c, t) => acc + c / Math.pow(1 + r, t), 0)
+
+      let irr: number | undefined
+      let lo = -0.9999
+      let hi = 10
+      const f = (rate: number) => flows.reduce((acc, c, t) => acc + c / Math.pow(1 + rate, t), 0)
+      if (f(lo) * f(hi) < 0) {
+        for (let i = 0; i < 200; i++) {
+          const mid = (lo + hi) / 2
+          if (f(lo) * f(mid) <= 0) hi = mid
+          else lo = mid
+        }
+        irr = ((lo + hi) / 2) * 100
+      }
+
+      let cumulative = 0
+      let payback: number | undefined
+      for (let t = 0; t < flows.length; t++) {
+        const before = cumulative
+        cumulative += (flows[t] as number)
+        if (before < 0 && cumulative >= 0) {
+          payback = t - 1 + (0 - before) / (cumulative - before)
+          break
+        }
+      }
+
+      const c0 = Math.abs(flows[0] as number)
+      return {
+        npv,
+        irr,
+        payback,
+        net,
+        profitability: c0 === 0 ? undefined : inflowPv / c0,
+      }
+    },
+    reference: ['NPV = Σ Cₜ/(1+r)ᵗ', 'IRR is the rate where NPV = 0', 'Payback: cumulative cash flow crosses zero'],
+    examples: [
+      { label: '−1000 then 300–600', inputs: { flows: '-1000, 300, 400, 500, 600', rate: '10' } },
+      { label: '−5000, 2000, 3000, 3000', inputs: { flows: '-5000, 2000, 3000, 3000', rate: '12' } },
+    ],
   },
 ]

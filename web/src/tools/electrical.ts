@@ -141,4 +141,45 @@ export const electricalTools: Tool[] = [
     reference: ['|Z| = √(R² + (Xᴸ − Xᶜ)²)', 'Xᴸ = 2πfL', 'Xᶜ = 1/(2πfC)', 'f₀ = 1/(2π√(LC))'],
     examples: [{ label: 'RLC at 1 kHz', inputs: { r: '100', l: '0.1', c: '1e-5', f: '1000', v: '10' } }],
   },
+  {
+    id: 'voltage-divider',
+    category: 'electrical',
+    name: 'Voltage Divider',
+    tagline: 'Split a supply across two resistors, with or without a load',
+    keywords: ['voltage divider', 'potential divider', 'resistive divider', 'tap', 'attenuator'],
+    inputs: [
+      { key: 'Vs', label: 'Supply voltage (Vs)', unit: 'V', default: '12' },
+      { key: 'R1', label: 'Top resistor (R1)', unit: 'Ω', default: '10000' },
+      { key: 'R2', label: 'Bottom resistor (R2)', unit: 'Ω', default: '4700' },
+      { key: 'RL', label: 'Load resistance (RL)', unit: 'Ω' },
+    ],
+    outputs: [
+      { key: 'vout', label: 'Output voltage', formula: 'Vs·R2/(R1+R2)', unit: 'V', emphasis: 'primary' },
+      { key: 'current', label: 'Series current', formula: 'Vs/(R1+R2)', unit: 'A' },
+      { key: 'pR1', label: 'Power in R1', formula: 'I²R1', unit: 'W' },
+      { key: 'pR2', label: 'Power in R2', formula: 'I²R2', unit: 'W' },
+      { key: 'voutLoaded', label: 'Output under load', formula: 'Vs·(R2∥RL)/(R1+R2∥RL)', unit: 'V' },
+    ],
+    compute: (v) => {
+      const Vs = num(v, 'Vs')
+      const R1 = num(v, 'R1')
+      const R2 = num(v, 'R2')
+      const RL = num(v, 'RL')
+      if (Vs === undefined || R1 === undefined || R2 === undefined || R1 + R2 === 0) return {}
+      const current = Vs / (R1 + R2)
+      const rParallel = RL !== undefined && RL > 0 ? (R2 * RL) / (R2 + RL) : undefined
+      return {
+        vout: (Vs * R2) / (R1 + R2),
+        current,
+        pR1: current * current * R1,
+        pR2: current * current * R2,
+        voutLoaded: rParallel === undefined ? undefined : (Vs * rParallel) / (R1 + rParallel),
+      }
+    },
+    reference: ['Vout = Vs · R2 / (R1 + R2)', 'With a load: R2∥RL replaces R2'],
+    examples: [
+      { label: '12 V, 10k / 4.7k', inputs: { Vs: '12', R1: '10000', R2: '4700', RL: '' } },
+      { label: 'With a 1k load', inputs: { Vs: '12', R1: '10000', R2: '4700', RL: '1000' } },
+    ],
+  },
 ]

@@ -9,6 +9,7 @@ export const CATEGORIES: Category[] = [
   { id: 'electrical', name: 'Electrical', icon: '⚡', blurb: 'Ohm’s law, power, AC circuits' },
   { id: 'engineering', name: 'Engineering', icon: '⚙', blurb: 'Stress, strain, beams, tolerances' },
   { id: 'graphing', name: 'Graphing', icon: '📈', blurb: 'Cartesian, parametric, polar, implicit' },
+  { id: 'date', name: 'Date & Time', icon: '📅', blurb: 'Date differences, age, working days' },
   { id: 'computing', name: 'Computing', icon: '⌨', blurb: 'Number bases, bitwise, encoding' },
   { id: 'finance', name: 'Finance', icon: '$', blurb: 'Interest, loans, growth' },
   { id: 'units', name: 'Units', icon: '⇄', blurb: 'Length, mass, energy, pressure and more' },

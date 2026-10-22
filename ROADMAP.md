@@ -72,11 +72,12 @@ in the Qt app and were never ported, plus systematic formula inventories for
 physics (174 and 252 formula sheets), chemistry (81 tools), statistics,
 finance, medicine and computing.
 
-Current: 51 solvers across 11 categories.
+Current: 64 solvers across 12 categories.
 
-- [ ] **Batch 1 — quick wins** (~12, ~3 days): voltage divider, linear
-      systems, GCD/LCM, modular arithmetic, circular & rotational motion,
-      Hooke's law, gear ratio, lever, NPV/IRR, date tools, fraction arithmetic
+- [x] **Batch 1 — quick wins** (13, done): voltage divider, linear systems,
+      GCD/LCM, modular arithmetic, circular & rotational motion, Hooke's law,
+      gear ratio, lever, NPV/IRR, date difference, age calculator, fraction
+      arithmetic
 - [ ] **Batch 2 — statistics** (~10, ~4 days): distributions, hypothesis
       tests, confidence intervals, ANOVA, chi-square, correlation, power
 - [ ] **Batch 3 — chemistry** (~10, ~5 days): stoichiometry, concentration

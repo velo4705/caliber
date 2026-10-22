@@ -1,5 +1,5 @@
 import type { Tool } from '../registry/types'
-import { num, derive } from '../lib/values'
+import { num, derive, str } from '../lib/values'
 import { formatNumber as fmt } from '../lib/format'
 
 const RAD = Math.PI / 180
@@ -180,5 +180,147 @@ export const physicsTools: Tool[] = [
     },
     reference: ['F = ma', 'W = mg'],
     examples: [{ label: '50 N on 10 kg', inputs: { m: '10', f: '50' } }],
+  },
+  {
+    id: 'circular-motion',
+    category: 'physics',
+    name: 'Circular Motion',
+    tagline: 'Centripetal acceleration, force and period',
+    keywords: ['circular', 'centripetal', 'revolution', 'angular velocity', 'banked', 'centrifugal'],
+    inputs: [
+      { key: 'v', label: 'Tangential speed (v)', unit: 'm/s', default: '10' },
+      { key: 'r', label: 'Radius (r)', unit: 'm', default: '5' },
+      { key: 'm', label: 'Mass (m)', unit: 'kg', default: '2' },
+      { key: 'g', label: 'Gravity (g)', unit: 'm/s²', default: '9.80665' },
+    ],
+    outputs: [
+      { key: 'ac', label: 'Centripetal acceleration', formula: 'a = v²/r', unit: 'm/s²', emphasis: 'primary' },
+      { key: 'fc', label: 'Centripetal force', formula: 'F = mv²/r', unit: 'N', emphasis: 'primary' },
+      { key: 'omega', label: 'Angular velocity', formula: 'ω = v/r', unit: 'rad/s' },
+      { key: 'period', label: 'Period', formula: 'T = 2πr/v', unit: 's' },
+      { key: 'frequency', label: 'Frequency', formula: 'f = v/2πr', unit: 'Hz' },
+      { key: 'bank', label: 'Banked curve angle', formula: 'tanθ = v²/rg', unit: '°' },
+    ],
+    compute: (v) => {
+      const vel = num(v, 'v')
+      const r = num(v, 'r')
+      const mass = num(v, 'm')
+      const g = num(v, 'g') ?? 9.80665
+      if (vel === undefined || r === undefined || r === 0) return {}
+      return {
+        ac: (vel * vel) / r,
+        fc: mass === undefined ? undefined : (mass * vel * vel) / r,
+        omega: vel / r,
+        period: (2 * Math.PI * r) / vel,
+        frequency: vel / (2 * Math.PI * r),
+        bank: (Math.atan((vel * vel) / (r * g)) * 180) / Math.PI,
+      }
+    },
+    reference: ['a = v²/r', 'F = mv²/r', 'ω = v/r', 'T = 2πr/v'],
+    examples: [{ label: '10 m/s on a 5 m circle', inputs: { v: '10', r: '5', m: '2', g: '9.80665' } }],
+  },
+  {
+    id: 'rotational-dynamics',
+    category: 'physics',
+    name: 'Rotational Dynamics',
+    tagline: 'Torque, moment of inertia and angular acceleration',
+    keywords: ['rotational', 'torque', 'moment of inertia', 'angular acceleration', 'rotation', 'swing', 'spin'],
+    inputs: [
+      { key: 'F', label: 'Force (F)', unit: 'N', default: '10' },
+      { key: 'r', label: 'Lever arm (r)', unit: 'm', default: '0.5' },
+      { key: 'theta', label: 'Angle (θ)', unit: '°', default: '90' },
+      { key: 'mass', label: 'Mass (m)', unit: 'kg', default: '2' },
+      { key: 'radius', label: 'Radius / length', unit: 'm', default: '0.3' },
+      { key: 'offset', label: 'Offset from axis (d)', unit: 'm', default: '0' },
+      {
+        key: 'shape',
+        label: 'Body shape',
+        kind: 'select',
+        default: 'disk',
+        options: [
+          { value: 'point', label: 'Point mass' },
+          { value: 'disk', label: 'Solid disc / cylinder' },
+          { value: 'sphere', label: 'Solid sphere' },
+          { value: 'rod', label: 'Rod about its centre' },
+          { value: 'ring', label: 'Thin ring' },
+        ],
+      },
+    ],
+    outputs: [
+      { key: 'torque', label: 'Torque (τ)', formula: 'τ = F·r·sinθ', unit: 'N·m', emphasis: 'primary' },
+      { key: 'inertia', label: 'Moment of inertia (I)', formula: 'from shape', unit: 'kg·m²', emphasis: 'primary' },
+      { key: 'totalI', label: 'I about the given axis', formula: 'I = Icm + md²', unit: 'kg·m²' },
+      { key: 'alpha', label: 'Angular acceleration (α)', formula: 'α = τ/I', unit: 'rad/s²' },
+    ],
+    compute: (v) => {
+      const F = num(v, 'F')
+      const r = num(v, 'r')
+      const theta = num(v, 'theta') ?? 90
+      const mass = num(v, 'mass')
+      const radius = num(v, 'radius')
+      const offset = num(v, 'offset') ?? 0
+      const shape = str(v, 'shape') || 'disk'
+      if (F === undefined || r === undefined) return {}
+      const torque = F * r * Math.sin((theta * Math.PI) / 180)
+      let I: number | undefined
+      if (mass !== undefined && radius !== undefined) {
+        const m = mass
+        const rr = radius
+        if (shape === 'point') I = m * rr * rr
+        else if (shape === 'disk') I = 0.5 * m * rr * rr
+        else if (shape === 'sphere') I = 0.4 * m * rr * rr
+        else if (shape === 'rod') I = (m * rr * rr) / 12
+        else if (shape === 'ring') I = m * rr * rr
+      }
+      const totalI = I === undefined ? undefined : I + (mass ?? 0) * offset * offset
+      return {
+        torque,
+        inertia: I,
+        totalI,
+        alpha: totalI && totalI !== 0 ? torque / totalI : undefined,
+      }
+    },
+    reference: [
+      'τ = F·r·sinθ',
+      'I point = mr², disc = ½mr², sphere = ⅖mr², rod = ¹⁄₁₂mL², ring = mr²',
+      'Parallel axis: I = Icm + md²',
+    ],
+    examples: [{ label: '10 N at 0.5 m on a disc', inputs: { F: '10', r: '0.5', theta: '90', mass: '2', radius: '0.3', offset: '0', shape: 'disk' } }],
+  },
+  {
+    id: 'hooke-spring',
+    category: 'physics',
+    name: "Hooke's Law & Springs",
+    tagline: 'Force, extension, energy and oscillation period',
+    keywords: ['hooke', 'spring', 'elastic', 'stiffness', 'oscillation', 'suspended', 'elasticity'],
+    inputs: [
+      { key: 'k', label: 'Spring constant (k)', unit: 'N/m', default: '200' },
+      { key: 'x', label: 'Extension (x)', unit: 'm', default: '0.1' },
+      { key: 'm', label: 'Mass (m)', unit: 'kg', default: '2' },
+    ],
+    outputs: [
+      { key: 'F', label: 'Force (F)', formula: 'F = kx', unit: 'N', emphasis: 'primary' },
+      { key: 'energy', label: 'Elastic energy', formula: 'E = ½kx²', unit: 'J', emphasis: 'primary' },
+      { key: 'period', label: 'Oscillation period', formula: 'T = 2π√(m/k)', unit: 's' },
+      { key: 'frequency', label: 'Frequency', formula: 'f = 1/T', unit: 'Hz' },
+      { key: 'equilibrium', label: 'Static extension', formula: 'x = mg/k', unit: 'm' },
+    ],
+    compute: (v) => {
+      const k = num(v, 'k')
+      const x = num(v, 'x')
+      const m = num(v, 'm')
+      if (k === undefined || x === undefined || k === 0) return {}
+      const g = 9.80665
+      const period = m !== undefined ? 2 * Math.PI * Math.sqrt(m / k) : undefined
+      return {
+        F: k * x,
+        energy: 0.5 * k * x * x,
+        period,
+        frequency: period ? 1 / period : undefined,
+        equilibrium: m !== undefined ? (m * g) / k : undefined,
+      }
+    },
+    reference: ['F = −kx', 'E = ½kx²', 'T = 2π√(m/k)'],
+    examples: [{ label: 'k = 200 N/m, x = 0.1 m', inputs: { k: '200', x: '0.1', m: '2' } }],
   },
 ]

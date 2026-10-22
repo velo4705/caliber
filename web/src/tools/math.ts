@@ -1,6 +1,23 @@
 import type { Tool } from '../registry/types'
-import { num } from '../lib/values'
+import { num, rows, str } from '../lib/values'
 import { formatNumber as fmt } from '../lib/format'
+import {
+  addFraction,
+  divideFraction,
+  euclidSteps,
+  formatFraction,
+  fractionToDecimal,
+  gcd,
+  lcm,
+  modInverse,
+  multiplyFraction,
+  parseFraction,
+  powMod,
+  subtractFraction,
+  totient,
+  type Fraction,
+} from '../lib/num'
+import { formatMatrix, solveLinearSystem } from '../lib/linalg'
 
 export const mathTools: Tool[] = [
   {
@@ -186,5 +203,175 @@ export const mathTools: Tool[] = [
     },
     reference: ['log_b(x) = ln(x) / ln(b)'],
     examples: [{ label: 'log₂(1024)', inputs: { x: '1024', base: '2' } }],
+  },
+  {
+    id: 'linear-system',
+    category: 'math',
+    name: 'Linear System Solver',
+    tagline: 'Solve simultaneous equations by Gaussian elimination',
+    keywords: ['linear', 'system', 'simultaneous', 'gaussian', 'elimination', 'matrix', 'equations', 'cramer'],
+    inputs: [
+      {
+        key: 'matrix',
+        label: 'Augmented matrix',
+        kind: 'text',
+        default: '2 1 3\n1 -1 1',
+        help: 'One row per line: the coefficients then the right-hand side. Systems of 2 to 6 equations.',
+        placeholder: '2 1 3\n1 -1 1',
+      },
+    ],
+    outputs: [
+      { key: 'solution', label: 'Solution', formula: 'Ax = b', emphasis: 'primary' },
+      { key: 'determinant', label: 'Determinant', formula: 'det(A)' },
+      { key: 'rank', label: 'Rank', formula: '—' },
+      { key: 'rref', label: 'Reduced row echelon form', formula: 'rref([A|b])' },
+    ],
+    compute: (v) => {
+      const r = rows(v, 'matrix')
+      if (r.length < 2) return {}
+      const n = r.length
+      if (!r.every((row) => row.length === n + 1)) return {}
+      const a = r.map((row) => row.slice(0, n))
+      const b = r.map((row) => row[n] as number)
+      const solution = solveLinearSystem(a, b)
+      if (!solution) return {}
+      return {
+        solution: solution.singular
+          ? 'no unique solution'
+          : solution.x.map((v2) => fmt(v2, 6)).join(',  '),
+        determinant: solution.determinant,
+        rank: solution.rank,
+        rref: formatMatrix(solution.rref),
+      }
+    },
+    reference: ['Ax = b', 'Solved by Gaussian elimination with partial pivoting'],
+    examples: [
+      { label: '2×2', inputs: { matrix: '2 1 3\n1 -1 1' } },
+      { label: '3×3', inputs: { matrix: '1 1 1 6\n2 3 4 15\n1 0 1 3' } },
+    ],
+  },
+  {
+    id: 'gcd-lcm',
+    category: 'math',
+    name: 'GCD & LCM',
+    tagline: 'Greatest common divisor and lowest common multiple',
+    keywords: ['gcd', 'lcm', 'greatest common divisor', 'lowest common multiple', 'euclid', 'coprime'],
+    inputs: [
+      { key: 'a', label: 'a', default: '12', step: 1 },
+      { key: 'b', label: 'b', default: '18', step: 1 },
+    ],
+    outputs: [
+      { key: 'gcd', label: 'GCD', formula: 'gcd(a, b)', emphasis: 'primary' },
+      { key: 'lcm', label: 'LCM', formula: 'lcm(a, b)', emphasis: 'primary' },
+      { key: 'coprime', label: 'Coprime', formula: 'gcd = 1' },
+      { key: 'steps', label: 'Euclid steps', formula: '—' },
+    ],
+    compute: (v) => {
+      const a = num(v, 'a')
+      const b = num(v, 'b')
+      if (a === undefined || b === undefined || !Number.isInteger(a) || !Number.isInteger(b)) return {}
+      const g = gcd(a, b)
+      return {
+        gcd: g,
+        lcm: lcm(a, b),
+        coprime: g === 1 ? 1 : 0,
+        steps: euclidSteps(a, b).join('\n'),
+      }
+    },
+    reference: ['gcd via the Euclidean algorithm', 'lcm = |a·b| / gcd(a, b)'],
+    examples: [
+      { label: '12 and 18', inputs: { a: '12', b: '18' } },
+      { label: 'Coprime', inputs: { a: '13', b: '17' } },
+    ],
+  },
+  {
+    id: 'modular-arithmetic',
+    category: 'math',
+    name: 'Modular Arithmetic',
+    tagline: 'Modular exponentiation, inverses and Euler’s totient',
+    keywords: ['modular', 'mod', 'modulo', 'modpow', 'inverse', 'totient', 'congruence', 'cryptography', 'prime'],
+    inputs: [
+      { key: 'a', label: 'Base (a)', default: '3', step: 1 },
+      { key: 'b', label: 'Exponent (b)', default: '8', step: 1 },
+      { key: 'm', label: 'Modulus (m)', default: '13', step: 1 },
+    ],
+    outputs: [
+      { key: 'pow', label: 'aᵇ mod m', formula: 'powmod(a, b, m)', emphasis: 'primary' },
+      { key: 'aMod', label: 'a mod m', formula: 'a − m·⌊a/m⌋' },
+      { key: 'inverse', label: 'Modular inverse of a', formula: 'a⁻¹ mod m' },
+      { key: 'totient', label: 'Euler’s totient φ(m)', formula: 'φ(m)' },
+      { key: 'gcd', label: 'gcd(a, m)', formula: '—' },
+    ],
+    compute: (v) => {
+      const a = num(v, 'a')
+      const b = num(v, 'b')
+      const m = num(v, 'm')
+      if (a === undefined || b === undefined || m === undefined || m <= 0) return {}
+      const inverse = modInverse(a, m)
+      return {
+        pow: powMod(a, b, m),
+        aMod: ((a % m) + m) % m,
+        inverse: inverse === undefined ? 'does not exist' : inverse,
+        totient: totient(m),
+        gcd: gcd(a, m),
+      }
+    },
+    reference: ['aᵇ mod m by repeated squaring', 'a⁻¹ mod m from the extended Euclidean algorithm', 'φ(m) = m·∏(1 − 1/p)'],
+    examples: [
+      { label: '3⁸ mod 13', inputs: { a: '3', b: '8', m: '13' } },
+      { label: 'Inverse of 3 mod 11', inputs: { a: '3', b: '1', m: '11' } },
+    ],
+  },
+  {
+    id: 'fraction-arithmetic',
+    category: 'math',
+    name: 'Fraction Arithmetic',
+    tagline: 'Add, subtract, multiply and divide fractions',
+    keywords: ['fraction', 'rational', 'numerator', 'denominator', 'mixed number', 'simplify', 'reduce'],
+    inputs: [
+      { key: 'x', label: 'First fraction', kind: 'text', default: '3/4', placeholder: '3/4 or 2 1/2' },
+      { key: 'y', label: 'Second fraction', kind: 'text', default: '5/6', placeholder: '5/6' },
+      {
+        key: 'op',
+        label: 'Operation',
+        kind: 'select',
+        default: '+',
+        options: [
+          { value: '+', label: 'Add' },
+          { value: '-', label: 'Subtract' },
+          { value: '*', label: 'Multiply' },
+          { value: '/', label: 'Divide' },
+        ],
+      },
+    ],
+    outputs: [
+      { key: 'result', label: 'Result', formula: '—', emphasis: 'primary' },
+      { key: 'decimal', label: 'Decimal', formula: 'n / d' },
+      { key: 'numerator', label: 'Numerator', formula: '—' },
+      { key: 'denominator', label: 'Denominator', formula: '—' },
+    ],
+    compute: (v) => {
+      const fx = parseFraction(str(v, 'x'))
+      const fy = parseFraction(str(v, 'y'))
+      const op = str(v, 'op') || '+'
+      if (!fx || !fy) return {}
+      let result: Fraction | undefined
+      if (op === '+') result = addFraction(fx, fy)
+      else if (op === '-') result = subtractFraction(fx, fy)
+      else if (op === '*') result = multiplyFraction(fx, fy)
+      else result = divideFraction(fx, fy)
+      if (!result) return {}
+      return {
+        result: formatFraction(result),
+        decimal: fractionToDecimal(result),
+        numerator: result.n,
+        denominator: result.d,
+      }
+    },
+    reference: ['a/b + c/d = (ad + bc)/bd', 'a/b ÷ c/d = (a·d)/(b·c)'],
+    examples: [
+      { label: '3/4 + 5/6', inputs: { x: '3/4', y: '5/6', op: '+' } },
+      { label: '2 1/2 × 4/5', inputs: { x: '2 1/2', y: '4/5', op: '*' } },
+    ],
   },
 ]

@@ -34,6 +34,23 @@ export function list(values: Record<string, unknown>, key: string): number[] {
   return []
 }
 
+export function rows(values: Record<string, unknown>, key: string): number[][] {
+  const v = values[key]
+  if (typeof v !== 'string') return []
+  return v
+    .split(/\r?\n/)
+    .map((line) => line.split('|')[0] ?? '')
+    .map((line) =>
+      line
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map(Number)
+        .filter((n) => Number.isFinite(n)),
+    )
+    .filter((r) => r.length > 0)
+}
+
 export function requireAll(vals: (number | undefined)[]): number | undefined {
   for (const v of vals) if (typeof v !== 'number' || !Number.isFinite(v)) return undefined
   return 1

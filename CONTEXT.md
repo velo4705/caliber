@@ -111,21 +111,22 @@ returns `undefined`, which renders as "—".
 
 ---
 
-## Current Inventory: 51 solvers
+## Current Inventory: 64 solvers
 
 | Category | Count | Tools |
 |---|---|---|
-| `math` | 5 | quadratic, divisors, combinations, percent-change, logarithm |
+| `math` | 9 | quadratic, linear-system, divisors, combinations, gcd-lcm, modular-arithmetic, fraction-arithmetic, percent-change, logarithm |
 | `statistics` | 4 | descriptive, zscore, regression, binomial |
 | `geometry` | 4 | vector-magnitude, dot-product, cross-product, triangle |
-| `physics` | 5 | kinematics, projectile, kinetic-energy, wave, newton |
+| `physics` | 8 | kinematics, projectile, kinetic-energy, circular-motion, rotational-dynamics, hooke-spring, wave, newton |
 | `chemistry` | 4 | molar-mass, ph, dilution, ideal-gas |
-| `electrical` | 3 | ohm, resistor-network, ac-impedance |
-| `engineering` | 3 | beam-deflection, stress-strain, material-select |
+| `electrical` | 4 | ohm, voltage-divider, resistor-network, ac-impedance |
+| `engineering` | 5 | beam-deflection, stress-strain, gear-ratio, lever, material-select |
 | `computing` | 3 | number-base, bitwise, expression-eval |
-| `finance` | 3 | compound-interest, loan-payment, break-even |
+| `finance` | 4 | compound-interest, loan-payment, npv-irr, break-even |
 | `units` | 12 | length, mass, volume, time, speed, energy, pressure, area, force, angle, data, temperature |
 | `graphing` | 5 | graph-2d, graph-3d-surface, graph-3d-projection (parametric), graph-polar, graph-implicit |
+| `date` | 2 | date-difference, age-calculator |
 
 ---
 

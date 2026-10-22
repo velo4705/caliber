@@ -22,17 +22,18 @@ calls, no install.
 
 | Category | Count | Examples |
 |---|---|---|
-| Algebra | 5 | Quadratic roots, divisors, nCr/nPr, percentage change, logarithms |
+| Algebra | 9 | Quadratic roots, linear systems, GCD/LCM, modular arithmetic, fractions, divisors, nCr/nPr, percentage change, logarithms |
 | Statistics | 4 | Descriptive statistics, z-score, linear regression, binomial |
 | Geometry & Vectors | 4 | Magnitude, dot & cross product, triangle solver |
-| Physics | 5 | SUVAT, projectile motion, energy & momentum, waves, Newton's laws |
+| Physics | 8 | SUVAT, projectile motion, energy & momentum, circular & rotational motion, springs, waves, Newton's laws |
 | Chemistry | 4 | Molar mass, pH, dilution, ideal gas law |
-| Electrical | 3 | Ohm's law, resistor networks, AC RLC impedance |
-| Engineering | 3 | Beam deflection, stress & strain, material properties |
+| Electrical | 4 | Ohm's law, voltage divider, resistor networks, AC RLC impedance |
+| Engineering | 5 | Beam deflection, stress & strain, gear ratio, levers, material properties |
 | Computing | 3 | Number bases, bitwise operations, expression evaluator |
-| Finance | 3 | Compound interest, loan repayment, break-even analysis |
+| Finance | 4 | Compound interest, loan repayment, NPV & IRR, break-even analysis |
 | Units | 12 | Length, mass, volume, time, speed, energy, pressure, area, force, angle, data, temperature |
 | Graphing | 5 | Cartesian, parametric, polar, implicit, 3D surface |
+| Date & Time | 2 | Date difference, age calculator |
 
 ### Solve for the unknown
 
