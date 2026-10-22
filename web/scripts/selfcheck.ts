@@ -742,6 +742,15 @@ greport(
   'the parser rejects the typographic minus, so the UI never advertises it',
 )
 
+const refTools = TOOLS.filter((t) => t.kind !== 'chart' && t.reference && t.reference.length)
+freport(refTools.length >= 47, `${refTools.length} solvers publish a formula`)
+for (const t of refTools) {
+  const long = t.reference!.find((r) => r.length > 70)
+  freport(!long, `${t.id}: every formula fits on one line${long ? ` — "${long}"` : ''}`)
+  const unicodeMinus = t.reference!.find((r) => r.includes('−'))
+  freport(!unicodeMinus, `${t.id}: formulas use the ASCII hyphen`)
+}
+
 console.log('\nsearch:')
 for (const q of ['ohm', 'beam', 'pH', 'regression', 'hex']) {
   const hits = searchTools(q)

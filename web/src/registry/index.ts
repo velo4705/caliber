@@ -109,6 +109,20 @@ export function validateTools(tools: Tool[]): string[] {
       )
     }
 
+    if (tool.reference) {
+      for (const line of tool.reference) {
+        if (line.trim().length === 0) {
+          problems.push(`${tool.id}: reference contains an empty formula`)
+        } else if (line.length > 70) {
+          problems.push(
+            `${tool.id}: reference formula is ${line.length} characters — split it into one formula per line`,
+          )
+        } else if (/[−]/.test(line)) {
+          problems.push(`${tool.id}: reference uses the typographic minus — use the ASCII hyphen`)
+        }
+      }
+    }
+
     if (tool.steps) {
       const lines = tool.steps(probe, result as Computed)
       if (!Array.isArray(lines)) {

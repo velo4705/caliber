@@ -182,6 +182,7 @@ export const engineeringTools: Tool[] = [
         cm3: mass !== undefined ? (mass / m.rho) * 1e6 : undefined,
       }
     },
+    reference: ['E = Young\'s modulus (GPa)', 'ρ = density (kg/m³)', 'T_m = melting point (°C)', 'V = m / ρ'],
     examples: [{ label: 'Steel', inputs: { material: 'steel' } }],
   },
   {

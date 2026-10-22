@@ -142,7 +142,7 @@ export const dateTools: Tool[] = [
       `Next birthday in ${fmt(r.nextBirthday, 6)} days`,
       `Date of birth fell on a ${r.weekday}`,
     ],
-    reference: ['Age counts whole calendar years, then whole months, then days'],
+    reference: ['Age = whole calendar years, then whole months, then days'],
     examples: [{ label: 'Born 2000-06-15', inputs: { birth: '2000-06-15', today: '' } }],
   },
 ]

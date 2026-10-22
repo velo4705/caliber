@@ -306,7 +306,11 @@ export const physicsTools: Tool[] = [
     },
     reference: [
       'τ = F·r·sinθ',
-      'I point = mr², disc = ½mr², sphere = ⅖mr², rod = ¹⁄₁₂mL², ring = mr²',
+      'I point = mr²',
+      'I disc = ½mr²',
+      'I sphere = ⅖mr²',
+      'I rod = ¹⁄₁₂mL²',
+      'I ring = mr²',
       'Parallel axis: I = Icm + md²',
     ],
     examples: [{ label: '10 N at 0.5 m on a disc', inputs: { F: '10', r: '0.5', theta: '90', mass: '2', radius: '0.3', offset: '0', shape: 'disk' } }],

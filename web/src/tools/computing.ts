@@ -78,6 +78,7 @@ export const computingTools: Tool[] = [
         shr: b < 0 || b > 31 ? undefined : a >> b,
       }
     },
+    reference: ['a AND b', 'a OR b', 'a XOR b', 'NOT a', 'a << b (shift left)', 'a >> b (shift right)'],
     examples: [{ label: '12 and 10', inputs: { a: '12', b: '10' } }],
   },
   {

@@ -128,20 +128,29 @@ export function ToolView({ tool, params }: Props) {
 
       {(tool.steps || tool.reference) && (
         <section className="panel panel-extra">
-          <div className="extra-head">
-            {tool.steps && (
+          {tool.reference && tool.reference.length > 0 && (
+            <div className="ref-block">
+              <h3 className="ref-title">Formula</h3>
+              <ul className="ref-list">
+                {tool.reference.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {tool.steps && (
+            <>
               <button className="tab" onClick={() => setShowSteps((s) => !s)} aria-expanded={showSteps}>
                 {showSteps ? 'Hide steps' : 'Show steps'}
               </button>
-            )}
-            {tool.reference && <span className="ref-list">{tool.reference.join('   ·   ')}</span>}
-          </div>
-          {showSteps && steps.length > 0 && (
-            <ol className="steps">
-              {steps.map((s, i) => (
-                <li key={i}>{s}</li>
-              ))}
-            </ol>
+              {showSteps && steps.length > 0 && (
+                <ol className="steps">
+                  {steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+              )}
+            </>
           )}
         </section>
       )}
