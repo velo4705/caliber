@@ -67,13 +67,26 @@ Tier 1 is compute-only. Tier 2 adds the full treatment. Prioritise by usage.
 
 ## Coverage — reach toward "universal"
 
-- [ ] Audit the Qt tools still unported, tool by tool (`git show b5c06dd:src/`)
-- [ ] Series expansion of thin categories: thermodynamics, organic chemistry,
-      control systems, discrete math, civil/mechanical
-- [ ] Symbolic layer: differentiation, integration, limits, matrix operations
-- [ ] Matrix / linear algebra tools (eigenvalues, LU, determinants)
-- [ ] Number theory expansion: modular arithmetic, sequences, recurrence
-- [ ] Interpolation and numerical methods: Newton–Raphson, bisection, spline
+See **[SOLVERS.md](SOLVERS.md)** for the full survey: ~60 solvers that existed
+in the Qt app and were never ported, plus systematic formula inventories for
+physics (174 and 252 formula sheets), chemistry (81 tools), statistics,
+finance, medicine and computing.
+
+Current: 51 solvers across 11 categories.
+
+- [ ] **Batch 1 — quick wins** (~12, ~3 days): voltage divider, linear
+      systems, GCD/LCM, modular arithmetic, circular & rotational motion,
+      Hooke's law, gear ratio, lever, NPV/IRR, date tools, fraction arithmetic
+- [ ] **Batch 2 — statistics** (~10, ~4 days): distributions, hypothesis
+      tests, confidence intervals, ANOVA, chi-square, correlation, power
+- [ ] **Batch 3 — chemistry** (~10, ~5 days): stoichiometry, concentration
+      units, colligative properties, buffers, titration, equilibrium, Hess's
+      law, kinetics, electrochemistry, Beer–Lambert
+- [ ] **Batch 4 — engineering mechanics** (~10, ~5 days): section
+      properties, torsion, buckling, statics, trusses, heat transfer, fluids
+- [ ] **Batch 5 — matrix input kind, then linear algebra** (~8, ~6 days)
+- [ ] **Batch 6 — signals, control & computing** (~10, ~7 days)
+- [ ] **Batch 7 — health & practical** (~12, ~4 days)
 
 ---
 
