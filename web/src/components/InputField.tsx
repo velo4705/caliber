@@ -9,8 +9,15 @@ interface Props {
 export function InputField({ input, value, onChange }: Props) {
   const kind = input.kind ?? 'number'
   const label = input.unit ? `${input.label} (${input.unit})` : input.label
+  const matrix = (() => {
+    try {
+      return value ? JSON.parse(value) : undefined
+    } catch {
+      return undefined
+    }
+  })()
 
-  return (
+return (
     <label className="field">
       <span className="field-label">{label}</span>
       {kind === 'select' ? (
@@ -32,18 +39,36 @@ export function InputField({ input, value, onChange }: Props) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
+      ) : kind === 'matrix' ? (
+        <div className="matrix-input">
+          {matrix.map((row: number[], rIdx: number) => (
+            <div key={rIdx} className="matrix-row">
+              {row.map((cell: number, cIdx: number) => (
+                <input
+                  key={`${rIdx}-${cIdx}`}
+                  type="number"
+                  step="any"
+                  value={cell}
+                  onChange={(e) => {
+                    const newMatrix = matrix.map((row2: number[], rIdx2: number) =>
+                      rIdx === rIdx2
+                        ? row2.map((cell2: number, cIdx2: number) =>
+                            cIdx === cIdx2 ? Number(e.target.value) : cell2
+                        )
+                        : row2
+                    )
+                    onChange(JSON.stringify(newMatrix))
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
       ) : (
-        <input
-          type="text"
-          className={kind === 'expression' ? 'mono' : undefined}
-          placeholder={input.placeholder}
-          value={value}
-          spellCheck={false}
-          autoComplete="off"
-          onChange={(e) => onChange(e.target.value)}
-        />
+        <>
+          {input.help && <span className="field-help">{input.help}</span>}
+        </>
       )}
-      {input.help && <span className="field-help">{input.help}</span>}
     </label>
   )
 }

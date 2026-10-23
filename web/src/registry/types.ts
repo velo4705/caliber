@@ -1,4 +1,4 @@
-export type InputKind = 'number' | 'number-list' | 'expression' | 'select' | 'text'
+export type InputKind = 'number' | 'number-list' | 'expression' | 'select' | 'text' | 'matrix'
 
 export interface ToolInput {
   key: string
@@ -11,6 +11,8 @@ export interface ToolInput {
   max?: number
   step?: number
   help?: string
+  rows?: number    // for matrix input
+  cols?: number    // for matrix input
   placeholder?: string
 }
 

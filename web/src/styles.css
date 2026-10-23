@@ -1172,3 +1172,34 @@ button {
     transform: translateY(-1px);
   }
 }
+/* Matrix input for linear system solver */
+.matrix-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  max-width: 600px;
+}
+
+.matrix-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.matrix-input input[type="number"] {
+  width: 60px;
+  text-align: center;
+  font-size: 14px;
+  font-family: var(--mono);
+}
+
+@media (max-width: 900px) {
+  .matrix-input input[type="number"] {
+    width: 44px;
+    font-size: 13px;
+  }
+}
