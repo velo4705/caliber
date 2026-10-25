@@ -1,0 +1,11 @@
+import { chromium } from 'playwright'
+const b = await chromium.launch()
+const p = await b.newPage({ viewport: { width: 1100, height: 700 } })
+await p.goto('http://127.0.0.1:5173/#/t/expression-eval', { waitUntil: 'networkidle' })
+await p.waitForSelector('.field input', { timeout: 10000 })
+await p.locator('.field input').fill('2^3^2')
+await p.waitForTimeout(300)
+const val = await p.locator('.output-value').first().textContent()
+console.log('Result:', val)
+await p.screenshot({ path: 'screenshots/expr-eval.png' })
+await b.close()

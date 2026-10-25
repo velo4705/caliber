@@ -39,6 +39,16 @@ return (
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
+      ) : kind === 'expression' ? (
+        <input
+          type="text"
+          className="mono"
+          placeholder={input.placeholder}
+          value={value}
+          spellCheck={false}
+          autoComplete="off"
+          onChange={(e) => onChange(e.target.value)}
+        />
       ) : kind === 'matrix' ? (
         <div className="matrix-input">
           {matrix.map((row: number[], rIdx: number) => (
