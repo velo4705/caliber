@@ -1186,8 +1186,17 @@ button {
 
 .matrix-row {
   display: flex;
+  align-items: center;
   gap: 6px;
   justify-content: center;
+}
+
+.matrix-bracket {
+  font-size: 1.5em;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  line-height: 1;
+  padding: 0 4px;
 }
 
 .matrix-input input[type="number"] {
@@ -1201,5 +1210,8 @@ button {
   .matrix-input input[type="number"] {
     width: 44px;
     font-size: 13px;
+  }
+  .matrix-bracket {
+    font-size: 1.2em;
   }
 }

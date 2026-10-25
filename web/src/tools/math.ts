@@ -1,5 +1,5 @@
 import type { Tool } from '../registry/types'
-import { num, rows, str } from '../lib/values'
+import { num, str } from '../lib/values'
 import { formatNumber as fmt } from '../lib/format'
 import {
   addFraction,
@@ -228,10 +228,12 @@ export const mathTools: Tool[] = [
       {
         key: 'matrix',
         label: 'Augmented matrix',
-        kind: 'text',
-        default: '2 1 3\n1 -1 1',
-        help: 'One row per line: the coefficients then the right-hand side. Systems of 2 to 6 equations.',
-        placeholder: '2 1 3\n1 -1 1',
+        kind: 'matrix',
+        default: '[[2,1,3],[1,-1,1]]',
+        rows: 2,
+        cols: 3,
+        help: 'Enter as JSON array: [[a,b,c],[d,e,f]] where each inner array is a row (coefficients + RHS).',
+        placeholder: '[[2,1,3],[1,-1,1]]',
       },
     ],
     outputs: [
@@ -241,7 +243,13 @@ export const mathTools: Tool[] = [
       { key: 'rref', label: 'Reduced row echelon form', formula: 'rref([A|b])' },
     ],
     compute: (v) => {
-      const r = rows(v, 'matrix')
+      const raw = str(v, 'matrix')
+      let r: number[][]
+      try {
+        r = JSON.parse(raw)
+      } catch {
+        return {}
+      }
       if (r.length < 2) return {}
       const n = r.length
       if (!r.every((row) => row.length === n + 1)) return {}
@@ -259,7 +267,13 @@ export const mathTools: Tool[] = [
       }
     },
     steps: (v) => {
-      const r = rows(v, 'matrix')
+      const raw = str(v, 'matrix')
+      let r: number[][]
+      try {
+        r = JSON.parse(raw)
+      } catch {
+        return []
+      }
       if (r.length < 2) return []
       const n = r.length
       const header = r.map((row) => row.join('  ')).join('\n')
@@ -270,8 +284,8 @@ export const mathTools: Tool[] = [
     },
     reference: ['Ax = b', 'Solved by Gaussian elimination with partial pivoting'],
     examples: [
-      { label: '2×2', inputs: { matrix: '2 1 3\n1 -1 1' } },
-      { label: '3×3', inputs: { matrix: '1 1 1 6\n2 3 4 15\n1 0 1 3' } },
+      { label: '2×2', inputs: { matrix: '[[2,1,3],[1,-1,1]]' } },
+      { label: '3×3', inputs: { matrix: '[[1,1,1,6],[2,3,4,15],[1,0,1,3]]' } },
     ],
   },
   {

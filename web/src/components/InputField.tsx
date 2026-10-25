@@ -43,6 +43,7 @@ return (
         <div className="matrix-input">
           {matrix.map((row: number[], rIdx: number) => (
             <div key={rIdx} className="matrix-row">
+              <span className="matrix-bracket">{rIdx === 0 ? '[' : rIdx === matrix.length - 1 ? ']' : '|'}</span>
               {row.map((cell: number, cIdx: number) => (
                 <input
                   key={`${rIdx}-${cIdx}`}
@@ -61,6 +62,7 @@ return (
                   }}
                 />
               ))}
+              <span className="matrix-bracket">{rIdx === 0 ? ']' : rIdx === matrix.length - 1 ? '[' : '|'}</span>
             </div>
           ))}
         </div>
